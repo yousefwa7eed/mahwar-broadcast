@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>إرسال إشعار عام — محور</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      background: #f2f4f8;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 24px;
+      width: 100%;
+      max-width: 520px;
+      box-shadow: 0 6px 24px rgba(0,0,0,.08);
+    }
+    h1 {
+      font-size: 20px;
+      margin: 0 0 4px;
+      color: #1f2937;
+    }
+    .sub {
+      color: #6b7280;
+      font-size: 13px;
+      margin: 0 0 20px;
+    }
+    label { display: block; margin: 14px 0 6px; font-size: 14px; color: #374151; }
+    label .req { color: #d31a1a; }
+    input[type=text], input[type=password] {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+      background: #fafafa;
+    }
+    input:focus { outline: 2px solid #3f51b5; outline-offset: 0; border-color: #3f51b5; background: #fff; }
+    .hint { font-size: 12px; color: #9ca3af; margin-top: 5px; }
+    button {
+      width: 100%;
+      margin-top: 22px;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      background: #3f51b5;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:disabled { background: #a5b4fc; cursor: not-allowed; }
+    button:not(:disabled):hover { background: #32408f; }
+    #status {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      display: none;
+      white-space: pre-wrap;
+    }
+    #status.ok  { background: #e7f6ec; color: #166534; border: 1px solid #86d3a2; display: block; }
+    #status.err { background: #fdecea; color: #991b1b; border: 1px solid #f3a7a7; display: block; }
+    .loading { display: inline-block; width: 12px; height: 12px; border: 2px solid #fff;
+               border-top-color: transparent; border-radius: 50%; margin-left: 8px;
+               vertical-align: middle; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .wrap { word-break: break-all; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>إرسال إشعار عام (Broadcast)</h1>
+    <p class="sub">بيوصلك لكل المستخدمين المسجّلين في تطبيق محور — خاصة بالمالك.</p>
+
+    <form id="broadcastForm" novalidate>
+      <label for="title">عنوان الإشعار <span class="req">*</span></label>
+      <input type="text" id="title" required placeholder="مثال: صيانة مجدولة">
+
+      <label for="body">النص / التفاصيل <span class="req">*</span></label>
+      <input type="text" id="body" required placeholder="مثال: التطبيق هيبقى تحت صيانة غدًا">
+
+      <label for="imageUrl">رابط صورة (اختياري)</label>
+      <input type="text" id="imageUrl" placeholder="https://example.com/image.png">
+      <div class="hint">رابط صورة اختياري بيظهر جوه الإشعار وفي الـ push (rich notification).</div>
+
+      <label for="deepLink">الوجهة عند الضغط (اختياري)</label>
+      <input type="text" id="deepLink" placeholder="home أو https://example.com">
+      <div class="hint">
+        اكتب <b>home</b> عشان يفتح الرئيسية جوه التطبيق، أو ضع رابط خارجي يبدأ بـ
+        http:// أو https:// عشان يفتح في المتصفح. لو تركته فارغ يفتح صفحة الإشعارات.
+      </div>
+
+      <label for="secret">مفتاح الإرسال (السر) <span class="req">*</span></label>
+      <input type="password" id="secret" required autocomplete="off" placeholder="اكتب السر وقت الاستخدام">
+      <div class="hint">السر ميتخزنش في الصفحة أبدًا — بيتكتب هنا وبيتبعت مع الطلب بس.</div>
+
+      <button type="submit" id="sendBtn">إرسال الإشعار</button>
+
+      <div id="status" role="status" aria-live="polite"></div>
+    </form>
+  </div>
+
+  <script>
+    const FUNCTION_URL = "https://trgesfzojaoirutkkfcs.supabase.co/functions/v1/send-broadcast-notification";
+
+    const form = document.getElementById("broadcastForm");
+    const statusEl = document.getElementById("status");
+    const sendBtn = document.getElementById("sendBtn");
+
+    function showStatus(message, isError) {
+      statusEl.className = isError ? "err" : "ok";
+      statusEl.textContent = message;
+    }
+
+    form.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      statusEl.textContent = "";
+      statusEl.className = "";
+
+      const title = document.getElementById("title").value.trim();
+      const body = document.getElementById("body").value.trim();
+      const imageUrl = document.getElementById("imageUrl").value.trim();
+      const deepLink = document.getElementById("deepLink").value.trim();
+      const secret = document.getElementById("secret").value.trim();
+
+      if (!title || !body || !secret) {
+        showStatus("يرجى ملء الحقول الإجبارية (العنوان، النص، المفتاح).", true);
+        return;
+      }
+
+      const payload = { title: title, body: body };
+      if (imageUrl) payload.image_url = imageUrl;
+      if (deepLink)  payload.deep_link = deepLink;
+
+      sendBtn.disabled = true;
+      sendBtn.innerHTML = '<span class="loading"></span> جاري الإرسال...';
+
+      try {
+        const res = await fetch(FUNCTION_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-order-event-secret": secret
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json().catch(function () { return null; });
+
+        if (res.ok && data && data.ok) {
+          const n = data.inserted != null ? data.inserted : 0;
+          showStatus("تم إرسال الإشعار بنجاح ✅ لعدد " + n + " من المستخدمين.");
+        } else {
+          const msg = (data && data.error) ? data.error : ("فشل الإرسال (كود " + res.status + ")");
+          let hint = "";
+          if (res.status === 403) hint = " — تأكد من كتابة المفتاح الصحيح.";
+          showStatus("فشل الإرسال: " + msg + hint, true);
+        }
+      } catch (err) {
+        showStatus("خطأ في الاتصال بالخادم: " + (err && err.message ? err.message : err), true);
+      } finally {
+        sendBtn.disabled = false;
+        sendBtn.textContent = "إرسال الإشعار";
+      }
+    });
+  </script>
+</body>
+</html>
