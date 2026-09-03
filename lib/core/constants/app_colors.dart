@@ -39,4 +39,12 @@ class AppColors {
   static const Color success = Color(0xFF28A745);
   static const Color error = Color(0xFFDC3545);
   static const Color warning = Color(0xFFFFC107);
+
+  // Notification Colors (مصدر واحد للألوان الخاصة بالإشعارات)
+  static const Color notifSuccess = Color(0xFF28A745); // مؤكد / مكتمل
+  static const Color notifDanger = Color(0xFFE53935); // مرفوض / ملغى
+  static const Color notifPending = Color(0xFFFF6B00); // جديد / عرض سعر
+  static const Color notifRating = Color(0xFFFFC107); // تقييم
+  static const Color notifBroadcast = Color(0xFF3F51B5); // إشعار عام
+  static const Color notifDefault = Color(0xFFFFC107); // افتراضي
 }

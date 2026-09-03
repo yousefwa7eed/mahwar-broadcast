@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/settings/app_settings_cubit.dart';
 
 class LoginHeaderWidget extends StatelessWidget {
   final String role;
@@ -7,20 +10,29 @@ class LoginHeaderWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isProvider = role == 'provider';
+    final isArabic = context.watch<AppSettingsCubit>().state.locale.languageCode == 'ar';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    final Color accentColor = isProvider
+        ? (isDark ? AppColors.orangePrimary : const Color(0xFF1E1E1E))
+        : AppColors.orangePrimary;
 
     return Column(
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: Image.asset(
-            'assets/banner.png',
+            isProvider ? 'assets/provider_banner.png' : 'assets/owner_banner.png',
             height: 140,
             width: double.infinity,
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) {
               return Container(
                 height: 140,
-                color: isProvider ? const Color(0xFF1E1E1E) : const Color(0xFFFF6B00),
+                color: isProvider
+                    ? (isDark ? AppColors.darkCard : const Color(0xFF1E1E1E))
+                    : AppColors.orangePrimary,
                 child: const Center(
                   child: Icon(Icons.directions_car_rounded, size: 60, color: Colors.white),
                 ),
@@ -36,8 +48,8 @@ class LoginHeaderWidget extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: isProvider
-                    ? const Color(0xFF1E1E1E)
-                    : const Color(0xFFFF6B00).withValues(alpha: 0.1),
+                    ? (isDark ? AppColors.darkCard : const Color(0xFF1E1E1E))
+                    : AppColors.orangePrimary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
@@ -46,16 +58,18 @@ class LoginHeaderWidget extends StatelessWidget {
                   Icon(
                     isProvider ? Icons.build_rounded : Icons.directions_car_rounded,
                     size: 16,
-                    color: isProvider ? Colors.white : const Color(0xFFFF6B00),
+                    color: isProvider ? Colors.white : AppColors.orangePrimary,
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    isProvider ? 'مقدم الخدمة' : 'مالك السيارة',
+                    isProvider
+                        ? (isArabic ? 'مقدم الخدمة' : 'Service Provider')
+                        : (isArabic ? 'مالك السيارة' : 'Car Owner'),
                     style: TextStyle(
-                      fontFamily: 'Cairo',
+                      fontFamily: isArabic ? 'Cairo' : 'Poppins',
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: isProvider ? Colors.white : const Color(0xFFFF6B00),
+                      color: isProvider ? Colors.white : AppColors.orangePrimary,
                     ),
                   ),
                 ],
@@ -65,21 +79,24 @@ class LoginHeaderWidget extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         Text(
-          'سجل دخول',
+          isArabic ? 'سجل دخول' : 'Login',
           style: TextStyle(
-            fontFamily: 'Zain',
+            fontFamily: isArabic ? 'Zain' : 'Poppins',
             fontSize: 32,
             fontWeight: FontWeight.bold,
-            color: isProvider ? const Color(0xFF1E1E1E) : const Color(0xFFFF6B00),
+            color: accentColor,
           ),
         ),
         const SizedBox(height: 4),
         Text(
-          'مرحباً بعودتك، يرجى إدخال بيانات حسابك للمتابعة',
+          isArabic
+              ? 'مرحباً بعودتك، يرجى إدخال بيانات حسابك للمتابعة'
+              : 'Welcome back! Please enter your account credentials to continue.',
+          textAlign: TextAlign.center,
           style: TextStyle(
-            fontFamily: 'Cairo',
+            fontFamily: isArabic ? 'Cairo' : 'Poppins',
             fontSize: 14,
-            color: Colors.grey.shade600,
+            color: colorScheme.onSurface.withValues(alpha: 0.6),
           ),
         ),
       ],

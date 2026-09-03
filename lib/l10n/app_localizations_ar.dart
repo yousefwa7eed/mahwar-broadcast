@@ -212,4 +212,247 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get policyPlaceholder =>
       'سيتم عرض المحتوى الكامل في شاشة مخصصة قريباً.';
+
+  @override
+  String get profile => 'الملف الشخصي';
+
+  @override
+  String get editPersonalInfo => 'تعديل البيانات الشخصية';
+
+  @override
+  String get manageCars => 'إدارة السيارات';
+
+  @override
+  String get languageLabel => 'اللغة';
+
+  @override
+  String get currentLanguage => 'العربية';
+
+  @override
+  String get lightMode => 'الوضع الفاتح';
+
+  @override
+  String get darkMode => 'الوضع الداكن';
+
+  @override
+  String get termsOfUse => 'شروط الاستخدام';
+
+  @override
+  String get logout => 'تسجيل الخروج';
+
+  @override
+  String get carDataRequired => 'بيانات السيارة (إجباري)';
+
+  @override
+  String get selectMakeFirst => 'اختر ماركة السيارة أولاً';
+
+  @override
+  String get selectModelFirst => 'اختر الموديل أولاً';
+
+  @override
+  String get carMakeRequired => 'يرجى اختيار ماركة السيارة';
+
+  @override
+  String get carModelRequired => 'يرجى اختيار موديل السيارة';
+
+  @override
+  String get carYearRequired => 'يرجى اختيار سنة الصنع';
+
+  @override
+  String get myAccount => 'حسابي';
+
+  @override
+  String get orders => 'الطلبات';
+
+  @override
+  String get noNewNotifications => 'لا توجد إشعارات جديدة';
+
+  @override
+  String get welcomeUser => 'مرحباً،';
+
+  @override
+  String get setLocation => 'تحديد الموقع...';
+
+  @override
+  String get sosEmergency => 'S.O.S طوارئ';
+
+  @override
+  String get sosTapForHelp => 'اضغط للحصول على نجدة فورية';
+
+  @override
+  String get emergencyServices => 'خدمات الطوارئ';
+
+  @override
+  String get providerLabel => 'المزود:';
+
+  @override
+  String get orderHistory => 'سجل الطلبات';
+
+  @override
+  String get noOrdersCurrently => 'لا توجد طلبات حالياً';
+
+  @override
+  String get faultLocation => 'موقع العطل';
+
+  @override
+  String get faultDescription => 'وصف العطل / ملاحظات';
+
+  @override
+  String get faultHint => 'اكتب وصفاً مختصراً للعطل...';
+
+  @override
+  String get sendRequest => 'إرسال الطلب';
+
+  @override
+  String get selectLocationOnMap => 'يرجى تحديد موقع السيارة على الخريطة';
+
+  @override
+  String get tapMapToSetLocation => 'اضغط على الخريطة لتحديد الموقع';
+
+  @override
+  String get brokenDownCar => 'السيارة المتعطلة';
+
+  @override
+  String get noCarAdded =>
+      'لم تقم بإضافة سيارة بعد. أضف سيارة من الملف الشخصي أولاً.';
+
+  @override
+  String get selectCar => 'اختر السيارة';
+
+  @override
+  String get trackOrder => 'تتبع الطلب';
+
+  @override
+  String get searchingProvider => 'جاري البحث عن أقرب مزود متاح...';
+
+  @override
+  String get backToHome => 'العودة للرئيسية';
+
+  @override
+  String get searchingProviderTitle => 'جاري البحث عن مزود...';
+
+  @override
+  String get priceOfferReceived => 'تم استلام عرض سعر!';
+
+  @override
+  String get orderConfirmed => 'تم تأكيد الطلب';
+
+  @override
+  String get rejectedByProvider => 'تم رفض الطلب من المزود';
+
+  @override
+  String get priceRejected => 'تم رفض عرض السعر';
+
+  @override
+  String get orderCancelled => 'تم إلغاء الطلب';
+
+  @override
+  String get searchingProviderSub => 'نبحث عن أقرب مزود خدمة متاح لمساعدتك';
+
+  @override
+  String get reviewPriceOfferSub => 'يمكنك مراجعة عرض السعر والقبول أو الرفض';
+
+  @override
+  String get providerOnWaySub => 'المزود في طريقه إليك الآن';
+
+  @override
+  String get resendOrChooseOther =>
+      'يمكنك إعادة إرسال الطلب أو اختيار مزود آخر';
+
+  @override
+  String get orderCancelledSub => 'تم إلغاء هذا الطلب';
+
+  @override
+  String get priceOfferLabel => 'عرض السعر';
+
+  @override
+  String get reject => 'رفض';
+
+  @override
+  String get call => 'اتصال';
+
+  @override
+  String get message => 'رسالة';
+
+  @override
+  String get confirmedLabel => 'مؤكد';
+
+  @override
+  String get noNotifications => 'لا توجد إشعارات';
+
+  @override
+  String get noOrders => 'لا توجد طلبات';
+
+  @override
+  String get allTab => 'الكل';
+
+  @override
+  String get activeTab => 'النشطة';
+
+  @override
+  String get completedTab => 'المكتملة';
+
+  @override
+  String get cancelledTab => 'الملغاة';
+
+  @override
+  String get serviceLabel => 'خدمة:';
+
+  @override
+  String get orderConfirmedShort => 'مؤكد';
+
+  @override
+  String get pendingLabel => 'قيد الإرسال';
+
+  @override
+  String get offerReceivedLabel => 'تم تقديم عرض';
+
+  @override
+  String get cancelledShortLabel => 'ملغي';
+
+  @override
+  String get min => 'دقيقة';
+
+  @override
+  String get markAllRead => 'قراءة الكل';
+
+  @override
+  String get nearbyRequests => 'الطلبات القريبة';
+
+  @override
+  String get offlineMessage => 'أنت غير متاح حالياً';
+
+  @override
+  String get offlineHint => 'فعّل وضع التوفر لاستقبال الطلبات';
+
+  @override
+  String get noNearbyRequests => 'لا توجد طلبات قريبة حالياً';
+
+  @override
+  String get workshopInfo => 'بيانات الورشة';
+
+  @override
+  String get mySpecializations => 'تخصصاتي';
+
+  @override
+  String get attachImages => 'إرفاق صور (اختياري)';
+
+  @override
+  String get camera => 'الكاميرا';
+
+  @override
+  String get gallery => 'المعرض';
+
+  @override
+  String get deleteAccount => 'حذف الحساب';
+
+  @override
+  String get deleteAccountConfirm =>
+      'هل أنت متأكد من حذف حسابك نهائياً؟ لن تتمكن من استعادته.';
+
+  @override
+  String get cancel => 'إلغاء';
+
+  @override
+  String get savedSuccessfully => 'تم الحفظ بنجاح';
 }

@@ -505,6 +505,486 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'سيتم عرض المحتوى الكامل في شاشة مخصصة قريباً.'**
   String get policyPlaceholder;
+
+  /// No description provided for @profile.
+  ///
+  /// In ar, this message translates to:
+  /// **'الملف الشخصي'**
+  String get profile;
+
+  /// No description provided for @editPersonalInfo.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل البيانات الشخصية'**
+  String get editPersonalInfo;
+
+  /// No description provided for @manageCars.
+  ///
+  /// In ar, this message translates to:
+  /// **'إدارة السيارات'**
+  String get manageCars;
+
+  /// No description provided for @languageLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'اللغة'**
+  String get languageLabel;
+
+  /// No description provided for @currentLanguage.
+  ///
+  /// In ar, this message translates to:
+  /// **'العربية'**
+  String get currentLanguage;
+
+  /// No description provided for @lightMode.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوضع الفاتح'**
+  String get lightMode;
+
+  /// No description provided for @darkMode.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوضع الداكن'**
+  String get darkMode;
+
+  /// No description provided for @termsOfUse.
+  ///
+  /// In ar, this message translates to:
+  /// **'شروط الاستخدام'**
+  String get termsOfUse;
+
+  /// No description provided for @logout.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الخروج'**
+  String get logout;
+
+  /// No description provided for @carDataRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'بيانات السيارة (إجباري)'**
+  String get carDataRequired;
+
+  /// No description provided for @selectMakeFirst.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر ماركة السيارة أولاً'**
+  String get selectMakeFirst;
+
+  /// No description provided for @selectModelFirst.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر الموديل أولاً'**
+  String get selectModelFirst;
+
+  /// No description provided for @carMakeRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'يرجى اختيار ماركة السيارة'**
+  String get carMakeRequired;
+
+  /// No description provided for @carModelRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'يرجى اختيار موديل السيارة'**
+  String get carModelRequired;
+
+  /// No description provided for @carYearRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'يرجى اختيار سنة الصنع'**
+  String get carYearRequired;
+
+  /// No description provided for @myAccount.
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابي'**
+  String get myAccount;
+
+  /// No description provided for @orders.
+  ///
+  /// In ar, this message translates to:
+  /// **'الطلبات'**
+  String get orders;
+
+  /// No description provided for @noNewNotifications.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد إشعارات جديدة'**
+  String get noNewNotifications;
+
+  /// No description provided for @welcomeUser.
+  ///
+  /// In ar, this message translates to:
+  /// **'مرحباً،'**
+  String get welcomeUser;
+
+  /// No description provided for @setLocation.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحديد الموقع...'**
+  String get setLocation;
+
+  /// No description provided for @sosEmergency.
+  ///
+  /// In ar, this message translates to:
+  /// **'S.O.S طوارئ'**
+  String get sosEmergency;
+
+  /// No description provided for @sosTapForHelp.
+  ///
+  /// In ar, this message translates to:
+  /// **'اضغط للحصول على نجدة فورية'**
+  String get sosTapForHelp;
+
+  /// No description provided for @emergencyServices.
+  ///
+  /// In ar, this message translates to:
+  /// **'خدمات الطوارئ'**
+  String get emergencyServices;
+
+  /// No description provided for @providerLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'المزود:'**
+  String get providerLabel;
+
+  /// No description provided for @orderHistory.
+  ///
+  /// In ar, this message translates to:
+  /// **'سجل الطلبات'**
+  String get orderHistory;
+
+  /// No description provided for @noOrdersCurrently.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد طلبات حالياً'**
+  String get noOrdersCurrently;
+
+  /// No description provided for @faultLocation.
+  ///
+  /// In ar, this message translates to:
+  /// **'موقع العطل'**
+  String get faultLocation;
+
+  /// No description provided for @faultDescription.
+  ///
+  /// In ar, this message translates to:
+  /// **'وصف العطل / ملاحظات'**
+  String get faultDescription;
+
+  /// No description provided for @faultHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب وصفاً مختصراً للعطل...'**
+  String get faultHint;
+
+  /// No description provided for @sendRequest.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال الطلب'**
+  String get sendRequest;
+
+  /// No description provided for @selectLocationOnMap.
+  ///
+  /// In ar, this message translates to:
+  /// **'يرجى تحديد موقع السيارة على الخريطة'**
+  String get selectLocationOnMap;
+
+  /// No description provided for @tapMapToSetLocation.
+  ///
+  /// In ar, this message translates to:
+  /// **'اضغط على الخريطة لتحديد الموقع'**
+  String get tapMapToSetLocation;
+
+  /// No description provided for @brokenDownCar.
+  ///
+  /// In ar, this message translates to:
+  /// **'السيارة المتعطلة'**
+  String get brokenDownCar;
+
+  /// No description provided for @noCarAdded.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تقم بإضافة سيارة بعد. أضف سيارة من الملف الشخصي أولاً.'**
+  String get noCarAdded;
+
+  /// No description provided for @selectCar.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر السيارة'**
+  String get selectCar;
+
+  /// No description provided for @trackOrder.
+  ///
+  /// In ar, this message translates to:
+  /// **'تتبع الطلب'**
+  String get trackOrder;
+
+  /// No description provided for @searchingProvider.
+  ///
+  /// In ar, this message translates to:
+  /// **'جاري البحث عن أقرب مزود متاح...'**
+  String get searchingProvider;
+
+  /// No description provided for @backToHome.
+  ///
+  /// In ar, this message translates to:
+  /// **'العودة للرئيسية'**
+  String get backToHome;
+
+  /// No description provided for @searchingProviderTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'جاري البحث عن مزود...'**
+  String get searchingProviderTitle;
+
+  /// No description provided for @priceOfferReceived.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم استلام عرض سعر!'**
+  String get priceOfferReceived;
+
+  /// No description provided for @orderConfirmed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تأكيد الطلب'**
+  String get orderConfirmed;
+
+  /// No description provided for @rejectedByProvider.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم رفض الطلب من المزود'**
+  String get rejectedByProvider;
+
+  /// No description provided for @priceRejected.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم رفض عرض السعر'**
+  String get priceRejected;
+
+  /// No description provided for @orderCancelled.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إلغاء الطلب'**
+  String get orderCancelled;
+
+  /// No description provided for @searchingProviderSub.
+  ///
+  /// In ar, this message translates to:
+  /// **'نبحث عن أقرب مزود خدمة متاح لمساعدتك'**
+  String get searchingProviderSub;
+
+  /// No description provided for @reviewPriceOfferSub.
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك مراجعة عرض السعر والقبول أو الرفض'**
+  String get reviewPriceOfferSub;
+
+  /// No description provided for @providerOnWaySub.
+  ///
+  /// In ar, this message translates to:
+  /// **'المزود في طريقه إليك الآن'**
+  String get providerOnWaySub;
+
+  /// No description provided for @resendOrChooseOther.
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك إعادة إرسال الطلب أو اختيار مزود آخر'**
+  String get resendOrChooseOther;
+
+  /// No description provided for @orderCancelledSub.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إلغاء هذا الطلب'**
+  String get orderCancelledSub;
+
+  /// No description provided for @priceOfferLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض السعر'**
+  String get priceOfferLabel;
+
+  /// No description provided for @reject.
+  ///
+  /// In ar, this message translates to:
+  /// **'رفض'**
+  String get reject;
+
+  /// No description provided for @call.
+  ///
+  /// In ar, this message translates to:
+  /// **'اتصال'**
+  String get call;
+
+  /// No description provided for @message.
+  ///
+  /// In ar, this message translates to:
+  /// **'رسالة'**
+  String get message;
+
+  /// No description provided for @confirmedLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'مؤكد'**
+  String get confirmedLabel;
+
+  /// No description provided for @noNotifications.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد إشعارات'**
+  String get noNotifications;
+
+  /// No description provided for @noOrders.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد طلبات'**
+  String get noOrders;
+
+  /// No description provided for @allTab.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكل'**
+  String get allTab;
+
+  /// No description provided for @activeTab.
+  ///
+  /// In ar, this message translates to:
+  /// **'النشطة'**
+  String get activeTab;
+
+  /// No description provided for @completedTab.
+  ///
+  /// In ar, this message translates to:
+  /// **'المكتملة'**
+  String get completedTab;
+
+  /// No description provided for @cancelledTab.
+  ///
+  /// In ar, this message translates to:
+  /// **'الملغاة'**
+  String get cancelledTab;
+
+  /// No description provided for @serviceLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'خدمة:'**
+  String get serviceLabel;
+
+  /// No description provided for @orderConfirmedShort.
+  ///
+  /// In ar, this message translates to:
+  /// **'مؤكد'**
+  String get orderConfirmedShort;
+
+  /// No description provided for @pendingLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'قيد الإرسال'**
+  String get pendingLabel;
+
+  /// No description provided for @offerReceivedLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تقديم عرض'**
+  String get offerReceivedLabel;
+
+  /// No description provided for @cancelledShortLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'ملغي'**
+  String get cancelledShortLabel;
+
+  /// No description provided for @min.
+  ///
+  /// In ar, this message translates to:
+  /// **'دقيقة'**
+  String get min;
+
+  /// No description provided for @markAllRead.
+  ///
+  /// In ar, this message translates to:
+  /// **'قراءة الكل'**
+  String get markAllRead;
+
+  /// No description provided for @nearbyRequests.
+  ///
+  /// In ar, this message translates to:
+  /// **'الطلبات القريبة'**
+  String get nearbyRequests;
+
+  /// No description provided for @offlineMessage.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت غير متاح حالياً'**
+  String get offlineMessage;
+
+  /// No description provided for @offlineHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'فعّل وضع التوفر لاستقبال الطلبات'**
+  String get offlineHint;
+
+  /// No description provided for @noNearbyRequests.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد طلبات قريبة حالياً'**
+  String get noNearbyRequests;
+
+  /// No description provided for @workshopInfo.
+  ///
+  /// In ar, this message translates to:
+  /// **'بيانات الورشة'**
+  String get workshopInfo;
+
+  /// No description provided for @mySpecializations.
+  ///
+  /// In ar, this message translates to:
+  /// **'تخصصاتي'**
+  String get mySpecializations;
+
+  /// No description provided for @attachImages.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرفاق صور (اختياري)'**
+  String get attachImages;
+
+  /// No description provided for @camera.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكاميرا'**
+  String get camera;
+
+  /// No description provided for @gallery.
+  ///
+  /// In ar, this message translates to:
+  /// **'المعرض'**
+  String get gallery;
+
+  /// No description provided for @deleteAccount.
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف الحساب'**
+  String get deleteAccount;
+
+  /// No description provided for @deleteAccountConfirm.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل أنت متأكد من حذف حسابك نهائياً؟ لن تتمكن من استعادته.'**
+  String get deleteAccountConfirm;
+
+  /// No description provided for @cancel.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء'**
+  String get cancel;
+
+  /// No description provided for @savedSuccessfully.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الحفظ بنجاح'**
+  String get savedSuccessfully;
 }
 
 class _AppLocalizationsDelegate

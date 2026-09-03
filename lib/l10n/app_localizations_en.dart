@@ -216,4 +216,249 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get policyPlaceholder =>
       'The full content will be shown on a dedicated screen soon.';
+
+  @override
+  String get profile => 'Profile';
+
+  @override
+  String get editPersonalInfo => 'Edit Personal Info';
+
+  @override
+  String get manageCars => 'Manage Cars';
+
+  @override
+  String get languageLabel => 'Language';
+
+  @override
+  String get currentLanguage => 'English';
+
+  @override
+  String get lightMode => 'Light Mode';
+
+  @override
+  String get darkMode => 'Dark Mode';
+
+  @override
+  String get termsOfUse => 'Terms of Use';
+
+  @override
+  String get logout => 'Logout';
+
+  @override
+  String get carDataRequired => 'Car Details (Required)';
+
+  @override
+  String get selectMakeFirst => 'Select car make first';
+
+  @override
+  String get selectModelFirst => 'Select model first';
+
+  @override
+  String get carMakeRequired => 'Please select car make';
+
+  @override
+  String get carModelRequired => 'Please select car model';
+
+  @override
+  String get carYearRequired => 'Please select year';
+
+  @override
+  String get myAccount => 'My Account';
+
+  @override
+  String get orders => 'Orders';
+
+  @override
+  String get noNewNotifications => 'No new notifications';
+
+  @override
+  String get welcomeUser => 'Hello,';
+
+  @override
+  String get setLocation => 'Set location...';
+
+  @override
+  String get sosEmergency => 'S.O.S Emergency';
+
+  @override
+  String get sosTapForHelp => 'Tap for immediate assistance';
+
+  @override
+  String get emergencyServices => 'Emergency Services';
+
+  @override
+  String get providerLabel => 'Provider:';
+
+  @override
+  String get orderHistory => 'Order History';
+
+  @override
+  String get noOrdersCurrently => 'No orders yet';
+
+  @override
+  String get faultLocation => 'Breakdown Location';
+
+  @override
+  String get faultDescription => 'Breakdown description / notes';
+
+  @override
+  String get faultHint => 'Write a brief description of the fault...';
+
+  @override
+  String get sendRequest => 'Send Request';
+
+  @override
+  String get selectLocationOnMap => 'Please select car location on the map';
+
+  @override
+  String get tapMapToSetLocation => 'Tap the map to set location';
+
+  @override
+  String get brokenDownCar => 'Broken-down Car';
+
+  @override
+  String get noCarAdded =>
+      'You haven\'t added a car yet. Add one from your profile first.';
+
+  @override
+  String get selectCar => 'Select Car';
+
+  @override
+  String get trackOrder => 'Track Order';
+
+  @override
+  String get searchingProvider => 'Searching for nearest available provider...';
+
+  @override
+  String get backToHome => 'Back to Home';
+
+  @override
+  String get searchingProviderTitle => 'Searching for provider...';
+
+  @override
+  String get priceOfferReceived => 'Price offer received!';
+
+  @override
+  String get orderConfirmed => 'Order Confirmed';
+
+  @override
+  String get rejectedByProvider => 'Rejected by provider';
+
+  @override
+  String get priceRejected => 'Price rejected';
+
+  @override
+  String get orderCancelled => 'Order Cancelled';
+
+  @override
+  String get searchingProviderSub =>
+      'Looking for nearest available provider to help you';
+
+  @override
+  String get reviewPriceOfferSub =>
+      'You can review the price offer and accept or reject';
+
+  @override
+  String get providerOnWaySub => 'The provider is on their way to you now';
+
+  @override
+  String get resendOrChooseOther =>
+      'You can resend the request or choose another provider';
+
+  @override
+  String get orderCancelledSub => 'This order has been cancelled';
+
+  @override
+  String get priceOfferLabel => 'Price Offer';
+
+  @override
+  String get reject => 'Reject';
+
+  @override
+  String get call => 'Call';
+
+  @override
+  String get message => 'Message';
+
+  @override
+  String get confirmedLabel => 'Confirmed';
+
+  @override
+  String get noNotifications => 'No notifications';
+
+  @override
+  String get noOrders => 'No orders';
+
+  @override
+  String get allTab => 'All';
+
+  @override
+  String get activeTab => 'Active';
+
+  @override
+  String get completedTab => 'Completed';
+
+  @override
+  String get cancelledTab => 'Cancelled';
+
+  @override
+  String get serviceLabel => 'Service:';
+
+  @override
+  String get orderConfirmedShort => 'Confirmed';
+
+  @override
+  String get pendingLabel => 'Pending';
+
+  @override
+  String get offerReceivedLabel => 'Offer received';
+
+  @override
+  String get cancelledShortLabel => 'Cancelled';
+
+  @override
+  String get min => 'min';
+
+  @override
+  String get markAllRead => 'Mark all read';
+
+  @override
+  String get nearbyRequests => 'Nearby Requests';
+
+  @override
+  String get offlineMessage => 'You are currently offline';
+
+  @override
+  String get offlineHint => 'Enable availability to receive requests';
+
+  @override
+  String get noNearbyRequests => 'No nearby requests at the moment';
+
+  @override
+  String get workshopInfo => 'Workshop Info';
+
+  @override
+  String get mySpecializations => 'My Specializations';
+
+  @override
+  String get attachImages => 'Attach Images (Optional)';
+
+  @override
+  String get camera => 'Camera';
+
+  @override
+  String get gallery => 'Gallery';
+
+  @override
+  String get deleteAccount => 'Delete Account';
+
+  @override
+  String get deleteAccountConfirm =>
+      'Are you sure you want to permanently delete your account? This cannot be undone.';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get savedSuccessfully => 'Saved Successfully';
 }

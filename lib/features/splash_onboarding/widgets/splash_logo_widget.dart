@@ -11,20 +11,25 @@ class SplashLogoWidget extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF6B00),
-                borderRadius: BorderRadius.circular(12),
-              ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
               child: Image.asset(
                 'assets/app_icon.png',
-                width: 24,
-                height: 24,
-                color: Colors.white,
+                width: 38,
+                height: 38,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF6B00),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.hub_rounded, color: Colors.white, size: 22),
+                ),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
             RichText(
               text: const TextSpan(
                 style: TextStyle(

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/settings/app_settings_cubit.dart';
 
 class LoginFormWidget extends StatefulWidget {
   final String role;
-  final Function(String identifier, String password, bool isPhone) onSubmit;
+  final Function(String identifier, String password) onSubmit;
   final VoidCallback onSignupTap;
 
   const LoginFormWidget({
@@ -20,7 +23,6 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
   final _formKey = GlobalKey<FormState>();
   final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isPhoneMode = true;
   bool _obscurePassword = true;
 
   @override
@@ -35,7 +37,6 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
       widget.onSubmit(
         _identifierController.text.trim(),
         _passwordController.text,
-        _isPhoneMode,
       );
     }
   }
@@ -43,78 +44,33 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
   @override
   Widget build(BuildContext context) {
     final bool isProvider = widget.role == 'provider';
-    final Color primaryColor =
-        isProvider ? const Color(0xFF1E1E1E) : const Color(0xFFFF6B00);
+    final isArabic = context.watch<AppSettingsCubit>().state.locale.languageCode == 'ar';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    final Color primaryColor = isProvider
+        ? (isDark ? AppColors.orangePrimary : const Color(0xFF1E1E1E))
+        : AppColors.orangePrimary;
 
     return Form(
       key: _formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: ChoiceChip(
-                  label: const Center(
-                    child: Text(
-                      'رقم الهاتف',
-                      style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  selected: _isPhoneMode,
-                  selectedColor: primaryColor.withValues(alpha: 0.15),
-                  labelStyle: TextStyle(
-                    color: _isPhoneMode ? primaryColor : Colors.grey.shade700,
-                  ),
-                  onSelected: (selected) {
-                    if (selected) {
-                      setState(() {
-                        _isPhoneMode = true;
-                        _identifierController.clear();
-                      });
-                    }
-                  },
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ChoiceChip(
-                  label: const Center(
-                    child: Text(
-                      'البريد الإلكتروني',
-                      style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  selected: !_isPhoneMode,
-                  selectedColor: primaryColor.withValues(alpha: 0.15),
-                  labelStyle: TextStyle(
-                    color: !_isPhoneMode ? primaryColor : Colors.grey.shade700,
-                  ),
-                  onSelected: (selected) {
-                    if (selected) {
-                      setState(() {
-                        _isPhoneMode = false;
-                        _identifierController.clear();
-                      });
-                    }
-                  },
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
+          // حقل واحد يقبل رقم الهاتف أو البريد الإلكتروني، أيًا كان اللي
+          // سجّل بيه المستخدم حسابه من الأول - النظام بيتعرف عليه تلقائيًا.
           TextFormField(
             controller: _identifierController,
-            keyboardType:
-                _isPhoneMode ? TextInputType.phone : TextInputType.emailAddress,
+            keyboardType: TextInputType.text,
             textDirection: TextDirection.ltr,
             decoration: InputDecoration(
-              labelText: _isPhoneMode ? 'رقم الهاتف' : 'البريد الإلكتروني',
-              hintText: _isPhoneMode ? '01xxxxxxxxx' : 'example@domain.com',
-              prefixIcon: Icon(
-                _isPhoneMode ? Icons.phone_android_rounded : Icons.email_rounded,
-                color: primaryColor,
+              labelText: isArabic ? 'رقم الهاتف أو البريد الإلكتروني' : 'Phone or Email',
+              hintText: isArabic ? '01xxxxxxxxx أو example@domain.com' : '01xxxxxxxxx or example@domain.com',
+              hintStyle: TextStyle(
+                fontSize: 12,
+                color: colorScheme.onSurface.withValues(alpha: 0.5),
               ),
+              prefixIcon: Icon(Icons.person_rounded, color: primaryColor),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
@@ -123,24 +79,24 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
             ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return _isPhoneMode
-                    ? 'يرجى إدخال رقم الهاتف'
-                    : 'يرجى إدخال البريد الإلكتروني';
+                return isArabic ? 'يرجى إدخال رقم الهاتف أو البريد الإلكتروني' : 'Please enter your phone or email';
               }
               return null;
             },
           ),
           const SizedBox(height: 16),
+
+          // Password Field
           TextFormField(
             controller: _passwordController,
             obscureText: _obscurePassword,
             decoration: InputDecoration(
-              labelText: 'كلمة المرور',
+              labelText: isArabic ? 'كلمة المرور' : 'Password',
               prefixIcon: Icon(Icons.lock_rounded, color: primaryColor),
               suffixIcon: IconButton(
                 icon: Icon(
                   _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                  color: Colors.grey.shade600,
+                  color: colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
                 onPressed: () {
                   setState(() {
@@ -156,12 +112,14 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'يرجى إدخال كلمة المرور';
+                return isArabic ? 'يرجى إدخال كلمة المرور' : 'Please enter your password';
               }
               return null;
             },
           ),
           const SizedBox(height: 28),
+
+          // Submit Button
           SizedBox(
             width: double.infinity,
             height: 52,
@@ -173,10 +131,10 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
                 ),
               ),
               onPressed: _submit,
-              child: const Text(
-                'تسجيل الدخول',
+              child: Text(
+                isArabic ? 'تسجيل الدخول' : 'Login',
                 style: TextStyle(
-                  fontFamily: 'Cairo',
+                  fontFamily: isArabic ? 'Cairo' : 'Poppins',
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
@@ -185,23 +143,25 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
             ),
           ),
           const SizedBox(height: 20),
+
+          // Signup Redirect Link
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                'ليس لديك حساب؟ ',
+                isArabic ? 'ليس لديك حساب؟ ' : "Don't have an account? ",
                 style: TextStyle(
-                  fontFamily: 'Cairo',
+                  fontFamily: isArabic ? 'Cairo' : 'Poppins',
                   fontSize: 14,
-                  color: Colors.grey.shade600,
+                  color: colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
               GestureDetector(
                 onTap: widget.onSignupTap,
                 child: Text(
-                  'إنشاء حساب جديد',
+                  isArabic ? 'إنشاء حساب جديد' : 'Create Account',
                   style: TextStyle(
-                    fontFamily: 'Cairo',
+                    fontFamily: isArabic ? 'Cairo' : 'Poppins',
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: primaryColor,

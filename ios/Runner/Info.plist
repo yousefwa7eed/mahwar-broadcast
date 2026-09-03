@@ -66,5 +66,13 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Mahwar uses your location to show your current address and connect you with nearby service providers.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app requires access to the camera to take photos of your car's fault.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app requires access to the photo library to select photos of your car's fault.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app requires access to the microphone if you want to record videos (optional).</string>
 </dict>
 </plist>

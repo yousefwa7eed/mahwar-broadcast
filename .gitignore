@@ -79,3 +79,6 @@ Thumbs.db
 # Sensitive files (auto-detected)
 build
 
+# Firebase service account keys
+*firebase-adminsdk*.json
+serviceAccountKey.json

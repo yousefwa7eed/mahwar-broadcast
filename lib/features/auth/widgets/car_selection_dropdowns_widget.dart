@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../../../l10n/app_localizations.dart';
 
 class CarSelectionDropdownsWidget extends StatefulWidget {
   final Function(String? make, String? model, String? year) onChanged;
@@ -102,12 +103,14 @@ class _CarSelectionDropdownsWidgetState
       );
     }
 
+    final l10n = AppLocalizations.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'بيانات السيارة (إجباري)',
-          style: TextStyle(
+        Text(
+          l10n?.carDataRequired ?? 'بيانات السيارة (إجباري)',
+          style: const TextStyle(
             fontFamily: 'Cairo',
             fontSize: 15,
             fontWeight: FontWeight.bold,
@@ -116,11 +119,10 @@ class _CarSelectionDropdownsWidgetState
         ),
         const SizedBox(height: 12),
 
-        // Car Make Dropdown
         DropdownButtonFormField<String>(
           initialValue: _selectedMake,
           decoration: InputDecoration(
-            labelText: 'نوع السيارة (الماركة)',
+            labelText: l10n?.carMake ?? 'نوع السيارة (الماركة)',
             prefixIcon:
                 const Icon(Icons.time_to_leave_rounded, color: Color(0xFFFF6B00)),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
@@ -132,17 +134,16 @@ class _CarSelectionDropdownsWidgetState
             );
           }).toList(),
           onChanged: _onMakeChanged,
-          validator: (value) => value == null ? 'يرجى اختيار ماركة السيارة' : null,
+          validator: (value) => value == null ? (l10n?.carMakeRequired ?? 'يرجى اختيار ماركة السيارة') : null,
         ),
         const SizedBox(height: 14),
 
-        // Car Model Dropdown
         DropdownButtonFormField<String>(
           initialValue: _selectedModel,
-          disabledHint: const Text('اختر ماركة السيارة أولاً',
-              style: TextStyle(fontFamily: 'Cairo')),
+          disabledHint: Text(l10n?.selectMakeFirst ?? 'اختر ماركة السيارة أولاً',
+              style: const TextStyle(fontFamily: 'Cairo')),
           decoration: InputDecoration(
-            labelText: 'موديل السيارة',
+            labelText: l10n?.carModel ?? 'موديل السيارة',
             prefixIcon: const Icon(Icons.car_repair_rounded,
                 color: Color(0xFFFF6B00)),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
@@ -154,17 +155,16 @@ class _CarSelectionDropdownsWidgetState
             );
           }).toList(),
           onChanged: _selectedMake == null ? null : _onModelChanged,
-          validator: (value) => value == null ? 'يرجى اختيار موديل السيارة' : null,
+          validator: (value) => value == null ? (l10n?.carModelRequired ?? 'يرجى اختيار موديل السيارة') : null,
         ),
         const SizedBox(height: 14),
 
-        // Car Year Dropdown
         DropdownButtonFormField<String>(
           initialValue: _selectedYear,
-          disabledHint: const Text('اختر الموديل أولاً',
-              style: TextStyle(fontFamily: 'Cairo')),
+          disabledHint: Text(l10n?.selectModelFirst ?? 'اختر الموديل أولاً',
+              style: const TextStyle(fontFamily: 'Cairo')),
           decoration: InputDecoration(
-            labelText: 'سنة الصنع',
+            labelText: l10n?.carYear ?? 'سنة الصنع',
             prefixIcon:
                 const Icon(Icons.calendar_today_rounded, color: Color(0xFFFF6B00)),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
@@ -176,7 +176,7 @@ class _CarSelectionDropdownsWidgetState
             );
           }).toList(),
           onChanged: _selectedModel == null ? null : _onYearChanged,
-          validator: (value) => value == null ? 'يرجى اختيار سنة الصنع' : null,
+          validator: (value) => value == null ? (l10n?.carYearRequired ?? 'يرجى اختيار سنة الصنع') : null,
         ),
       ],
     );

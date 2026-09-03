@@ -1,88 +1,102 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/auth/auth_cubit.dart';
+import '../../core/auth/phone_utils.dart';
+import '../../core/settings/app_settings_cubit.dart';
+import '../../core/settings/app_settings_state.dart';
 import 'widgets/owner_signup_form_widget.dart';
+import 'widgets/error_dialog.dart';
 
 class SignupOwnerScreen extends StatelessWidget {
   const SignupOwnerScreen({super.key});
 
-  void _handleSignup(
-    BuildContext context,
-    String fullName,
-    String phone,
-    String? email,
-    String? nationalId,
-    String make,
-    String model,
-    String year,
-    String password,
-  ) {
-    // Navigate to OTP Verification Screen
-    context.go('/otp-check?role=car_owner&target=$phone');
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded, color: Color(0xFF1E1E1E)),
-          onPressed: () => context.pop(),
-        ),
-        title: const Text(
-          'حساب مالك سيارة جديد',
-          style: TextStyle(
-            fontFamily: 'Cairo',
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1E1E1E),
-          ),
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'إنشاء حساب جديد',
+    return BlocListener<AuthCubit, AuthState>(
+      listener: (context, state) {
+        if (state is AuthAuthenticated) {
+          context.go('/home/owner');
+        } else if (state is AuthError) {
+          showErrorDialog(context, state.message);
+        }
+      },
+      child: BlocBuilder<AppSettingsCubit, AppSettingsState>(
+        builder: (context, settings) {
+          final isArabic = settings.locale.languageCode == 'ar';
+          final isDarkMode = settings.themeMode == ThemeMode.dark;
+
+          return Scaffold(
+            backgroundColor: isDarkMode ? const Color(0xFF121212) : Colors.white,
+            appBar: AppBar(
+              backgroundColor: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+              elevation: 0,
+              leading: IconButton(
+                icon: Icon(
+                  Icons.arrow_back_ios_rounded,
+                  color: isDarkMode ? Colors.white : const Color(0xFF1E1E1E),
+                ),
+                onPressed: () => context.pop(),
+              ),
+              title: Text(
+                isArabic ? 'حساب مالك سيارة جديد' : 'New Car Owner Account',
                 style: TextStyle(
-                  fontFamily: 'Zain',
-                  fontSize: 32,
+                  fontFamily: isArabic ? 'Cairo' : 'Poppins',
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFFFF6B00),
+                  color: isDarkMode ? Colors.white : const Color(0xFF1E1E1E),
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                'سجل بياناتك وسيارتك لتتمكن من طلب خدمات الطوارئ',
-                style: TextStyle(
-                  fontFamily: 'Cairo',
-                  fontSize: 14,
-                  color: Colors.grey.shade600,
+            ),
+            body: SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isArabic ? 'إنشاء حساب جديد' : 'Create New Account',
+                      style: TextStyle(
+                        fontFamily: isArabic ? 'Zain' : 'Poppins',
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFFFF6B00),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      isArabic
+                          ? 'سجل بياناتك وسيارتك لتتمكن من طلب خدمات الطوارئ'
+                          : 'Register your details and car to request emergency services',
+                      style: TextStyle(
+                        fontFamily: isArabic ? 'Cairo' : 'Poppins',
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    OwnerSignupFormWidget(
+                      onSubmit: (fullName, phone, email, nationalId, make, model, year, password) {
+                        final normalizedPhone = PhoneUtils.normalize(phone);
+                        final emailToUse = email ?? '$normalizedPhone@mahwar.app';
+                        context.read<AuthCubit>().signUp(
+                          email: emailToUse,
+                          password: password,
+                          fullName: fullName,
+                          phoneNumber: normalizedPhone,
+                          role: 'car_owner',
+                          nationalId: nationalId,
+                          carMake: make,
+                          carModel: model,
+                          carYear: int.tryParse(year) ?? 2024,
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 28),
-              OwnerSignupFormWidget(
-                onSubmit: (fullName, phone, email, nationalId, make, model, year, password) {
-                  _handleSignup(
-                    context,
-                    fullName,
-                    phone,
-                    email,
-                    nationalId,
-                    make,
-                    model,
-                    year,
-                    password,
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
