@@ -254,9 +254,11 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
 
     setState(() => _isSubmitting = true);
 
+    final List<String> providerImageUrls = [];
+    final List<String> uploadedPaths = [];
+
     try {
       // رفع صور المزوّد إلى التخزين إن وُجدت قبل إرسال العرض
-      final List<String> providerImageUrls = [];
       for (var i = 0; i < _providerImages.length; i++) {
         final image = _providerImages[i];
         final fileExt = image.path.split('.').last;
@@ -268,6 +270,7 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
           File(image.path),
           fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
         );
+        uploadedPaths.add(filePath);
         providerImageUrls.add(
           _client.storage.from('order-attachments').getPublicUrl(filePath),
         );
@@ -292,6 +295,14 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
         context.go('/home/provider');
       }
     } catch (e) {
+      // تنظيف الصور المرفوعة إن فشل إرسال العرض حتى لا تبقى ملفات يتيمة
+      if (uploadedPaths.isNotEmpty) {
+        try {
+          await _client.storage.from('order-attachments').remove(uploadedPaths);
+        } catch (_) {
+          // تجاهل أخطاء التنظيف (أفضل جهد)
+        }
+      }
       if (mounted) {
         if (_handleOrderNotPending(e)) return;
         setState(() => _isSubmitting = false);
