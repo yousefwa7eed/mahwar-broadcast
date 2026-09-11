@@ -29,17 +29,25 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   bool _isLoadingOrders = true;
   String _addressText = '';
   bool _isLocatingAddress = false;
+  RealtimeChannel? _ordersChannel;
 
   @override
   void initState() {
     super.initState();
     _loadRecentOrders();
     _loadCurrentAddress();
+    _subscribeToOrderChanges();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final cubit = context.read<NotificationCubit>();
       cubit.loadNotifications();
       cubit.subscribeToNotifications();
     });
+  }
+
+  @override
+  void dispose() {
+    _ordersChannel?.unsubscribe();
+    super.dispose();
   }
 
   /// يجيب العنوان الحالي الحقيقي للجهاز ويعرضه في أعلى الصفحة.
@@ -89,6 +97,28 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         setState(() => _isLoadingOrders = false);
       }
     }
+  }
+
+  /// اشتراك حي على طلبات هذا المالك حتى يتحدّث البيت فورياً عند أي تغيير
+  /// في حالة الطلب (مثل تأكيد السعر، إلغاء، اكتمال) دون انتظار فتح الصفحة.
+  void _subscribeToOrderChanges() {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    _ordersChannel = _client
+        .channel('owner-orders-$userId')
+        .onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'orders',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'car_owner_id',
+        value: userId,
+      ),
+      callback: (payload) => _loadRecentOrders(),
+    )
+        .subscribe();
   }
 
   @override
