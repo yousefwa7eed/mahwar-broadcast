@@ -87,6 +87,8 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
   }
 
   /// يجيب بيانات المزوّد المرتبط بالطلب عبر RPC آمن (profiles مخفي بالـ RLS)
+  bool _isOwner(Order order) => _client.auth.currentUser?.id == order.carOwnerId;
+
   Future<void> _loadProviderInfo(String providerId) async {
     try {
       final response = await _client.rpc('get_provider_details', params: {
@@ -359,7 +361,11 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
             if (context.canPop()) {
               context.pop();
             } else {
-              context.go('/home/owner');
+              // رجوع للرئيسية الصحيحة حسب دور المشاهد (وليست دائماً /home/owner).
+              final order = _order;
+              final userId = _client.auth.currentUser?.id;
+              final isOwner = order == null || order.carOwnerId == userId;
+              context.go(isOwner ? '/home/owner' : '/home/provider');
             }
           },
         ),
@@ -421,8 +427,9 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
               estimatedMinutes: order.etaMinutes ?? 0,
               providerNotes: order.providerNotes,
               attachments: order.providerAttachments ?? const [],
-              onAccept: _isActing ? null : _acceptPrice,
-              onReject: _isActing ? null : _rejectPrice,
+              // أزرار القبول/الرفض للمالك فقط — المزوّد المشاهد لا يملك الحالة.
+              onAccept: _isOwner(order) && !_isActing ? _acceptPrice : null,
+              onReject: _isOwner(order) && !_isActing ? _rejectPrice : null,
             ),
 
           // Confirmed - Show contact options
@@ -457,7 +464,9 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                onPressed: () => context.go('/home/owner'),
+                onPressed: () => context.go(
+                  _isOwner(order) ? '/home/owner' : '/home/provider',
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.orangePrimary,
                   shape: RoundedRectangleBorder(
@@ -531,7 +540,9 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                onPressed: () => context.go('/home/owner'),
+                onPressed: () => context.go(
+                  _isOwner(order) ? '/home/owner' : '/home/provider',
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.orangePrimary,
                   shape: RoundedRectangleBorder(
