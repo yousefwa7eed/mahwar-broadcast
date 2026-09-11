@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/errors/rpc_error_translator.dart';
 import '../../../core/models/order.dart';
 import '../../../core/models/provider_details.dart';
 import '../../../l10n/app_localizations.dart';
@@ -190,7 +191,7 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
         setState(() => _isActing = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('حدث خطأ أثناء تأكيد الطلب: $e'),
+            content: Text(RpcErrorTranslator.translate(e)),
             backgroundColor: AppColors.error,
           ),
         );
@@ -222,7 +223,7 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
         setState(() => _isActing = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('حدث خطأ أثناء رفض العرض: $e'),
+            content: Text(RpcErrorTranslator.translate(e)),
             backgroundColor: AppColors.error,
           ),
         );
@@ -270,7 +271,7 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
         setState(() => _isActing = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('حدث خطأ أثناء إلغاء الطلب: $e'),
+            content: Text(RpcErrorTranslator.translate(e)),
             backgroundColor: AppColors.error,
           ),
         );
@@ -335,7 +336,7 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
         setState(() => _isSubmittingRating = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('حدث خطأ أثناء إرسال التقييم: $e'),
+            content: Text(RpcErrorTranslator.translate(e)),
             backgroundColor: AppColors.error,
           ),
         );
