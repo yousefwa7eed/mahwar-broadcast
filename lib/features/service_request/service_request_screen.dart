@@ -36,7 +36,16 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
     'mechanic': 'mechanical',
   };
 
-  String get _realServiceTypeId => _serviceTypeIdMap[widget.serviceId] ?? widget.serviceId;
+  /// يحلّ المعرّض المعروض (تسمية UI) إلى المعرّف الحقيقي المسجّل في جدول
+  /// service_types. يعيد null إن كان المعرّف غير معروف حتى لا يُرسَل id مجهول
+  /// يكسر قيد FK (السلوك القديم كان يمرّره كما هو صامتاً).
+  String? _resolveServiceTypeId() {
+    final real = _serviceTypeIdMap[widget.serviceId];
+    if (real == null) {
+      debugPrint('service_request: unknown service type "${widget.serviceId}"');
+    }
+    return real;
+  }
 
   LatLng? _selectedLocation;
   CarDetail? _selectedCar;
@@ -277,6 +286,19 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
 
+    final realServiceTypeId = _resolveServiceTypeId();
+    if (realServiceTypeId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('نوع الخدمة غير معروف، يرجى تحديث التطبيق'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() {
       _isSubmitting = true;
       _submitStatusText = 'جاري حفظ طلبك...';
@@ -297,7 +319,7 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
           .from('orders')
           .insert({
         'car_owner_id': userId,
-        'service_type_id': _realServiceTypeId,
+        'service_type_id': realServiceTypeId,
         'car_make': _selectedCar!.make,
         'car_model': _selectedCar!.model,
         'car_year': _selectedCar!.year,
@@ -384,7 +406,7 @@ setState(() {
       // من النموذج المعبّأ ما يسمح بإعادة الإرسال وإنشاء طلب مكرر.
       context.go(
         '/request/providers?orderId=$realOrderId'
-        '&serviceId=$_realServiceTypeId'
+        '&serviceId=$realServiceTypeId'
         '&lat=${_selectedLocation!.latitude}'
         '&lng=${_selectedLocation!.longitude}',
       );
