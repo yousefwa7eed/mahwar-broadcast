@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/notification_model.dart';
+import '../services/server_clock.dart';
 
 class NotificationsState extends Equatable {
   final List<NotificationModel> notifications;
@@ -74,27 +76,46 @@ class NotificationCubit extends Cubit<NotificationsState> {
     final userId = _userId;
     if (userId == null) return;
 
+    // TEMP DIAGNOSTIC (notifications load latency investigation) — حذف بعد التشخيص
+    final diagStart = DateTime.now();
+    debugPrint('[notif-diag] load START');
+
     emit(state.copyWith(isLoading: true));
 
+    // حدّث مرجع "الآن" من ساعة الخادم قبل الرسم — حتى تُحسب "منذ ..."
+    // ضد زمن الخادم لا ساعة الجهاز غير المزامنة.
+    final clockRefresh = ServerClock.instance.refresh();
+
     try {
+      final diagQueryStart = DateTime.now();
       final response = await _client
           .from('notifications')
           .select()
           .eq('user_id', userId)
           .order('created_at', ascending: false)
           .limit(50);
+      debugPrint(
+          '[notif-diag] list query done  +${DateTime.now().difference(diagStart).inMilliseconds}ms (query=${DateTime.now().difference(diagQueryStart).inMilliseconds}ms, rows=${response.length})');
 
       final notifications =
           response.map((json) => NotificationModel.fromJson(json)).toList();
 
+      final diagCountStart = DateTime.now();
       final unreadCount = await _loadUnreadTotal(userId);
+      debugPrint(
+          '[notif-diag] unread count done  +${DateTime.now().difference(diagStart).inMilliseconds}ms (query=${DateTime.now().difference(diagCountStart).inMilliseconds}ms, unread=$unreadCount)');
 
+      unawaited(clockRefresh);
       emit(state.copyWith(
         notifications: notifications,
         unreadCount: unreadCount,
         isLoading: false,
       ));
+      debugPrint(
+          '[notif-diag] load END  +${DateTime.now().difference(diagStart).inMilliseconds}ms total');
     } catch (e) {
+      debugPrint(
+          '[notif-diag] load FAILED after ${DateTime.now().difference(diagStart).inMilliseconds}ms: $e');
       emit(state.copyWith(
         isLoading: false,
         error: e.toString(),
@@ -206,8 +227,11 @@ class NotificationCubit extends Cubit<NotificationsState> {
   }
 
   void _applyPostgresChange(PostgresChangePayload payload) {
-    final record = Map<String, dynamic>.from(payload.newRecord as Map);
-    final id = record['id'] as String;
+    final record = Map<String, dynamic>.from(payload.newRecord);
+
+    // الإشعار وصل حالاً — ثبّت مرجع "الآن" على ساعة الخادم إن مرّت عليه مدته
+    // حتى يبقى "منذ ..." للإشعار الجديد دقيقاً حتى لو كانت ساعة الجهاز خاطئة.
+    ServerClock.instance.refresh();
 
     if (payload.eventType == PostgresChangeEvent.insert) {
       final isRead = (record['is_read'] as bool?) ?? false;
@@ -219,6 +243,8 @@ class NotificationCubit extends Cubit<NotificationsState> {
     }
 
     if (payload.eventType == PostgresChangeEvent.update) {
+      final id = record['id'] as String?;
+      if (id == null) return;
       final index = state.notifications.indexWhere((n) => n.id == id);
       if (index == -1) return;
       final wasUnread = !state.notifications[index].isRead;
@@ -227,9 +253,25 @@ class NotificationCubit extends Cubit<NotificationsState> {
       if (wasUnread && !nowUnread && unreadCount > 0) unreadCount--;
       if (!wasUnread && nowUnread) unreadCount++;
       final updated = [...state.notifications];
-      updated[index] = NotificationModel.fromJson(record);
+      updated[index] = _mergeRecord(record, state.notifications[index]);
       emit(state.copyWith(notifications: updated, unreadCount: unreadCount));
     }
+  }
+
+  /// يبني إشعارًا من سجل realtime قد يكون جزئيًا، مُبقِيًا على القيم الحالية
+  /// (مثل [createdAt]) لأي عمود غير مذكور في السجل الوارد.
+  NotificationModel _mergeRecord(Map<String, dynamic> record, NotificationModel current) {
+    final map = <String, dynamic>{
+      'id': current.id,
+      'user_id': current.userId,
+      'order_id': current.orderId,
+      'type': current.type,
+      'metadata': current.metadata,
+      'created_at': current.createdAt?.toIso8601String(),
+      'is_read': current.isRead,
+      ...record,
+    };
+    return NotificationModel.fromJson(map);
   }
 
   void unsubscribeFromNotifications() {

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../auth/auth_cubit.dart';
+import '../auth/home_route.dart';
 import '../models/notification_model.dart';
 import '../notifications/notification_cubit.dart';
 import '../router/app_router.dart';
@@ -96,13 +97,95 @@ class PushNotificationService {
     _openFromMessage(message);
   }
 
+  /// الوجهة الصحيحة لمسة إشعار مرتبط بطلب — جدول موحّد واحد (نفس قواعد الخادم
+  /// في send-push-notification) يغطي كل أنواع الإشعارات حسب دور المستقبِل:
+  ///   provider + new_order        → شاشة القبول/عرض السعر.
+  ///   provider + order_confirmed  → الرئيسية (بطاقة الطلب فيها زر «إتمام الطلب»).
+  ///   provider + rating_received  → صفحة الإشعارات (لا إجراء على الطلب).
+  ///   provider + rejected/cancelled → شاشة التتبع (كتلة الحالة العامة).
+  ///   car_owner + أي طلب          → شاشة التتبع (يقبل/يرفض السعر من نفس الشاشة).
+  /// التركيبات غير المطابقة (دور/نوع غير متوقع) → شاشة التتبع بأمان.
+  static String orderRouteFor({
+    required String orderId,
+    required String type,
+    required String role,
+  }) {
+    if (role == 'provider') {
+      switch (type) {
+        case 'new_order':
+          return '/request/quote?orderId=$orderId';
+        case 'order_confirmed':
+          return homeRouteForRole(role);
+        case 'rating_received':
+          return '/notifications';
+        case 'order_rejected':
+        case 'order_cancelled':
+          return '/request/track?orderId=$orderId';
+      }
+    }
+    // car_owner (أو نوع/دور غير معروف) مع order_id ↔ شاشة التتبع بأمان.
+    return '/request/track?orderId=$orderId';
+  }
+
   void _openFromMessage(RemoteMessage message) {
-    final orderId = message.data['order_id'] as String?;
+    final data = message.data;
+    final screen = data['screen'] as String?;
+    final orderId = data['order_id'] as String?;
+    final type = data['type'] as String?;
+    final deepLink = data['deep_link'] as String?;
+
+    // 1) رسالة تحمل order_id → ننفّذ وجهة الخادم الصريحة (quote/track/
+    //    provider_home/notifications)، وإن كانت قديمة أو القيمة غير معروفة
+    //    فنقرر بأمان حسب الدور والنوع (نفس الجدول).
     if (orderId != null && orderId.isNotEmpty) {
-      appRouter.push('/request/track?orderId=$orderId');
+      switch (screen) {
+        case 'quote':
+          appRouter.push('/request/quote?orderId=$orderId');
+          return;
+        case 'track':
+          appRouter.push('/request/track?orderId=$orderId');
+          return;
+        case 'provider_home':
+          appRouter.push('/home/provider');
+          return;
+        case 'notifications':
+          appRouter.push('/notifications');
+          return;
+      }
+      // 2) رسالة قديمة/غير مكتملة الحقل screen (null أو غير معروف) =>
+      //    نقرر حسب دور المستقبِل ونوع الإشعار بدل افتراض شاشة العميل.
+      _openOrderByRole(orderId, type);
       return;
     }
-    final deepLink = message.data['deep_link'] as String?;
+
+    // إشعار حدود الدوام (مزوّد): يفتح الرئيسية مباشرة عبر go() — يحلّ محل
+    // الشاشات المكدّسة ولا يفتح نسخة ثانية من لوحة المزوّد.
+    if (type == 'shift_started' || type == 'shift_ended') {
+      _openHome();
+      return;
+    }
+
+    // 3) إشعار عام (broadcast) — لا order_id، ولا screen دالّ على وجهة طلب.
+    //    نعطي الأولوية للـ deep link (خارجي → متصفح، home → رئيسية حسب الدور)،
+    //    وفي غيابه نفتح شاشة التفاصيل الكاملة (العنوان والنص ووقت الإرسال)
+    //    بدلاً من الاكتفاء بصفحة الإشعارات.
+    if (type == 'broadcast') {
+      if (deepLink != null && deepLink.isNotEmpty && NotificationModel.isExternalLink(deepLink)) {
+        NotificationModel.launchExternal(deepLink);
+        return;
+      }
+      if (deepLink == 'home') {
+        _openHome();
+        return;
+      }
+      _openBroadcastDetail(data['notification_id'] as String?);
+      return;
+    }
+
+    if (screen == 'notifications') {
+      appRouter.push('/notifications');
+      return;
+    }
     if (deepLink != null && deepLink.isNotEmpty && NotificationModel.isExternalLink(deepLink)) {
       // رابط خارجي → يُفتح في المتصفح خارج التطبيق (لا تنقل داخل التطبيق).
       NotificationModel.launchExternal(deepLink);
@@ -116,11 +199,52 @@ class PushNotificationService {
     appRouter.push('/notifications');
   }
 
+  /// مسار آمن لرسالة قديمة تحمل order_id بدون screen معرّف (أو بقيمة غير
+  /// معروفة): نستنتج الوجهة من الدور والنوع بنفس قاعدة مسارات القائمة.
+  Future<void> _openOrderByRole(String orderId, String? type) async {
+    final role = await AuthCubit().resolveCurrentRole();
+    appRouter.push(
+      PushNotificationService.orderRouteFor(
+        orderId: orderId,
+        type: type ?? '',
+        role: role,
+      ),
+    );
+  }
+
+  /// يفتح تفاصيل إشعار عام (broadcast) قادم من الـ push: نجلب صفّ الإشعار من
+  /// جدول notifications عبر notification_id (المصدر الوحيد للبيانات — كما في
+  /// send-push-notification) ثم نعرض شاشة التفاصيل الكاملة. إن تعذّر الجلب
+  /// (معرف ناقص/محذوف/خطأ) نلجأ إلى صفحة الإشعارات بأمان.
+  Future<void> _openBroadcastDetail(String? notificationId) async {
+    if (notificationId == null || notificationId.isEmpty) {
+      appRouter.push('/notifications');
+      return;
+    }
+    try {
+      final response = await Supabase.instance.client
+          .from('notifications')
+          .select()
+          .eq('id', notificationId)
+          .maybeSingle();
+      if (response == null) {
+        appRouter.push('/notifications');
+        return;
+      }
+      appRouter.push(
+        '/notification/detail',
+        extra: NotificationModel.fromJson(response),
+      );
+    } catch (_) {
+      appRouter.push('/notifications');
+    }
+  }
+
   /// يفتح الرئيسية حسب دور المستخدم (إشعار عام بعمق link = home).
   Future<void> _openHome() async {
     final role = await AuthCubit().resolveCurrentRole();
     // go() لأن الرئيسية شاشة جذرية — نتجنب تكديس نسخة فوق الشاشات الحالية.
-    appRouter.go(role == 'provider' ? '/home/provider' : '/home/owner');
+    appRouter.go(homeRouteForRole(role));
   }
 
   /// مزامنة تبعاً لأي إشعار وصل — debounce بسيط لتفادي ازدحام النداءات.

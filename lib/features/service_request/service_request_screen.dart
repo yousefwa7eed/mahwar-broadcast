@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -11,11 +12,20 @@ import '../../../core/services/image_compression_service.dart';
 import '../../../l10n/app_localizations.dart';
 import 'widgets/location_picker_widget.dart';
 import 'widgets/car_selector_widget.dart';
+import 'service_request_draft.dart';
 
 class ServiceRequestScreen extends StatefulWidget {
   final String serviceId;
 
-  const ServiceRequestScreen({super.key, required this.serviceId});
+  /// إن وُجد: يُفتح النموذج للتعديل على هذا الطلب المعلّق (يُحمَّل ويُعبّأ
+  /// مسبقاً، والزر يُحدّث نفس الصف بدل إدراج صف جديد).
+  final String? orderId;
+
+  const ServiceRequestScreen({
+    super.key,
+    required this.serviceId,
+    this.orderId,
+  });
 
   @override
   State<ServiceRequestScreen> createState() => _ServiceRequestScreenState();
@@ -51,6 +61,12 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
   CarDetail? _selectedCar;
   final _notesController = TextEditingController();
 
+  /// خيارات العميل عند إنشاء الطلب:
+  /// 1) إلغاء الطلب تلقائياً بعد 5 دقائق — مفعّل افتراضياً (يستطيع العميل تعطيله).
+  /// 2) مشاركة رقم الهاتف مع المزوّد — معطّل افتراضياً (اختيار العميل).
+  bool _autoCancel = true;
+  bool _sharePhone = false;
+
   /// حالة الإرسال: حفظ الطلب -> ضغط الصور -> رفع الصور
   bool _isSubmitting = false;
   String _submitStatusText = '';
@@ -63,6 +79,21 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
 
   List<CarDetail> _userCars = [];
   bool _isLoadingCars = true;
+
+  /// طلب معلّق قائم لنفس المالك — إن وُجد يُعدَّل (تحديث) بدل إنشاء مكرر.
+  _PendingOrderDraft? _existingOrder;
+  bool _loadingExistingOrder = true;
+
+  /// مسودة النموذج المحفوظة محلياً: تُستعاد عند إعادة فتح النموذج بعد انتهاء
+  /// العملية، وتُمسح عند نجاح الإرسال أو عند الخروج اليدوي من الشاشة.
+  static const Duration _draftSaveDebounce = Duration(milliseconds: 700);
+  final ServiceRequestDraftStore _draftStore = ServiceRequestDraftStore();
+  Timer? _draftSaveTimer;
+  bool _restoringDraft = false;
+
+  /// كل كتابات المسودة تُجرى بالترتيب عبر سلسلة واحدة — يمنع سباقاً بين حفظ
+  /// معلّق والمسح عند الإرسال/الخروج (المسح ينتظر أي حفظ جارٍ ليسبقه).
+  Future<void> _draftWrites = Future<void>.value();
 
   Future<void> _pickImage(ImageSource source) async {
     try {
@@ -101,6 +132,7 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
         setState(() {
           _pickedImages.add(image);
         });
+        _scheduleDraftSave();
       }
     } catch (e) {
       debugPrint('Error picking image: $e');
@@ -116,6 +148,7 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
     setState(() {
       _pickedImages.removeAt(index);
     });
+    _scheduleDraftSave();
   }
 
   void _showImagePickerOptions() {
@@ -209,13 +242,86 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
   @override
   void initState() {
     super.initState();
-    _loadUserCars();
+    _notesController.addListener(_onNotesChanged);
+    _initForm();
+  }
+
+  /// تسلسل آمن: تحميل السيارات أولاً، ثم البحث عن طلب معلّق، ثم تعبئة
+  /// النموذج منه حتى لا تتنافس العمليات غير المتزامنة على الحالة.
+  Future<void> _initForm() async {
+    await _loadUserCars();
+    await _loadExistingPendingOrder();
+    _applyExistingPrefill();
+    // تعبئة المسودة المحفوظة بعد أساس بيانات الطلب المعلّق حتى تتغلب
+    // تعديلات المستخدم الأخيرة (المسودة) على قيم التعبئة من الخادم.
+    await _applySavedDraft();
+    // إنهاء «الحاوية المستقرة» بعد اكتمال كل التعبئة — تُبنى الخريطة مرة
+    // واحدة بموقعها النهائي دون أن «تقفز».
+    if (mounted) setState(() => _loadingExistingOrder = false);
+  }
+
+  void _onNotesChanged() {
+    if (_restoringDraft) return;
+    _scheduleDraftSave();
   }
 
   @override
   void dispose() {
+    _draftSaveTimer?.cancel();
+    _notesController.removeListener(_onNotesChanged);
+    // الخروج اليدوي من النموذج ينهي المسودة؛ أما موت العملية/النشاط فتبقى
+    // المسودة على القرص لتُستعاد في الجلسة التالية.
+    unawaited(_discardDraft());
     _notesController.dispose();
     super.dispose();
+  }
+
+  /// يجدّول حفظاً مؤجلاً بعد هدوء قصير من آخر تغيير — يمنع ضغط عمليات الكتابة
+  /// على القرص مع كل حرف/نقرة.
+  void _scheduleDraftSave() {
+    if (_restoringDraft) return;
+    _draftSaveTimer?.cancel();
+    _draftSaveTimer = Timer(_draftSaveDebounce, _saveDraft);
+  }
+
+  Future<void> _saveDraft() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+    final draft = ServiceRequestDraft(
+      userId: userId,
+      serviceId: widget.serviceId,
+      orderId: widget.orderId,
+      latitude: _selectedLocation?.latitude,
+      longitude: _selectedLocation?.longitude,
+      carId: _selectedCar?.id,
+      notes: _notesController.text.trim(),
+      autoCancel: _autoCancel,
+      sharePhone: _sharePhone,
+      imagePaths: _pickedImages.map((img) => img.path).toList(),
+      savedAt: DateTime.now(),
+    );
+    try {
+      await _enqueueDraftWrite(() =>
+          draft.hasContent ? _draftStore.save(draft) : _draftStore.clear());
+    } catch (e) {
+      debugPrint('save service request draft failed: $e');
+    }
+  }
+
+  /// يمسح المسودة بعد استكمال أي حفظ جارٍ (يُستدعى عند الإرسال والخروج).
+  Future<void> _discardDraft() async {
+    _draftSaveTimer?.cancel();
+    try {
+      await _enqueueDraftWrite(_draftStore.clear);
+    } catch (_) {
+      // المسح فشل — تجاهل: لن تُستعاد مسودة حديثة إلا بعد فتح النموذج مجدداً.
+    }
+  }
+
+  Future<void> _enqueueDraftWrite(Future<void> Function() write) {
+    final operation = _draftWrites.then((_) => write());
+    _draftWrites = operation.catchError((Object _) {});
+    return operation;
   }
 
   /// يجلب السيارات الحقيقية المسجّلة لصاحب الحساب الحالي من جدول car_details
@@ -258,6 +364,148 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
         setState(() => _isLoadingCars = false);
       }
     }
+  }
+
+  /// يفحص إن كان للمالك طلب معلّق (pending) قائم فيُعبّئ النموذج منه؛ لو ممرّر
+  /// widget.orderId يفضّل الطلب المحدد، وإلا أحدث طلب pending للمالك.
+  Future<void> _loadExistingPendingOrder() async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return;
+
+      var query = _client
+          .from('orders')
+          .select(
+        'id, service_type_id, latitude, longitude, notes, car_make, car_model, car_year, auto_cancel, share_phone, attachments',
+      )
+          .eq('car_owner_id', userId)
+          .eq('status', 'pending');
+
+      if (widget.orderId != null && widget.orderId!.isNotEmpty) {
+        query = query.eq('id', widget.orderId!);
+      }
+
+      final row = await query.order('created_at', ascending: false).maybeSingle();
+      if (row != null) {
+        _existingOrder = _PendingOrderDraft.fromJson(Map<String, dynamic>.from(row));
+      }
+    } catch (e) {
+      debugPrint('load existing pending order failed: $e');
+    }
+    // لا يُقلَب مؤشر _loadingExistingOrder هنا — يقلبه _initForm بعد اكتمال
+    // كل التعبئة (بما فيها استعادة المسودة) كي تُبنى الخريطة مرة واحدة فقط.
+  }
+
+  /// يجد معرّف طلب pending قائم لحظة الإرسال (جلب طازج) — null إن لا يوجد.
+  Future<String?> _findExistingPendingOrderId() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return null;
+    try {
+      final row = await _client
+          .from('orders')
+          .select('id')
+          .eq('car_owner_id', userId)
+          .eq('status', 'pending')
+          .order('created_at', ascending: false)
+          .maybeSingle();
+      return row?['id'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// تعبئة النموذج من بيانات الطلب المعلّق: الموقع، الملاحظات، التفضيلات،
+  /// ومطابقة السيارة (إن وُجدت في السيارات المسجّلة).
+  void _applyExistingPrefill() {
+    final draft = _existingOrder;
+    if (draft == null || !mounted) return;
+    setState(() {
+      _selectedLocation = LatLng(draft.latitude, draft.longitude);
+      _notesController.text = draft.notes;
+      _autoCancel = draft.autoCancel;
+      _sharePhone = draft.sharePhone;
+      final match = _userCars
+          .where((c) =>
+      c.make == draft.carMake &&
+          c.model == draft.carModel &&
+          c.year == draft.carYear)
+          .toList();
+      if (match.isNotEmpty) _selectedCar = match.first;
+    });
+  }
+
+  /// يستعيد مسودة محفوظة محلياً وتطبقها على النموذج (إن كانت حديثة وتخصّ هذا
+  /// المستخدم والمعرّف نفسه). مسودة قديمة أو لأخرى/لحساب آخر تُمسح ولا تُطبق.
+  Future<void> _applySavedDraft() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      final draft = await _draftStore.load();
+      if (draft == null) return;
+
+      final isFresh =
+          DateTime.now().difference(draft.savedAt) < ServiceRequestDraft.stalenessWindow;
+      final mismatchesOrder =
+          draft.orderId != null && widget.orderId != null && draft.orderId != widget.orderId;
+      if (!isFresh || draft.userId != userId || draft.serviceId != widget.serviceId || mismatchesOrder) {
+        await _discardDraft();
+        return;
+      }
+
+      // الصور: نحتفظ فقط بالمسارات التي ما زالت تشير لملف قائم وقت الاستعادة.
+      final validImagePaths =
+          draft.imagePaths.where((path) => File(path).existsSync()).toList();
+
+      _restoringDraft = true;
+      setState(() {
+        if (draft.latitude != null && draft.longitude != null) {
+          _selectedLocation = LatLng(draft.latitude!, draft.longitude!);
+        }
+        _notesController.text = draft.notes;
+        _autoCancel = draft.autoCancel;
+        _sharePhone = draft.sharePhone;
+        final car = _matchCar(draft);
+        if (car != null) _selectedCar = car;
+      });
+      if (validImagePaths.isNotEmpty) {
+        setState(() {
+          _pickedImages
+            ..clear()
+            ..addAll(validImagePaths.map(XFile.new));
+        });
+      }
+      _restoringDraft = false;
+    } catch (e) {
+      debugPrint('apply saved service request draft failed: $e');
+    }
+  }
+
+  /// يطابق السيارة المحفوظة (بالمعرّف) مع السيارات المسجّلة الحالية.
+  CarDetail? _matchCar(ServiceRequestDraft draft) {
+    final carId = draft.carId;
+    if (carId == null) return null;
+    for (final car in _userCars) {
+      if (car.id == carId) return car;
+    }
+    return null;
+  }
+
+  /// بارامترات مشتركة بين RPC التحديث والإدراج — تجنّب تكرار منطق الحقول.
+  Map<String, dynamic> _orderPayload(String orderId, String ownerPhone, String serviceTypeId) {
+    return {
+      'p_order_id': orderId,
+      'p_service_type_id': serviceTypeId,
+      'p_car_make': _selectedCar!.make,
+      'p_car_model': _selectedCar!.model,
+      'p_car_year': _selectedCar!.year,
+      'p_latitude': _selectedLocation!.latitude,
+      'p_longitude': _selectedLocation!.longitude,
+      'p_notes': _notesController.text.trim(),
+      'p_owner_phone': ownerPhone,
+      'p_auto_cancel': _autoCancel,
+      'p_share_phone': _sharePhone,
+    };
   }
 
   Future<void> _submitRequest() async {
@@ -315,25 +563,58 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
           .single();
       final String ownerPhone = profile['phone_number'] as String? ?? '';
 
-      final inserted = await _client
-          .from('orders')
-          .insert({
-        'car_owner_id': userId,
-        'service_type_id': realServiceTypeId,
-        'car_make': _selectedCar!.make,
-        'car_model': _selectedCar!.model,
-        'car_year': _selectedCar!.year,
-        'latitude': _selectedLocation!.latitude,
-        'longitude': _selectedLocation!.longitude,
-        'notes': _notesController.text.trim(),
-        'status': 'pending',
-        'owner_phone': ownerPhone,
-      })
-          .select('id')
-          .single();
-      _timer.stop();
+      // 1) حفظ الطلب فوراً: إن كان المالك يملك طلباً معلّقاً قائماً نُحدّثه في
+      //    مكانه (ويمرّر نفس معرّفه لشاشة المزوّدين)، وإلا نُدرج طلباً جديداً.
+      //    لا تنشأ طلبات معلّقة مكررة أبداً — ويمتد ذلك لقاعدة البيانات عبر
+      //    فهرس جزئي فريد يرفض الإدراج المكرر (خطأ 23505).
+      final existingOrderId = await _findExistingPendingOrderId();
 
-      final String realOrderId = inserted['id'] as String;
+      String realOrderId;
+      if (existingOrderId != null) {
+        _timer.start('updating pending order');
+        await _client.rpc(
+          'update_pending_order',
+          params: _orderPayload(existingOrderId, ownerPhone, realServiceTypeId),
+        );
+        _timer.stop();
+        realOrderId = existingOrderId;
+      } else {
+        try {
+          final inserted = await _client
+              .from('orders')
+              .insert({
+            'car_owner_id': userId,
+            'service_type_id': realServiceTypeId,
+            'car_make': _selectedCar!.make,
+            'car_model': _selectedCar!.model,
+            'car_year': _selectedCar!.year,
+            'latitude': _selectedLocation!.latitude,
+            'longitude': _selectedLocation!.longitude,
+            'notes': _notesController.text.trim(),
+            'status': 'pending',
+            'owner_phone': ownerPhone,
+            'auto_cancel': _autoCancel,
+            'share_phone': _sharePhone,
+          })
+              .select('id')
+              .single();
+        _timer.stop();
+
+        realOrderId = inserted['id'] as String;
+        } on PostgrestException catch (e) {
+          // سباق: طلب pending أُنشئ لحظياً بين فحصنا والإدراج، ورفضه الفهرس
+          // الفريد. نتخذ الطلب القائم بسلاسة: جلب ثم تحديثه بنفس الحقول.
+          if (e.code != '23505') rethrow;
+          final racedOrderId = await _findExistingPendingOrderId();
+          if (racedOrderId == null) rethrow;
+          await _client.rpc(
+            'update_pending_order',
+            params: _orderPayload(racedOrderId, ownerPhone, realServiceTypeId),
+          );
+          _timer.stop();
+          realOrderId = racedOrderId;
+        }
+      }
 
       // 2) ضغط الصور (بالموازاة) ثم رفعها وربطها بالطلب
       if (_pickedImages.isNotEmpty) {
@@ -398,13 +679,18 @@ setState(() {
 
       _timer.report();
 
+      // الطلب حُفظ بنجاح: تُمسح المسودة المحلية نهائياً حتى تُفتح النماذج
+      // التالية فارغة (المسح ينتظر أي حفظ جارٍ — لا سباق).
+      await _discardDraft();
+
       if (!mounted) return;
 
       setState(() => _isSubmitting = false);
-      // go() بدلاً من push(): بعد حفظ الطلب بنجاح نستبدل شاشة الطلب الحالية،
-      // فلو رجّع المستخدم للخلف من شاشة المزوّدين يصل للرئيسية — لا لمُنسّاخ
-      // من النموذج المعبّأ ما يسمح بإعادة الإرسال وإنشاء طلب مكرر.
-      context.go(
+      // push() بدلاً من go(): النموذج يبقى في المكدس تحت شاشة المزوّدين،
+      // فزرّ الرجوع (السهم/زر النظام) يعيد للمستخدم نموذجاً معبّأً بنفس
+      // بيانات الطلب المحفوظ، لا لمُنسّاخ جديد — والتعديل اللاحق يحدّث نفس
+      // الطلب المعلّق بدل إنشاء مكرر (مع حماية DB أيضاً).
+      context.push(
         '/request/providers?orderId=$realOrderId'
         '&serviceId=$realServiceTypeId'
         '&lat=${_selectedLocation!.latitude}'
@@ -510,6 +796,96 @@ Text(
   );
 }
 
+  Widget _buildOrderOptions(BuildContext context, bool isDark, AppLocalizations? l10n) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Text(
+              'خيارات إضافية',
+              style: TextStyle(
+                fontFamily: 'Zain',
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+              ),
+            ),
+          ),
+          SwitchListTile(
+            value: _autoCancel,
+            onChanged: (val) {
+              setState(() => _autoCancel = val);
+              _scheduleDraftSave();
+            },
+            activeThumbColor: AppColors.orangePrimary,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+            title: Text(
+              l10n?.autoCancelTitle ?? 'إلغاء الطلب تلقائياً بعد 5 دقائق',
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+              ),
+            ),
+            subtitle: Text(
+              l10n?.autoCancelSubtitle ??
+                  'إذا لم يكتمل طلبك خلال 5 دقائق سيُلغى تلقائياً',
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontSize: 12,
+                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+              ),
+            ),
+          ),
+          Divider(
+            height: 1,
+            indent: 16,
+            endIndent: 16,
+            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          ),
+          SwitchListTile(
+            value: _sharePhone,
+            onChanged: (val) {
+              setState(() => _sharePhone = val);
+              _scheduleDraftSave();
+            },
+            activeThumbColor: AppColors.orangePrimary,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+            title: Text(
+              l10n?.sharePhoneTitle ?? 'مشاركة رقم هاتفي مع المزوّد',
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+              ),
+            ),
+            subtitle: Text(
+              l10n?.sharePhoneSubtitle ??
+                  'سيتيح للمزوّد رؤية رقمك والاتصال بك مباشرة',
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontSize: 12,
+                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMainContent(BuildContext context, bool isDark, AppLocalizations? l10n) {
     return Column(
       children: [
@@ -551,12 +927,33 @@ Text(
               ),
             ),
             const SizedBox(height: 8),
-            LocationPickerWidget(
-              autoLocate: true,
-              onLocationChanged: (latLng) {
-                setState(() => _selectedLocation = latLng);
-              },
-            ),
+            _loadingExistingOrder
+                // عند فحص وجود طلب معلّق نُبقِي على حاوية مستقلة حتى لا
+                // «تقفز» الخريطة عند استبدال autoLocate — منع وميض غريب.
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(
+                      child: SizedBox(
+                        width: 26,
+                        height: 26,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: AppColors.orangePrimary,
+                        ),
+                      ),
+                    ),
+                  )
+                : LocationPickerWidget(
+                    // الموقع المختار/المستعاد يُمرَّر كموقع أولي — يشمل طلباً
+                    // معلّقاً أو مسودة مستعادة. لا يُفعَّل التحديد التلقائي إن
+                    // كان الموقع محدداً مسبقاً حتى لا تُستبدل قيمتها بموقع الجهاز.
+                    initialLocation: _selectedLocation,
+                    autoLocate: _selectedLocation == null,
+                    onLocationChanged: (latLng) {
+                      setState(() => _selectedLocation = latLng);
+                      _scheduleDraftSave();
+                    },
+                  ),
             const SizedBox(height: 24),
 
             // Car Selector - سيارات حقيقية من Supabase
@@ -567,6 +964,7 @@ Text(
               selectedCar: _selectedCar,
               onCarSelected: (car) {
                 setState(() => _selectedCar = car);
+                _scheduleDraftSave();
               },
             ),
             const SizedBox(height: 24),
@@ -664,6 +1062,10 @@ Text(
                 ),
               ),
             ],
+            const SizedBox(height: 24),
+
+            // Additional options (customer's own choices)
+            _buildOrderOptions(context, isDark, l10n),
             const SizedBox(height: 32),
 
             // Submit Button
@@ -699,4 +1101,53 @@ Text(
     ],
   );
 }
+}
+
+/// نسخة مصغّرة من طلب المالك المعلّق — تُستخدم لتعبئة النموذج مسبقاً
+/// ولتمرير نفس المعرّف عند التحديث بدل إنشاء طلب معلّق مكرر.
+class _PendingOrderDraft {
+  const _PendingOrderDraft({
+    required this.id,
+    required this.serviceTypeId,
+    required this.latitude,
+    required this.longitude,
+    required this.carMake,
+    required this.carModel,
+    required this.carYear,
+    this.notes = '',
+    this.autoCancel = true,
+    this.sharePhone = false,
+    this.attachments = const [],
+  });
+
+  final String id;
+  final String serviceTypeId;
+  final double latitude;
+  final double longitude;
+  final String carMake;
+  final String carModel;
+  final int carYear;
+  final String notes;
+  final bool autoCancel;
+  final bool sharePhone;
+
+  /// روابط صور الطلب الحالية — تُبقى كما هي عند التعديل دون إعادة رفعها.
+  final List<String> attachments;
+
+  factory _PendingOrderDraft.fromJson(Map<String, dynamic> json) {
+    final attachmentsRaw = json['attachments'];
+    return _PendingOrderDraft(
+      id: json['id'] as String,
+      serviceTypeId: json['service_type_id'] as String? ?? '',
+      latitude: (json['latitude'] as num?)?.toDouble() ?? 0,
+      longitude: (json['longitude'] as num?)?.toDouble() ?? 0,
+      carMake: json['car_make'] as String? ?? '',
+      carModel: json['car_model'] as String? ?? '',
+      carYear: json['car_year'] as int? ?? 0,
+      notes: json['notes'] as String? ?? '',
+      autoCancel: json['auto_cancel'] as bool? ?? true,
+      sharePhone: json['share_phone'] as bool? ?? false,
+      attachments: (attachmentsRaw is List) ? attachmentsRaw.cast<String>() : const [],
+    );
+  }
 }

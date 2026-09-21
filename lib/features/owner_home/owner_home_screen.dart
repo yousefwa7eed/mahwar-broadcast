@@ -5,14 +5,20 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/auth/auth_service.dart';
 import '../../core/auth/profile_cubit.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/errors/rpc_error_translator.dart';
 import '../../core/models/order.dart';
 import '../../core/notifications/notification_cubit.dart';
 import '../../core/services/location_service.dart';
+import '../../core/services/server_clock.dart';
 import '../../core/settings/app_settings_cubit.dart';
+import '../../core/widgets/confirm_dialog.dart';
 import '../../l10n/app_localizations.dart';
 import 'widgets/home_header.dart';
 import 'widgets/sos_emergency_banner.dart';
 import 'widgets/services_grid.dart';
+import 'widgets/active_order_widget.dart';
+import 'widgets/provider_rating_dialog.dart';
+import '../notifications/notification_actions.dart';
 
 class OwnerHomeScreen extends StatefulWidget {
   const OwnerHomeScreen({super.key});
@@ -30,6 +36,14 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   String _addressText = '';
   bool _isLocatingAddress = false;
   RealtimeChannel? _ordersChannel;
+
+  /// الحالة الأخيرة التي رُأيت عليها كل طلب هذا الجلسة — تُستخدم لاكتشاف
+  /// انتقال الطلب إلى «مكتمل» فقط عند حدوثه فعلياً (مع بدء أول تحميل
+  /// كمرجع دون تنبيه). الطلبات المكتملة القديمة من جلسات سابقة لا تُنبّه.
+  final Map<String, String> _seenOrderStatuses = {};
+
+  /// طلبات معروضة عليها نافذة التقييم هذا الجلسة لمنع التكرار.
+  final Set<String> _ratingPromptedOrders = {};
 
   @override
   void initState() {
@@ -86,6 +100,8 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
 
       final orders = response.map((json) => Order.fromJson(json)).toList();
 
+      _processOrderStatusTransitions(orders);
+
       if (mounted) {
         setState(() {
           _recentOrders = orders;
@@ -95,6 +111,124 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoadingOrders = false);
+      }
+    }
+  }
+
+  /// يتبّع الحالة السابقة لكل طلب، وعند ملاحظة انتقال حي إلى «مكتمل»
+  /// يعرض نافذة تقييم المزوّد (مرة واحدة لكل طلب في الجلسة). أول تحميل
+  /// يُعتبر مرجعاً فقط — حتى لا تُنفَّذ النافذة لطلبات قديمة مكتملة.
+  void _processOrderStatusTransitions(List<Order> orders) {
+    for (final order in orders) {
+      final previous = _seenOrderStatuses[order.id];
+      _seenOrderStatuses[order.id] = order.status.name;
+
+      if (order.status != OrderStatus.completed) continue;
+      if (previous == null || previous == OrderStatus.completed.name) continue;
+      if (_ratingPromptedOrders.contains(order.id)) continue;
+
+      _ratingPromptedOrders.add(order.id);
+      _maybePromptRating(order);
+    }
+  }
+
+  /// يعرض نافذة التقييم بعد التأكد أن الطلب لم يُقيَّم بعد وأن المالك ما زال
+  /// على شاشة البيت (إن كان على شاشة التتبع، فهي تعرض التقييم بنفسها).
+  Future<void> _maybePromptRating(Order order) async {
+    if (!mounted) return;
+
+    final route = ModalRoute.of(context);
+    if (route == null || !route.isCurrent) return;
+
+    try {
+      final existing = await _client
+          .from('ratings')
+          .select('id')
+          .eq('order_id', order.id)
+          .maybeSingle();
+      if (existing != null) return;
+    } catch (_) {
+      // القراءة فشلت — نعرض النافذة على أي حال؛ إرسال التقييم نفسه محمي
+      // بعملية rate_provider التي ترفض التكرار.
+    }
+
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showDialog<void>(
+        context: context,
+        builder: (_) => ProviderRatingDialog(
+          orderId: order.id,
+        ),
+      );
+    });
+  }
+
+  /// قبول عرض السعر مباشرة من البطاقة في البيت (RPC آمن يتحقق من هوية
+  /// المالك). البطاقة تتحدّث حيوياً بعدها عبر Realtime إلى مرحلة التأكيد.
+  Future<void> _acceptOffer(String orderId) async {
+    final l10n = AppLocalizations.of(context);
+
+    try {
+      await _client.rpc('owner_accept_price', params: {
+        'p_order_id': orderId,
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n?.orderConfirmed ?? 'تم تأكيد الطلب بنجاح!'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(RpcErrorTranslator.translate(e)),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  /// رفض عرض السعر مباشرة من البطاقة — الطلب ينتقل لـ rejected_by_owner
+  /// وتختفي البطاقة (حالة نهائية) عبر التحديث الحي.
+  Future<void> _rejectOffer(String orderId) async {
+    final l10n = AppLocalizations.of(context);
+
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'رفض عرض السعر؟',
+      message: 'سيتم رفض عرض المزوّد وإنهاء هذا الطلب.',
+      confirmLabel: 'نعم، رفض العرض',
+      confirmColor: AppColors.error,
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await _client.rpc('owner_reject_price', params: {
+        'p_order_id': orderId,
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n?.priceRejected ?? 'تم رفض عرض السعر'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(RpcErrorTranslator.translate(e)),
+            backgroundColor: AppColors.error,
+          ),
+        );
       }
     }
   }
@@ -146,6 +280,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   Widget _buildHomeTab(BuildContext context, bool isDark, AppLocalizations? l10n) {
     final profileState = context.watch<ProfileCubit>().state;
     final userName = profileState is ProfileLoaded ? profileState.profile.fullName : '';
+    final avatarId = profileState is ProfileLoaded ? profileState.profile.avatarId : null;
+    final photoUrl = profileState is ProfileLoaded ? profileState.profile.avatarUrl : null;
+    final activeOrder = _activeOrder;
 
     return SingleChildScrollView(
       child: Column(
@@ -158,6 +295,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
             onLocationTap: _loadCurrentAddress,
             unreadNotifications: context.watch<NotificationCubit>().state.unreadCount,
             onNotificationTap: () => setState(() => _currentIndex = 2),
+            avatarId: avatarId,
+            photoUrl: photoUrl,
+            role: 'car_owner',
           ),
           const SizedBox(height: 8),
           SosEmergencyBanner(
@@ -166,6 +306,17 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
               context.push('/request/create?serviceId=crane');
             },
           ),
+          // بطاقة حالة الطلب النشط — تظهر تلقائياً ما دام هناك طلب غير
+          // نهائي وتختفي عند الإتمام/الإلغاء. النقر يفتح شاشة التتبع.
+          if (activeOrder != null) ...[
+            const SizedBox(height: 16),
+            ActiveOrderWidget(
+              order: activeOrder,
+              onTap: () => context.push('/request/track?orderId=${activeOrder.id}'),
+              onAccept: () => _acceptOffer(activeOrder.id),
+              onReject: () => _rejectOffer(activeOrder.id),
+            ),
+          ],
           const SizedBox(height: 16),
           ServicesGrid(
             onServiceTap: (service) {
@@ -345,6 +496,20 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     }
   }
 
+  /// أحدث طلب نشط (غير نهائي) لهذا المالك — تُشتق من آخر قائمة محمّلة
+  /// (مرتّبة تنازلياً بالإنشاء) دون استعلام إضافي. تحديثها الحي يأتي من
+  /// اشتراك Realtime الموجود في [_subscribeToOrderChanges].
+  Order? get _activeOrder {
+    for (final order in _recentOrders) {
+      if (order.status == OrderStatus.pending ||
+          order.status == OrderStatus.priced ||
+          order.status == OrderStatus.confirmed) {
+        return order;
+      }
+    }
+    return null;
+  }
+
   Widget _buildNotificationsTab(BuildContext context, bool isDark, AppLocalizations? l10n) {
     final state = context.watch<NotificationCubit>().state;
 
@@ -400,19 +565,14 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
           ...List.generate(state.notifications.length, (index) {
             final notification = state.notifications[index];
           return GestureDetector(
-            onTap: () {
-              if (!notification.isRead) {
-                context.read<NotificationCubit>().markAsRead(notification.id);
-              }
-              if (notification.orderId != null) {
-                context.push('/request/track?orderId=${notification.orderId}');
-              }
-            },
+            // معالج موحّد مع صفحة الإشعارات: deep link خارجي / home /
+            // طلب / إشعار عام (شاشة التفاصيل).
+            onTap: () => openNotificationFromList(context, notification),
             child: Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDark ? AppColors.darkCard : AppColors.lightCard,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: notification.isRead
@@ -458,7 +618,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                         ],
                         const SizedBox(height: 4),
                         Text(
-                          notification.timeAgo(),
+                          notification.timeAgo(ServerClock.instance.now),
                           style: TextStyle(
                             fontFamily: 'Cairo',
                             fontSize: 11,
@@ -555,8 +715,43 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
             height: 52,
             child: OutlinedButton(
               onPressed: () async {
-                await AuthService().signOut();
-                if (context.mounted) context.go('/select-user-type');
+                // C2: الخروج يجب ألا يُغادر الشاشة إلا عند نجاحه فعليًا —
+                // إن فشل (مثلًا انقطاع الشبكة) نُبقي المستخدم هنا مع رسالة قابلة لإعادة المحاولة.
+                Future<void> attemptLogout() async {
+                  try {
+                    await SupabaseAuthService().signOut();
+                  } catch (e) {
+                    debugPrint('[logout] signOut failed: $e');
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        behavior: SnackBarBehavior.floating,
+                        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        duration: const Duration(seconds: 4),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        content: Text(
+                          l10n?.logoutFailedMessage ??
+                              'لم نتمكن من تسجيل الخروج. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.',
+                          style: const TextStyle(
+                            fontFamily: 'Cairo',
+                            fontSize: 14,
+                            color: Colors.white,
+                          ),
+                        ),
+                        action: SnackBarAction(
+                          label: l10n?.retry ?? 'إعادة المحاولة',
+                          onPressed: () => attemptLogout(),
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+                  if (context.mounted) context.go('/select-user-type');
+                }
+
+                await attemptLogout();
               },
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: AppColors.error),

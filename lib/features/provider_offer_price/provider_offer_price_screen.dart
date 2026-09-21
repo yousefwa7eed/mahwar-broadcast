@@ -1,10 +1,14 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_colors.dart';
+import 'widgets/location_map_card.dart';
 import '../../core/errors/rpc_error_translator.dart';
 import '../../core/models/order.dart';
 import '../../core/widgets/attachments_gallery.dart';
@@ -30,6 +34,7 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
 
   Order? _order;
   String _serviceName = '';
+  String _customerName = '';
   bool _isLoading = true;
   bool _isSubmitting = false;
   String? _error;
@@ -191,6 +196,25 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
             .maybeSingle();
         _serviceName = st?['name_ar'] as String? ?? order.serviceTypeId;
       } catch (_) {}
+
+      // إذا سمح العميل بمشاركة بياناته (share_phone = true) نعرض اسمه ورقمه:
+      // الاسم يُجلب عبر RPC آمن لأن الـ RLS يخفي بقية المستخدمين.
+      if (order.sharePhone) {
+        try {
+          final res = await _client.rpc('get_public_profile', params: {
+            'p_user_id': order.carOwnerId,
+          });
+          final rows = res as List;
+          final name = rows.isNotEmpty
+              ? (rows.first as Map)['full_name'] as String?
+              : null;
+          _customerName = (name == null || name.trim().isEmpty)
+              ? 'العميل'
+              : name.trim();
+        } catch (_) {
+          _customerName = 'العميل';
+        }
+      }
 
       if (mounted) {
         setState(() {
@@ -492,6 +516,106 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
                     ),
                   ],
                 ),
+                if (order.sharePhone) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.success.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.success.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.person_outline_rounded,
+                                size: 16, color: AppColors.success),
+                            SizedBox(width: 8),
+                            Text(
+                              'بيانات العميل',
+                              style: TextStyle(
+                                fontFamily: 'Zain',
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.success,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            const Icon(Icons.badge_outlined,
+                                size: 16, color: AppColors.success),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _customerName.isEmpty
+                                    ? 'العميل'
+                                    : _customerName,
+                                style: TextStyle(
+                                  fontFamily: 'Cairo',
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark
+                                      ? AppColors.darkTextPrimary
+                                      : AppColors.lightTextPrimary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (order.ownerPhone.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              const Icon(Icons.phone_in_talk_rounded,
+                                  size: 16, color: AppColors.success),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  order.ownerPhone,
+                                  style: const TextStyle(
+                                    fontFamily: 'Cairo',
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.success,
+                                  ),
+                                ),
+                              ),
+                              InkWell(
+                                borderRadius: BorderRadius.circular(8),
+                                onTap: () => launchUrl(
+                                  Uri(scheme: 'tel', path: order.ownerPhone),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
+                                  child: Text(
+                                    'اتصال',
+                                    style: TextStyle(
+                                      fontFamily: 'Cairo',
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark
+                                          ? AppColors.darkTextPrimary
+                                          : AppColors.lightTextPrimary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -552,6 +676,21 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 12),
+                const Text(
+                  'خريطة موقع العميل',
+                  style: TextStyle(
+                    fontFamily: 'Zain',
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.orangePrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                LocationMapCard(
+                  customerLocation: LatLng(order.latitude, order.longitude),
+                  orderId: widget.orderId,
+                ),
               ],
             ),
           ),
@@ -571,6 +710,7 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
           TextField(
             controller: _priceController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
             decoration: InputDecoration(
               hintText: 'مثال: 350',
               hintStyle: TextStyle(
@@ -623,6 +763,7 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
           TextField(
             controller: _timeController,
             keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             decoration: InputDecoration(
               hintText: 'مثال: 15',
               hintStyle: TextStyle(

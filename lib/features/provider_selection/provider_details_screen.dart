@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/avatar_config.dart';
 import '../../core/errors/rpc_error_translator.dart';
 import '../../core/models/provider_details.dart';
 import '../../l10n/app_localizations.dart';
@@ -85,7 +86,9 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
 
       if (mounted) {
         setState(() => _isSending = false);
-        context.go('/request/track?orderId=${widget.orderId}');
+        // الانتقال إلى شاشة التتبّع عبر push — يحفظ المكدّس (النموذج المعبّأ
+    // وقائمة المزوّدين) فيبقى زر الرجوع يعمل ويعود لطلبٍ مُحدَّث مسبقاً.
+    context.push('/request/track?orderId=${widget.orderId}');
       }
     } catch (e) {
       if (mounted) {
@@ -190,38 +193,39 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
 
     final serviceLabels = p.services.map((s) => _serviceNames[s] ?? s).toList();
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkCard : AppColors.lightCard,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+return SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                ),
               ),
-            ),
-            child: Column(
-              children: [
-                CircleAvatar(
-                  radius: 40,
-                  backgroundColor: AppColors.orangePrimary.withValues(alpha: 0.12),
-                  child: const Icon(Icons.business_rounded, color: AppColors.orangePrimary, size: 44),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  p.workshopName.isNotEmpty ? p.workshopName : p.fullName,
-                  style: TextStyle(
-                    fontFamily: 'Zain',
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+              child: Column(
+                children: [
+                  AvatarWidget(
+                    avatarId: p.avatarId,
+                    role: 'provider',
+                    size: 80,
+                    photoUrl: p.avatarUrl,
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  Text(
+                    p.workshopName.isNotEmpty ? p.workshopName : p.fullName,
+                    style: TextStyle(
+                      fontFamily: 'Zain',
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                    ),
+                  ),
                 if (p.fullName.isNotEmpty && p.workshopName.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(

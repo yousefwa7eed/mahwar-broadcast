@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/auth/auth_cubit.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/models/notification_model.dart';
 import '../../core/notifications/notification_cubit.dart';
+import '../../core/services/server_clock.dart';
 import '../../l10n/app_localizations.dart';
+import 'notification_actions.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -19,12 +19,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   void initState() {
     super.initState();
     context.read<NotificationCubit>().loadNotifications();
-  }
-
-  /// دور المستخدم الحالي (لتوجيه الإشعار العام نحو الرئيسية الصحيحة حسب الدور).
-  /// مصدر واحد من AuthCubit.resolveCurrentRole (جدول profiles + بديل user_metadata).
-  Future<String> _currentRole(BuildContext context) {
-    return context.read<AuthCubit>().resolveCurrentRole();
   }
 
   @override
@@ -138,30 +132,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               itemBuilder: (context, index) {
                 final notification = state.notifications[index];
                 return GestureDetector(
-                  onTap: () async {
-                    if (!notification.isRead) {
-                      context.read<NotificationCubit>().markAsRead(notification.id);
-                    }
-                    final deepLink = notification.deepLink;
-                    if (deepLink != null &&
-                        deepLink.isNotEmpty &&
-                        NotificationModel.isExternalLink(deepLink)) {
-                      // رابط خارجي → يُفتح في المتصفح خارج التطبيق.
-                      NotificationModel.launchExternal(deepLink);
-                    } else if (deepLink == 'home') {
-                      final role = await _currentRole(context);
-                      if (!context.mounted) return;
-                      // go() لأن الرئيسية شاشة جذرية — نتجنب تكديس نسخة فوق الأخرى.
-                      context.go(role == 'provider' ? '/home/provider' : '/home/owner');
-                    } else if (notification.orderId != null) {
-                      context.push('/request/track?orderId=${notification.orderId}');
-                    }
-                  },
+                  // معالج موحّد مع تبويبي الرئيسية: deep link خارجي / home /
+                  // طلب / إشعار عام (شاشة التفاصيل).
+                  onTap: () => openNotificationFromList(context, notification),
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: isDark ? AppColors.darkCard : AppColors.lightCard,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: notification.isRead
@@ -243,7 +221,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 ],
                                 const SizedBox(height: 4),
                                 Text(
-                                  notification.timeAgo(),
+                                  notification.timeAgo(ServerClock.instance.now),
                                   style: TextStyle(
                                     fontFamily: 'Cairo',
                                     fontSize: 11,

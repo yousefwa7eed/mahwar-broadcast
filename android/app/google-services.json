@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "591875986338",
+    "project_id": "mahwar-75a05",
+    "storage_bucket": "mahwar-75a05.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:591875986338:android:148b97812b08282d7a58fb",
+        "android_client_info": {
+          "package_name": "com.example.mahwar"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCw6fAXA5NDfspsgQ_GUqihwokpDWS7QDY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,8 +1,12 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 /**
- * يُلغى تلقائياً أي طلب (pending) مُرسَل إلى مزوّد ولم يُستجب له خلال
- * respond_deadline (افتراضياً 3 دقائق من لحظة الإسناد `assign_order_to_provider`).
+ * يُلغى تلقائياً أي طلب (pending) لم يكتمل خلال المهلة التي اختارها العميل
+ * نفسه، وهي respond_deadline (افتراضياً 5 دقائق من لحظة إنشاء الطلب عبر
+ * خيار "إلغاء الطلب بعد 5 دقائق" — auto_cancel = true).
+ *
+ * الطلبات التي عطّل العميل لها الإلغاء التلقائي (auto_cancel = false) لا تُلغى
+ * هنا إطلاقاً.
  *
  * يُستدعى كل دقيقة عبر pg_cron → net.http_post (مؤمّن بـ x-order-event-secret).
  * عند الإلغاء: يُسجَّل إشعار 'order_cancelled' للمالك (مما يشغّل إشعار الدفع
@@ -41,14 +45,15 @@ Deno.serve(async (req: Request) => {
   const supabase = createClient(supabaseUrl, serviceKey);
 
   try {
-    // 1) نحدد الطلبات منتهية المهلة فقط: مُسندة لمزوّد، ما تزال pending.
-    //    شرط الـ deadline له فرعان (fallback للطلبات القديمة التي وُجدت قبل
-    //    إضافة عمود respond_deadline، فتبقى قيمته NULL وعلقت pending للأبد):
+    // 1) نحدد الطلبات منتهية المهلة فقط: ما تزال pending، والعميل فعّل
+    //    الإلغاء التلقائي (auto_cancel = true). شرط الـ deadline له فرعان
+    //    (احتياط للطلبات القديمة التي سبق إنشاؤها قبل تفعيل الخيار، فتبقى
+    //    قيمة respond_deadline فيها NULL معلّقة pending للأبد):
     //      a) respond_deadline محدد وسابق على now()  ← انتهى موعده طبيعياً.
-    //      b) respond_deadline فارغ لكن مُنشأ قبل أكثر من 3 دقائق ← طلب عالق
+    //      b) respond_deadline فارغ لكن مُنشأ قبل أكثر من 5 دقائق ← طلب عالق
     //         قديم، نعتبر منشأه هو موعد انتهائه ويُلغى الآن.
     const nowIso = new Date().toISOString();
-    const createdBeforeCutoff = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+    const createdBeforeCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
 
     const { data: expired, error: updateErr } = await supabase
       .from("orders")
@@ -58,7 +63,7 @@ Deno.serve(async (req: Request) => {
         updated_at: nowIso,
       })
       .eq("status", "pending")
-      .not("provider_id", "is", null)
+      .eq("auto_cancel", true)
       .or(
         `and(respond_deadline.is.null,created_at.lt.${createdBeforeCutoff}),` +
           `and(respond_deadline.not.is.null,respond_deadline.lt.${nowIso})`,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -7,12 +8,17 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/auth/auth_service.dart';
 import '../../core/auth/profile_cubit.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/avatar_config.dart';
 import '../../core/errors/rpc_error_translator.dart';
 import '../../core/models/order.dart';
 import '../../core/notifications/notification_cubit.dart';
 import '../../core/services/location_service.dart';
+import '../../core/services/server_clock.dart';
 import '../../core/settings/app_settings_cubit.dart';
+import '../../core/widgets/confirm_dialog.dart';
 import '../../l10n/app_localizations.dart';
+import '../notifications/notification_actions.dart';
+import 'widgets/active_order_card.dart';
 import 'widgets/availability_toggle.dart';
 import 'widgets/nearby_request_card.dart';
 
@@ -23,20 +29,51 @@ class ProviderHomeScreen extends StatefulWidget {
   State<ProviderHomeScreen> createState() => _ProviderHomeScreenState();
 }
 
-class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
+class _ProviderHomeScreenState extends State<ProviderHomeScreen>
+    with WidgetsBindingObserver {
   final SupabaseClient _client = Supabase.instance.client;
   int _currentIndex = 0;
 
-  bool _isOnline = true;
+  bool _isOnline = false;
+
+  // هل أخفي المزوّد توفّره يدوياً في هذه الجلسة الحالية؟ إن كان كذلك فلا
+  // نعيد تفعيله تلقائياً (احتراماً لقراره الصريح: إجازة قصيرة/عدم رغبة
+  // بالتوافر اليوم رغم وجود جدول). لا يُشتق من قيمة is_online المحمّلة عند
+  // فتح الشاشة — فافتتاح الحساب مخفياً قد يكون مجرد تأخر بداية الدوام ولا
+  // ينبغي أن يحول دون توحيد الزر مع الجدول.
+  bool _manuallyOffline = false;
+
+  // هل فعّل المزوّد توافره يدوياً في هذه الجلسة؟ يُحترم قراره فلا نرجعه
+  // إلى مخفي تلقائياً رغم خروجه عن الجدول (البقاء للعمل المتأخر أو خارج
+  // الدوام). لا يُشتق من قيمة is_online المحمّلة عند الفتح — فالافتتاح على
+  // OFF قد يكون لمجرد تآخر الجدول ولا ينبغي أن يمنع المراقب من تفعيله.
+  bool _manuallyOnline = false;
+
+  // مراقب الجدول: كل ثانيتين نتحقق من هل يستوجب الجدول تفعيلاً أم تخفياً،
+  // ونوْحّد is_online معه — فدالة cron لا تلتقط سوى حدود مستقبلية، بينما
+  // تغيير الجدول لبداية مضت (أو ليوم مغلق) يترك الحالة عالقة بدون هذا.
+  Timer? _availabilityPoller;
+
+  // هل مرّ التطبيق بدورة خلفية أثناء مراقبتنا؟ يُستخدم لجعل إعادة التفعيل
+  // التلقائية متماثلة مع التخفي التلقائي: نعيد التفعيل فقط لمن خفّفناه نحن
+  // في جلسة الاستخدام الحالية، لا لمن كان مخفياً قبل فتح التطبيق.
+  bool _backgroundedWhileObserving = false;
   String _workshopName = '';
   double _providerLat = 0;
   double _providerLng = 0;
 
-  // طلبات معيّنة لهذا المزوّد بانتظار عرض سعر (لوحة التحكم)
-  List<Order> _assignedPending = [];
+  // طلبات المزوّد النشطة (لوحة التحكم): إسناد أو عرض سعر أو تأكيد —
+  // تبقى ظاهرة طوال دورة حياتها النشطة ولا تختفي إلّا عند الإتمام أو الإلغاء/الرفض.
+  List<Order> _activeOrders = [];
   bool _isLoadingRequests = true;
   String _addressText = '';
   bool _isLocatingAddress = false;
+
+  // أسماء العملاء والعناوين العربية للطلبات (يُحفظ مؤقتاً لتجنب إعادة الجلب)
+  final Map<String, String> _ownerNames = {};
+  final Map<String, String> _orderAddresses = {};
+  final Map<String, String> _ownerAvatarIds = {};
+  final Map<String, String> _ownerAvatarUrls = {};
 
   // سجل طلبات المزوّد (تبويب الطلبات)
   List<Order> _providerOrders = [];
@@ -45,15 +82,23 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
   Map<String, String> _serviceNames = {};
   RealtimeChannel? _channel;
 
+  // اشتراك Realtime على صف المزوّد نفسه: يبقى مفتاح التوفّر منسجماً مع
+  // قاعدة البيانات عند تغيّر is_online من مصدر خارجي (وظيفة cron) بينما
+  // الشاشة مفتوحة. RLS يسمح للمزوّد بقراءة صفّه، لذا لا يُحجب هنا.
+  RealtimeChannel? _providerChannel;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadProviderData();
     _loadCurrentAddress();
     _loadServiceNames();
-    _loadAssignedOrders();
+    _loadActiveOrders();
     _loadProviderOrders();
     _subscribeToOrderChanges();
+    _subscribeToProviderChanges();
+    _startAvailabilityPoller();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final cubit = context.read<NotificationCubit>();
       cubit.loadNotifications();
@@ -63,8 +108,56 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _availabilityPoller?.cancel();
     _channel?.unsubscribe();
+    _providerChannel?.unsubscribe();
     super.dispose();
+  }
+
+  // تتبّع دورة حياة التطبيق: عند الخلفية نُخفيه عن قائمة المزوّدين القريبين،
+  // وعند العودة للأمام نعيد تفعيله — إلا إذا كان قد أخفى نفسه يدوياً، أو كان
+  // خارج ساعات دوامه المحددة (الجدول محترم: لا نُحيي حالة أطفأها cron عند
+  // نهاية الدوام، فتستقر الحالة ولا ترجع للمزود من تلقاء نفسها).
+  @override
+  Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        _backgroundedWhileObserving = true;
+        if (_isOnline) {
+          _setProviderOnline(false);
+        }
+      case AppLifecycleState.resumed:
+        if (_backgroundedWhileObserving) {
+          _backgroundedWhileObserving = false;
+          if (!_manuallyOffline && await _isWithinWorkingHours()) {
+            _setProviderOnline(true);
+          }
+        }
+        _refreshProviderLocation();
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+        break;
+    }
+  }
+
+  // هل المزوّد حالياً داخل ساعات دوامه؟ نستدعي دالة جاهزة على السيرفر
+  // (is_provider_available_now): تعيد true داخل الدوام أو إذا بلا جدول، و
+  // false إذا خارج الدوام/اليوم مغلق. عند انقطاع الشبكة نعود true لنحافظ
+  // على السلوك القديم (إعادة التفعيل) ولا نوقف عملاً قائماً.
+  Future<bool> _isWithinWorkingHours() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return true;
+    try {
+      final result = await _client.rpc(
+        'is_provider_available_now',
+        params: {'p_provider_id': userId},
+      );
+      return result as bool? ?? true;
+    } catch (_) {
+      return true;
+    }
   }
 
   Future<void> _loadProviderData() async {
@@ -79,11 +172,12 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
           .maybeSingle();
 
       if (mounted) {
+        final online = provider?['is_online'] ?? false;
         setState(() {
           _workshopName = provider?['workshop_name'] ?? '';
           _providerLat = (provider?['latitude'] as num?)?.toDouble() ?? 0;
           _providerLng = (provider?['longitude'] as num?)?.toDouble() ?? 0;
-          _isOnline = provider?['is_online'] ?? true;
+          _isOnline = online == true;
         });
       }
     } catch (e) {
@@ -122,8 +216,11 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
 
   String _serviceName(String id) => _serviceNames[id] ?? id;
 
-  /// الطلبات المعيّنة لهذا المزوّد بانتظار عرض سعر (بتظهر في لوحة التحكم)
-  Future<void> _loadAssignedOrders() async {
+  /// الطلبات النشطة لهذا المزوّد: بانتظار عرض سعر (pending)، أو عُرض السعر
+  /// ولم يؤكّد العميل بعد (priced)، أو أُكّد وهو قيد التنفيذ (confirmed).
+  /// تختفي البطاقة من القائمة فقط عند انتقال الطلب لحالة نهائية
+  /// (completed / cancelled / rejected_by_provider / rejected_by_owner).
+  Future<void> _loadActiveOrders() async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
 
@@ -134,7 +231,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
           .from('orders')
           .select()
           .eq('provider_id', userId)
-          .eq('status', 'pending')
+          .inFilter('status', ['pending', 'priced', 'confirmed'])
           .order('created_at', ascending: false)
           .limit(20);
 
@@ -142,15 +239,69 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
 
       if (mounted) {
         setState(() {
-          _assignedPending = orders;
+          _activeOrders = orders;
           _isLoadingRequests = false;
         });
       }
+      _enrichActiveOrders(orders);
     } catch (e) {
       if (mounted) {
         setState(() => _isLoadingRequests = false);
       }
     }
+  }
+
+  /// يجلب بيانات إضافية لكل طلب نشط — اسم العميل (عبر RPC آمن
+  /// لأن الـ RLS يخفي بقية المستخدمين) والعنوان العربي (reverse geocoding
+  /// لأن address_text لا يُحفظ عند إنشاء الطلب). النتائج تُخزّن مؤقتاً.
+  Future<void> _enrichActiveOrders(List<Order> orders) async {
+    if (orders.isEmpty) return;
+
+    final ownerIds = orders.map((o) => o.carOwnerId).toSet();
+    for (final id in ownerIds) {
+      if (_ownerNames.containsKey(id)) continue;
+      try {
+        final res = await _client.rpc('get_public_profile', params: {
+          'p_user_id': id,
+        });
+        final rows = res as List;
+        if (rows.isNotEmpty) {
+          final row = rows.first as Map;
+          final name = row['full_name'] as String?;
+          _ownerNames[id] = (name == null || name.trim().isEmpty)
+              ? 'العميل'
+              : name.trim();
+          final avatarId = row['avatar_id'] as String?;
+          final avatarUrl = row['avatar_url'] as String?;
+          if (avatarId != null && avatarId.isNotEmpty) {
+            _ownerAvatarIds[id] = avatarId;
+          }
+          if (avatarUrl != null && avatarUrl.isNotEmpty) {
+            _ownerAvatarUrls[id] = avatarUrl;
+          }
+        } else {
+          _ownerNames[id] = 'العميل';
+        }
+      } catch (_) {
+        _ownerNames[id] = 'العميل';
+      }
+    }
+
+    for (final order in orders) {
+      if (_orderAddresses.containsKey(order.id)) continue;
+      final stored = order.addressText?.trim() ?? '';
+      final isCoords = stored.isNotEmpty &&
+          stored.contains(',') &&
+          stored.split(',').every((p) => double.tryParse(p.trim()) != null);
+      if (stored.isNotEmpty && !isCoords) {
+        _orderAddresses[order.id] = stored;
+      } else {
+        _orderAddresses[order.id] = await LocationService.instance
+            .getAddressForLocation(order.latitude, order.longitude);
+      }
+    }
+
+    if (mounted) setState(() {});
   }
 
   /// سجل كل طلبات المزوّد (تبويب الطلبات)
@@ -212,14 +363,60 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
         value: userId,
       ),
       callback: (payload) {
-        _loadAssignedOrders();
+        _loadActiveOrders();
         _loadProviderOrders();
       },
     )
         .subscribe();
   }
 
+  // يبقي مفتاح التوفّر منسجماً مع is_online في قاعدة البيانات أثناء بقاء
+  // الشاشة مفتوحة: عند تقليب cron الحالة عند حدود الجدول (أو أي كتابة
+  // خارجية) تُطَبَّق القيمة هنا فوراً. صدى كتابة المزوّد نفسه بلا تأثير
+  // (نفس القيمة => لا تغيير الظاهر)، وRLS يسمح للمزوّد بقراءة صفّه.
+  void _subscribeToProviderChanges() {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    _providerChannel = _client
+        .channel('provider-self-$userId')
+        .onPostgresChanges(
+      event: PostgresChangeEvent.update,
+      schema: 'public',
+      table: 'providers',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'id',
+        value: userId,
+      ),
+      callback: (payload) {
+        // نعتمد على is_online الحالي في السجل الجديد فقط (الحقيقة في قاعدة
+        // البيانات)، ولا نقارنه بـ old_record — فالجدول كان replica identity
+        // افتراضياً ولا يرسل عبره إلّا المفتاح، فكانت مقارنة true->false تفشل
+        // ويبقى الزر مفتوحاً رغم إغلاق المزوّد على السيرفر.
+        final online = (payload.newRecord['is_online'] ?? false) == true;
+        if (!mounted || online == _isOnline) return;
+        setState(() {
+          _isOnline = online;
+          _manuallyOffline = !online;
+        });
+      },
+    )
+        .subscribe();
+  }
+
   Future<void> _toggleOnline(bool val) async {
+    // قرار يدوي من المستخدم: نُسجّله حتى لا نتراجع عنه عند العودة للأمام
+    // ولا يصحّحه مراقب الجدول.
+    _manuallyOffline = !val;
+    _manuallyOnline = val;
+    await _setProviderOnline(val);
+  }
+
+  /// يكتب حالة التوفّر في قاعدة البيانات ويُبقي الواجهة متطابقة مع النتيجة؛
+  /// أي فشل في الحفظ يُعيد الحالة السابقة بصمت (لكل من التبديل اليدوي
+  /// وتغيّرات دورة الحياة).
+  Future<void> _setProviderOnline(bool val) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
 
@@ -230,10 +427,86 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
           .from('providers')
           .update({'is_online': val})
           .eq('id', userId);
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         setState(() => _isOnline = !val);
       }
+    }
+  }
+
+  // يبدأ مراقب الجدول: فحص أول فوري (بعد تحميل البيانات) ثم دورة كل 2 ثانية.
+  // لا يتشغل إلا بوجود الجدول (المزوّد بلا جدول يبقى يدوياً مطلقاً)، ويصحّح
+  // الحالة فقط حين تتعارض مع الجدول — دون التراجع عن قرار يدوي صريح
+  // (إجازة قصيرة ⇒ _manuallyOffline، عمل متأخر ⇒ _manuallyOnline).
+  void _startAvailabilityPoller() {
+    _availabilityPoller?.cancel();
+    _pollAvailability();
+    _availabilityPoller = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => _pollAvailability(),
+    );
+  }
+
+  Future<void> _pollAvailability() async {
+    if (!mounted) return;
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      final result = await _client.rpc(
+        'provider_availability_snapshot',
+        params: {'p_provider_id': userId},
+      );
+      final rows = result is List ? result : [result];
+      if (rows.isEmpty || !mounted) return;
+      final data = Map<String, dynamic>.from(rows.first as Map);
+      final hasSchedule = data['has_schedule'] == true;
+      final inHours = data['in_hours'] == true;
+
+      // بلا جدول = تحكم يدوي كامل: لا نلمس الحالة إطلاقاً.
+      if (!hasSchedule || inHours == _isOnline) return;
+
+      if (inHours) {
+        // الجدول يقتضي التفعيل: لا نتدخل إذا كان التخفي قراراً يدوياً.
+        if (_manuallyOffline) return;
+        _manuallyOnline = false;
+        await _setProviderOnline(true);
+      } else {
+        // الجدول يقتضي التخفي: لا نتدخل إذا كان التفعيل يدوياً صريحاً.
+        if (_manuallyOnline) return;
+        _manuallyOffline = false;
+        await _setProviderOnline(false);
+      }
+    } catch (_) {
+      // مراقب ثانوي: قطع شبكة مؤقت لا يُزعج المستخدم.
+    }
+  }
+
+  /// عند عودة التطبيق للأمام: تحدّث إحداثيات المزوّد من الموقع الفعلي
+  /// للجهاز لتبقى القائمة القريبة دقيقة. إن فشل التحديد أو مُنعت الصلاحية
+  /// نُبقي آخر إحداثيات معروفة بصمت دون إزعاج المستخدم.
+  Future<void> _refreshProviderLocation() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      final position = await LocationService.instance
+          .getCurrentPosition(forceRefresh: true);
+      if (position == null || !mounted) return;
+
+      await _client.from('providers').update({
+        'latitude': position.latitude,
+        'longitude': position.longitude,
+      }).eq('id', userId);
+
+      if (mounted) {
+        setState(() {
+          _providerLat = position.latitude;
+          _providerLng = position.longitude;
+        });
+      }
+    } catch (_) {
+      // صمت: نبقي آخر إحداثيات معروفة.
     }
   }
 
@@ -243,6 +516,15 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
   }
 
   Future<void> _rejectOrder(String orderId) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'رفض الطلب؟',
+      message: 'سيتم إخطار العميل وإلغاء هذا الطلب.',
+      confirmLabel: 'نعم، رفض الطلب',
+      confirmColor: AppColors.error,
+    );
+    if (confirmed != true || !mounted) return;
+
     try {
       await _client.rpc('provider_reject_order', params: {
         'p_order_id': orderId,
@@ -250,7 +532,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
 
       if (mounted) {
         setState(() {
-          _assignedPending.removeWhere((o) => o.id == orderId);
+          _activeOrders.removeWhere((o) => o.id == orderId);
         });
       }
     } catch (e) {
@@ -259,7 +541,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
       final msg = e.toString();
       if (msg.contains('ORDER_NOT_PENDING') || msg.contains('NOT_ASSIGNED')) {
         setState(() {
-          _assignedPending.removeWhere((o) => o.id == orderId);
+          _activeOrders.removeWhere((o) => o.id == orderId);
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -279,6 +561,15 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
   }
 
   Future<void> _completeOrder(String orderId) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'إتمام الطلب؟',
+      message: 'ستُعتبر الخدمة مكتملة وسيتمكّن العميل من تقييمك بعدها.',
+      confirmLabel: 'إتمام الطلب',
+      confirmColor: AppColors.success,
+    );
+    if (confirmed != true || !mounted) return;
+
     try {
       await _client.rpc('provider_complete_order', params: {
         'p_order_id': orderId,
@@ -292,7 +583,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
           ),
         );
         _loadProviderOrders();
-        _loadAssignedOrders();
+        _loadActiveOrders();
       }
     } catch (e) {
       if (mounted) {
@@ -331,6 +622,8 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
   Widget _buildDashboardTab(BuildContext context, bool isDark, AppLocalizations? l10n) {
     final profileState = context.watch<ProfileCubit>().state;
     final userName = profileState is ProfileLoaded ? profileState.profile.fullName : '';
+    final avatarId = profileState is ProfileLoaded ? profileState.profile.avatarId : null;
+    final photoUrl = profileState is ProfileLoaded ? profileState.profile.avatarUrl : null;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -339,6 +632,16 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
         children: [
           Row(
             children: [
+              GestureDetector(
+                onTap: () => context.push('/profile/avatar?role=provider'),
+                child: AvatarWidget(
+                  avatarId: avatarId,
+                  role: 'provider',
+                  size: 44,
+                  photoUrl: photoUrl,
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -422,7 +725,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              if (_assignedPending.isNotEmpty)
+              if (_activeOrders.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
@@ -430,7 +733,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    '${_assignedPending.length}',
+                    '${_activeOrders.length}',
                     style: const TextStyle(
                       fontFamily: 'Cairo',
                       fontSize: 12,
@@ -444,14 +747,14 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
           const SizedBox(height: 12),
 
           RefreshIndicator(
-            onRefresh: _loadAssignedOrders,
+            onRefresh: _loadActiveOrders,
             color: AppColors.orangePrimary,
             child: _isLoadingRequests
                 ? const Padding(
                     padding: EdgeInsets.all(24),
                     child: Center(child: CircularProgressIndicator(color: AppColors.orangePrimary)),
                   )
-                : _assignedPending.isEmpty
+                : _activeOrders.isEmpty
                 ? Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(24),
@@ -481,26 +784,54 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
                 : ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _assignedPending.length,
+                    itemCount: _activeOrders.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
-                      final order = _assignedPending[index];
+                      final order = _activeOrders[index];
                       final distance = order.latitude != 0 && _providerLat != 0
                           ? _calculateDistance(
                               _providerLat, _providerLng, order.latitude, order.longitude)
                           : 0.0;
-                      return NearbyRequestCard(
-                        carMake: order.carMake,
-                        carModel: order.carModel,
-                        carYear: order.carYear,
-                        issueType: _serviceName(order.serviceTypeId),
-                        distance: distance,
-                        address: order.addressText ?? '',
-                        attachments: order.attachments ?? const [],
-                        deadline: order.respondDeadline,
-                        onAccept: () => _acceptOrder(order.id),
-                        onReject: () => _rejectOrder(order.id),
-                      );
+                      return order.status == OrderStatus.pending
+                          ? NearbyRequestCard(
+                              customerName: _ownerNames[order.carOwnerId] ?? 'العميل',
+                              carMake: order.carMake,
+                              carModel: order.carModel,
+                              carYear: order.carYear,
+                              issueType: _serviceName(order.serviceTypeId),
+                              distance: distance,
+                              address: _orderAddresses[order.id] ?? '',
+                              attachments: order.attachments ?? const [],
+                              deadline: order.respondDeadline,
+                              ownerPhone: order.ownerPhone,
+                              sharePhone: order.sharePhone,
+                              onAccept: () => _acceptOrder(order.id),
+                              onReject: () => _rejectOrder(order.id),
+                              onLocationTap: () =>
+                                  context.push('/request/map?orderId=${order.id}'),
+                              customerAvatarId: _ownerAvatarIds[order.carOwnerId],
+                              customerAvatarUrl: _ownerAvatarUrls[order.carOwnerId],
+                            )
+                          : ActiveOrderCard(
+                              customerName: _ownerNames[order.carOwnerId] ?? 'العميل',
+                              carMake: order.carMake,
+                              carModel: order.carModel,
+                              carYear: order.carYear,
+                              issueType: _serviceName(order.serviceTypeId),
+                              address: _orderAddresses[order.id] ?? '',
+                              attachments: order.attachments ?? const [],
+                              ownerPhone: order.ownerPhone,
+                              sharePhone: order.sharePhone,
+                              status: order.status,
+                              statusLabel: order.statusLabel,
+                              offeredPrice: order.offeredPrice,
+                              createdAt: order.createdAt,
+                              onComplete: order.status == OrderStatus.confirmed
+                                  ? () => _completeOrder(order.id)
+                                  : null,
+                              onLocationTap: () =>
+                                  context.push('/request/map?orderId=${order.id}'),
+                            );
                     },
                   ),
           ),
@@ -585,7 +916,17 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
                 ),
               ),
               const Spacer(),
-              if (order.offeredPrice != null)
+              if (order.createdAt != null)
+                Text(
+                  _formatOrderDate(context, order.createdAt!),
+                  style: TextStyle(
+                    fontFamily: 'Cairo',
+                    fontSize: 12,
+                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                  ),
+                ),
+              if (order.offeredPrice != null) ...[
+                const SizedBox(width: 12),
                 Text(
                   '${order.offeredPrice!.toStringAsFixed(0)} ج.م',
                   style: const TextStyle(
@@ -595,6 +936,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
                     color: AppColors.orangePrimary,
                   ),
                 ),
+              ],
             ],
           ),
           const SizedBox(height: 12),
@@ -714,6 +1056,14 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
     }
   }
 
+  String _formatOrderDate(BuildContext context, DateTime date) {
+    final local = date.toLocal();
+    final material = MaterialLocalizations.of(context);
+    final day = material.formatMediumDate(local);
+    final time = material.formatTimeOfDay(TimeOfDay.fromDateTime(local));
+    return '$day • $time';
+  }
+
   Widget _buildNotificationsTab(BuildContext context, bool isDark, AppLocalizations? l10n) {
     final state = context.watch<NotificationCubit>().state;
 
@@ -769,19 +1119,14 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
           ...List.generate(state.notifications.length, (index) {
             final notification = state.notifications[index];
           return GestureDetector(
-            onTap: () {
-              if (!notification.isRead) {
-                context.read<NotificationCubit>().markAsRead(notification.id);
-              }
-              if (notification.orderId != null) {
-                context.push('/request/track?orderId=${notification.orderId}');
-              }
-            },
+            // معالج موحّد مع صفحة الإشعارات وتبويب العميل: deep link خارجي /
+            // home / طلب / إشعار عام (شاشة التفاصيل).
+            onTap: () => openNotificationFromList(context, notification),
             child: Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDark ? AppColors.darkCard : AppColors.lightCard,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: notification.isRead
@@ -827,7 +1172,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
                         ],
                         const SizedBox(height: 4),
                         Text(
-                          notification.timeAgo(),
+                          notification.timeAgo(ServerClock.instance.now),
                           style: TextStyle(
                             fontFamily: 'Cairo',
                             fontSize: 11,
@@ -902,6 +1247,13 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
           ),
           _buildProfileOption(
             context,
+            icon: Icons.schedule_rounded,
+            title: l10n?.workingHours ?? 'ساعات العمل',
+            isDark: isDark,
+            onTap: () => context.push('/provider/schedule'),
+          ),
+          _buildProfileOption(
+            context,
             icon: Icons.language_rounded,
             title: '${l10n?.languageLabel ?? 'اللغة'}: ${l10n?.currentLanguage ?? (isArabic ? 'العربية' : 'English')}',
             isDark: isDark,
@@ -920,8 +1272,43 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
             height: 52,
             child: OutlinedButton(
               onPressed: () async {
-                await AuthService().signOut();
-                if (context.mounted) context.go('/select-user-type');
+                // C2: الخروج يجب ألا يُغادر الشاشة إلا عند نجاحه فعليًا —
+                // إن فشل (مثلًا انقطاع الشبكة) نُبقي المستخدم هنا مع رسالة قابلة لإعادة المحاولة.
+                Future<void> attemptLogout() async {
+                  try {
+                    await SupabaseAuthService().signOut();
+                  } catch (e) {
+                    debugPrint('[logout] signOut failed: $e');
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        behavior: SnackBarBehavior.floating,
+                        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        duration: const Duration(seconds: 4),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        content: Text(
+                          l10n?.logoutFailedMessage ??
+                              'لم نتمكن من تسجيل الخروج. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.',
+                          style: const TextStyle(
+                            fontFamily: 'Cairo',
+                            fontSize: 14,
+                            color: Colors.white,
+                          ),
+                        ),
+                        action: SnackBarAction(
+                          label: l10n?.retry ?? 'إعادة المحاولة',
+                          onPressed: () => attemptLogout(),
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+                  if (context.mounted) context.go('/select-user-type');
+                }
+
+                await attemptLogout();
               },
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: AppColors.error),
@@ -1024,7 +1411,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
             onPressed: () async {
               Navigator.pop(ctx);
               try {
-                await AuthService().deleteAccount();
+                await SupabaseAuthService().deleteAccount();
                 if (context.mounted) context.go('/select-user-type');
               } catch (e) {
                 if (context.mounted) {

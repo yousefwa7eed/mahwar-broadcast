@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/auth/auth_service.dart';
 import '../../../core/auth/profile_cubit.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/avatar_config.dart';
 import '../../../core/settings/app_settings_cubit.dart';
 import '../../../l10n/app_localizations.dart';
 
@@ -51,10 +52,26 @@ class ProfileScreen extends StatelessWidget {
         child: Column(
           children: [
             const SizedBox(height: 20),
-            CircleAvatar(
-              radius: 50,
-              backgroundColor: AppColors.orangePrimary.withValues(alpha: 0.15),
-              child: const Icon(Icons.person_rounded, size: 50, color: AppColors.orangePrimary),
+            BlocBuilder<ProfileCubit, ProfileState>(
+              builder: (context, state) {
+                String role = 'car_owner';
+                String? avatarId;
+                String? photoUrl;
+                if (state is ProfileLoaded) {
+                  role = state.profile.role == 'car_owner' ? 'car_owner' : 'provider';
+                  avatarId = state.profile.avatarId;
+                  photoUrl = state.profile.avatarUrl;
+                }
+                return GestureDetector(
+                  onTap: () => context.push('/profile/avatar?role=$role'),
+                  child: AvatarWidget(
+                    avatarId: avatarId,
+                    role: role,
+                    size: 100,
+                    photoUrl: photoUrl,
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 16),
             Text(
@@ -64,6 +81,15 @@ class ProfileScreen extends StatelessWidget {
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              l10n?.editPersonalInfo ?? 'اضغط على الصورة لتغييرها',
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontSize: 13,
+                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
               ),
             ),
             const SizedBox(height: 32),
@@ -115,8 +141,43 @@ class ProfileScreen extends StatelessWidget {
               height: 52,
               child: OutlinedButton(
                 onPressed: () async {
-                  await AuthService().signOut();
-                  if (context.mounted) context.go('/select-user-type');
+                  // C2: الخروج يجب ألا يُغادر الشاشة إلا عند نجاحه فعليًا —
+                  // إن فشل (مثلًا انقطاع الشبكة) نُبقي المستخدم هنا مع رسالة قابلة لإعادة المحاولة.
+                  Future<void> attemptLogout() async {
+                    try {
+                      await SupabaseAuthService().signOut();
+                    } catch (e) {
+                      debugPrint('[logout] signOut failed: $e');
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          behavior: SnackBarBehavior.floating,
+                          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                          duration: const Duration(seconds: 4),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          content: Text(
+                            l10n?.logoutFailedMessage ??
+                                'لم نتمكن من تسجيل الخروج. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.',
+                            style: const TextStyle(
+                              fontFamily: 'Cairo',
+                              fontSize: 14,
+                              color: Colors.white,
+                            ),
+                          ),
+                          action: SnackBarAction(
+                            label: l10n?.retry ?? 'إعادة المحاولة',
+                            onPressed: () => attemptLogout(),
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+                    if (context.mounted) context.go('/select-user-type');
+                  }
+
+                  await attemptLogout();
                 },
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: AppColors.error),
@@ -220,7 +281,7 @@ class ProfileScreen extends StatelessWidget {
             onPressed: () async {
               Navigator.pop(ctx);
               try {
-                await AuthService().deleteAccount();
+                await SupabaseAuthService().deleteAccount();
                 if (context.mounted) context.go('/select-user-type');
               } catch (e) {
                 if (context.mounted) {

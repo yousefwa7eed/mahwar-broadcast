@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -6,9 +8,11 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/errors/rpc_error_translator.dart';
 import '../../../core/models/order.dart';
 import '../../../core/models/provider_details.dart';
+import '../../../core/services/server_clock.dart';
 import '../../../l10n/app_localizations.dart';
 import 'widgets/order_status_indicator.dart';
 import 'widgets/provider_offer_card.dart';
+import 'widgets/transaction_summary_card.dart';
 
 class RequestTrackingScreen extends StatefulWidget {
   final String orderId;
@@ -29,6 +33,8 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
   String? _providerName;
   String? _workshopName;
   String? _providerPhone;
+  String? _providerAvatarId;
+  String? _providerAvatarUrl;
 
   // حالة التقييم لما الطلب يخلص
   int _rating = 0;
@@ -102,6 +108,8 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
         _providerName = p.fullName.isEmpty ? p.workshopName : p.fullName;
         _workshopName = p.workshopName;
         _providerPhone = p.phoneNumber;
+        _providerAvatarId = p.avatarId;
+        _providerAvatarUrl = p.avatarUrl;
       }
     } catch (e) {
       // لو فشل جلب بيانات المزوّد، الشاشة تكمل عادي بدون توقف
@@ -415,6 +423,13 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
         children: [
           // Status Indicator - حالة حقيقية من قاعدة البيانات
           OrderStatusIndicator(status: order.status),
+          // عدّاد الإلغاء التلقائي (قرار العميل: 5 دقائق)
+          if (order.status == OrderStatus.pending &&
+              order.autoCancel &&
+              order.respondDeadline != null) ...[
+            const SizedBox(height: 12),
+            _AutoCancelCountdown(deadline: order.respondDeadline!),
+          ],
           const SizedBox(height: 24),
 
           // Provider Offer Card (تظهر لما يكون فيه سعر معروض)
@@ -431,6 +446,8 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
               // أزرار القبول/الرفض للمالك فقط — المزوّد المشاهد لا يملك الحالة.
               onAccept: _isOwner(order) && !_isActing ? _acceptPrice : null,
               onReject: _isOwner(order) && !_isActing ? _rejectPrice : null,
+              avatarId: _providerAvatarId,
+              avatarUrl: _providerAvatarUrl,
             ),
 
           // Confirmed - Show contact options
@@ -445,7 +462,22 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
               providerNotes: order.providerNotes,
               attachments: order.providerAttachments ?? const [],
               onCall: _callProvider,
+              avatarId: _providerAvatarId,
+              avatarUrl: _providerAvatarUrl,
             ),
+
+          // ملخّص المعاملة للطلبات المنتهية: تاريخ المعاملة، اسم المزوّد،
+          // مسار الأحداث (اكتمال أو فشل مع توضيح الجهة الرافضة).
+          if (order.isFinalized) ...[
+            const SizedBox(height: 24),
+            TransactionSummaryCard(
+              order: order,
+              providerName: _providerName ?? '',
+              workshopName: _workshopName ?? '',
+              avatarId: _providerAvatarId,
+              avatarUrl: _providerAvatarUrl,
+            ),
+          ],
 
           // Completed - التقييم
           if (order.status == OrderStatus.completed) ...[
@@ -704,6 +736,98 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
                         color: Colors.white,
                       ),
                     ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// عدّاد الإلغاء التلقائي الظاهر للعميل أثناء انتظار طلبه (pending).
+/// يذكّر العميل بأن طلبه سيُلغى تلقائياً عند انتهاء المهلة التي اختارها،
+/// وعند الوصول للصفر يختفي العدّاد (لا تبقى رسالة ثابتة) والدولة الفعلية
+/// تتحدث من الخادم عبر Realtime.
+class _AutoCancelCountdown extends StatefulWidget {
+  final DateTime deadline;
+
+  const _AutoCancelCountdown({required this.deadline});
+
+  @override
+  State<_AutoCancelCountdown> createState() => _AutoCancelCountdownState();
+}
+
+class _AutoCancelCountdownState extends State<_AutoCancelCountdown> {
+  Timer? _timer;
+  late Duration _remaining;
+
+  @override
+  void initState() {
+    super.initState();
+    // ثبّت "الآن" على ساعة الخادم ثم احسب المتبقي — لا على ساعة الجهاز.
+    _remaining = _computeRemaining();
+    if (_remaining.inSeconds > 0) {
+      _timer = Timer.periodic(const Duration(seconds: 1), (_) => _updateRemaining());
+    }
+    ServerClock.instance.refresh().then((_) {
+      if (mounted) _updateRemaining();
+    });
+  }
+
+  Duration _computeRemaining() {
+    final next = widget.deadline.difference(ServerClock.instance.now);
+    return next.inSeconds <= 0 ? Duration.zero : next;
+  }
+
+  void _updateRemaining() {
+    final next = _computeRemaining();
+    if (next.inSeconds <= 0) {
+      _timer?.cancel();
+    }
+    if (mounted) setState(() => _remaining = next);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  String _fmt(Duration d) {
+    final m = d.inMinutes;
+    final s = d.inSeconds % 60;
+    if (d.inHours > 0) {
+      return '${d.inHours}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+    }
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final expired = _remaining.inSeconds <= 0;
+    if (expired) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.timer_outlined, size: 18, color: AppColors.warning),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'سيُلغى الطلب تلقائياً خلال 5 دقائق — متبقي ${_fmt(_remaining)}',
+              style: const TextStyle(
+                fontFamily: 'Cairo',
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: AppColors.warning,
+              ),
             ),
           ),
         ],
