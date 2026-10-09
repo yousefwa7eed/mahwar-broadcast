@@ -93,6 +93,9 @@ class _MahwarAppState extends State<MahwarApp> {
     // رسالة ضغط فتح بها التطبيق وهو مغلق → يتوجه مباشرة للطلب/الإشعارات.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       PushNotificationService.instance.handleInitialMessage();
+      // مستخدم مسجّل فعلًا → نعيد حفظ التوكن/الجهاز مرة واحدة لكل إقلاع
+      // (حتى لا يبقى جهاز بلا إشعارات بعد مسح خارجي للتوكن).
+      PushNotificationService.instance.ensureTokenSavedOnStart();
     });
   }
 

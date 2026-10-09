@@ -8,6 +8,7 @@ import '../models/notification_model.dart';
 import '../notifications/notification_cubit.dart';
 import '../router/app_router.dart';
 import 'app_messenger.dart';
+import 'device_identity.dart';
 
 /// ينسّق كل ما يخص إشعارات الدفع (FCM) على مستوى التطبيق كامل:
 ///  - طلب إذن الإشعارات + حفظ/تحديث التوكن في profiles.fcm_token
@@ -23,6 +24,7 @@ class PushNotificationService {
   NotificationCubit? _cubit;
   Timer? _syncDebounce;
   bool _handlersRegistered = false;
+  bool _startupSaveAttempted = false;
 
   /// يربط الـ cubit ليتسنى تحديث القائمة عند استلام إشعار (يُنادى من main).
   void attach(NotificationCubit cubit) => _cubit = cubit;
@@ -60,13 +62,26 @@ class PushNotificationService {
     try {
       final token = await _messaging.getToken();
       if (token == null) return;
+      final deviceId = await DeviceIdentity.instance.get();
+      if (Supabase.instance.client.auth.currentUser?.id != userId) return;
       await Supabase.instance.client
           .from('profiles')
-          .update({'fcm_token': token})
+          .update({'fcm_token': token, 'device_id': deviceId})
           .eq('id', userId);
     } catch (_) {
       // فشل الحفظ لا يمنع أي شيء
     }
+  }
+
+  /// إعادة حفظ fcm_token + device_id عند إقلاع التطبيق إذا كان المستخدم
+  /// مسجّلًا فعلًا — مرة واحدة لكل إقلاع (لتفادي تكرار النداء). ضمانة إعادة
+  /// ربط الجهاز بعد أي مسح خارجي للتوكن (مثل تنظيف Stage 4) دون انتظار تسجيل
+  /// دخول أو تحديث توكن من FCM. نفس حارس الهوية داخل [saveToken]: نلتقط
+  /// userId ثم نتأكد أنه ما زال المستخدم الحالي قبل الكتابة.
+  Future<void> ensureTokenSavedOnStart() async {
+    if (_startupSaveAttempted) return;
+    _startupSaveAttempted = true;
+    await saveToken();
   }
 
   /// يعالج رسالة فُتح بها التطبيق وهو مغلق/مقتول (يُنادى بعد إقلاع الـ UI).
@@ -262,9 +277,11 @@ class PushNotificationService {
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) return;
     try {
+      final deviceId = await DeviceIdentity.instance.get();
+      if (Supabase.instance.client.auth.currentUser?.id != userId) return;
       await Supabase.instance.client
           .from('profiles')
-          .update({'fcm_token': token})
+          .update({'fcm_token': token, 'device_id': deviceId})
           .eq('id', userId);
     } catch (_) {
       // تجاهل — سيُعاد الحفظ عند تسجيل الدخول التالي
