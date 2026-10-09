@@ -114,7 +114,9 @@ class AuthCubit extends Cubit<AuthState> {
       final event = authState.event;
       final session = authState.session;
 
-      if (event == AuthChangeEvent.signedIn && session != null) {
+      if ((event == AuthChangeEvent.signedIn ||
+              event == AuthChangeEvent.initialSession) &&
+          session != null) {
         emit(AuthAuthenticated(session.user));
         _saveFcmToken(session.user.id);
         _subscribeToRoleTopic(session.user);
@@ -146,13 +148,11 @@ class AuthCubit extends Cubit<AuthState> {
 
   /// يشترك الجهاز في FCM Topic المناسب حسب دور المستخدم (car_owner / provider)
   /// عشان نقدر نبعت إشعارات جماعية لكل فئة من غير ما نجمع كل الـ tokens يدويًا.
-  /// بيحاول ياخد الـ role الأول من user_metadata (المتاح فورًا من غير استدعاء إضافي)،
-  /// ولو مش موجود، بيرجع يسأل جدول profiles كخطة بديلة.
+  /// الدور يُقرأ من `profiles.role` فقط (المصدر الموثوق)، بلا أي اعتماد على
+  /// `user_metadata` — حتى لا يُشترك الجهاز في موضوع الفئة الخاطئة.
   Future<void> _subscribeToRoleTopic(User user) async {
     try {
-      String? role = user.userMetadata?['role'] as String?;
-
-      role ??= await _fetchRoleFromProfile(user.id);
+      final role = await _authService.getServerRole();
 
       if (role == null) return;
 
@@ -169,31 +169,20 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
-  Future<String?> _fetchRoleFromProfile(String userId) async {
-    try {
-      final response = await Supabase.instance.client
-          .from('profiles')
-          .select('role')
-          .eq('id', userId)
-          .maybeSingle();
-      return response?['role'] as String?;
-    } catch (e) {
-      return null;
-    }
-  }
+  /// يتحقق من الجلسة الحالية لدى الخادم (`auth.getUser`) ويعيد المستخدم
+  /// الخادمي. يمرّر [AuthException] للأعلى حتى تفرّق الشاشة بين جلسة
+  /// منتهية/ملغاة (تُخرج المستخدم) وفشل شبكة (قابل لإعادة المحاولة).
+  Future<User?> validateServerSession() => _authService.getServerUser();
 
-  /// يحدّد الدور الحقيقي للمستخدم المسجّل (المصدر الأول: profiles جدول،
-  /// والبديل: user_metadata من توكن الجلسة). يُستخدم لتوجيه الشاشة الرئيسية
-  /// بعد الدخول بدلاً من الثقة في معرّف الدور الوارد من رابط الصفحة،
-  /// مما يمنع توجيه مالك/مزوّد لشاشة الرئيسية الخاطئة.
-  Future<String> resolveCurrentRole() async {
+  /// يحدّد الدور الحقيقي للمستخدم المسجّل من `profiles.role` فقط (المصدر
+  /// الموثوق للتوجيه). تُرجع null عندما لا يوجد مستخدم مسجّل، أو عندما يتعذّر
+  /// تحديد الدور من الخادم — بلا أي افتراضي إلى `car_owner` وبلا رجوع إلى
+  /// `user_metadata` (كان السبب في توجيه المزوّد إلى رئيسية مالك السيارة).
+  Future<String?> resolveCurrentRole() async {
     final user = _authService.currentUser;
-    if (user == null) return 'car_owner';
+    if (user == null) return null;
 
-    final fromProfile = await _fetchRoleFromProfile(user.id);
-    if (fromProfile != null) return fromProfile;
-
-    return user.userMetadata?['role'] as String? ?? 'car_owner';
+    return _authService.getServerRole();
   }
 
   /// يحدّد هل identifier ده إيميل أو رقم هاتف، ويرجع الإيميل الحقيقي الصالح

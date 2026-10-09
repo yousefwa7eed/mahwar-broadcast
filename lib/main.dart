@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import 'core/router/app_router.dart';
 import 'core/auth/auth_cubit.dart';
 import 'core/auth/profile_cubit.dart';
+import 'core/auth/secure_local_storage.dart';
 import 'core/notifications/notification_cubit.dart';
 import 'core/services/app_messenger.dart';
 import 'core/services/push_notification_service.dart';
@@ -27,13 +29,35 @@ const String kSupabaseAnonKey = String.fromEnvironment(
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZ2VzZnpvamFvaXJ1dGtrZmNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwNTIwMTMsImV4cCI6MjEwMTYyODAxM30.FtFVE8KilYJqU9hATPT1ylrVTjkmVx6UbQMIb_QvcXI',
 );
 
+/// Once-only migration: Supabase used to persist the session plaintext under
+/// this key in SharedPreferences. Now the session lives in secure storage, so
+/// this stale key is removed a single time. Safe to run even when the key is
+/// already gone; the `supabase.auth.token-code-verifier` key is left untouched.
+Future<void> clearLegacySharedPreferencesSessionKey() async {
+  const legacySessionKey = 'sb-trgesfzojaoirutkkfcs-auth-token';
+  const migrationMarkerKey = 'sb_legacy_session_key_cleared';
+
+  final prefs = await SharedPreferences.getInstance();
+
+  if (prefs.getBool(migrationMarkerKey) ?? false) {
+    return;
+  }
+
+  await prefs.remove(legacySessionKey);
+  await prefs.setBool(migrationMarkerKey, true);
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await clearLegacySharedPreferencesSessionKey();
   await Firebase.initializeApp();
 
   await Supabase.initialize(
     url: kSupabaseUrl,
     publishableKey: kSupabaseAnonKey,
+    authOptions: const FlutterAuthClientOptions(
+      localStorage: SecureLocalStorage(),
+    ),
   );
 
   // مصدر واحد للإشعارات: يربطنا الـ PushNotificationService بالـ cubit

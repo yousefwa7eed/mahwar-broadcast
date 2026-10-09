@@ -15,6 +15,16 @@ abstract class AuthService {
 
   Future<String?> getUserRole();
 
+  /// يتحقق من صلاحية الجلسة الحالية لدى الخادم (`auth.getUser`) ويعيد المستخدم
+  /// الخادمي. يرمي [AuthException] عند انتهاء/بطلان التوكن. تُرجع null إذا لم
+  /// يكن هناك مستخدم.
+  Future<User?> getServerUser();
+
+  /// الدور من جدول `profiles.role` فقط — المصدر الموثوق الوحيد للتوجيه
+  /// والـ Authorization. تُرجع null عند أي فشل أو غياب مستخدم، بلا أي رجوع
+  /// إلى `user_metadata` (حتى لا يُوجَّه المزوّد إلى رئيسية مالك السيارة).
+  Future<String?> getServerRole();
+
   Future<AuthResponse> signUpWithEmail({
     required String email,
     required String password,
@@ -46,6 +56,11 @@ abstract class AuthService {
   });
 
   Future<void> signOut();
+
+  /// يسحب الجلسة من الجهاز محليًا فقط (بدون إبطال لدى الخادم) — احتياطي
+  /// يُستخدم عند فشل [signOut] الشبكي/مهلة الـ best-effort حتى لا يبقى
+  /// الجهاز مسجّل دخول أبدًا.
+  Future<void> clearLocalSession();
 
   /// يحوّل identifier (إيميل أو رقم هاتف محلي) إلى الإيميل الحقيقي المرتبط
   /// بالحساب. يعيد null عندما يكون الإدخال فارغًا أو لا يوجد حساب مرتبط.
@@ -104,6 +119,29 @@ class SupabaseAuthService extends AuthService {
         .maybeSingle();
 
     return response?['role'] as String?;
+  }
+
+  @override
+  Future<User?> getServerUser() async {
+    final res = await _client.auth.getUser();
+    return res.user;
+  }
+
+  @override
+  Future<String?> getServerRole() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return null;
+    try {
+      final response = await _client
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+      return response?['role'] as String?;
+    } catch (_) {
+      // فشل قراءة الدور من الخادم → null. لا رجوع إلى user_metadata إطلاقًا.
+      return null;
+    }
   }
 
   @override
@@ -203,6 +241,13 @@ class SupabaseAuthService extends AuthService {
       }
     }
     await _client.auth.signOut();
+  }
+
+  @override
+  Future<void> clearLocalSession() async {
+    // `SignOutScope.local`: يزيل الجلسة من الجهاز (ويبث signedOut) ويطلب
+    // إبطالها لدى الخادم بأفضل جهد — إن فشل الطلب الشبكي تبقى المحلية مُسحوبة.
+    await _client.auth.signOut(scope: SignOutScope.local);
   }
 
   /// يحوّل رقمًا محليًا (01012345678) إلى الصيغة الدولية التي تتطلبها GoTrue

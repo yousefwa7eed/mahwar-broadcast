@@ -9,8 +9,9 @@ void main() {
     expect(homeRouteForRole('provider'), '/home/provider');
   });
 
-  test('homeRouteForRole لأي دور آخر يعود بأمان إلى منزل مالك السيارة', () {
-    expect(homeRouteForRole('admin'), '/home/owner');
-    expect(homeRouteForRole(''), '/home/owner');
+  test('homeRouteForRole بلا دور صالح تُرجع null (لا افتراضي car_owner)', () {
+    expect(homeRouteForRole('admin'), isNull);
+    expect(homeRouteForRole(''), isNull);
+    expect(homeRouteForRole(null), isNull);
   });
 }

@@ -25,7 +25,7 @@ void main() {
       routes: [
         GoRoute(
           path: '/',
-          builder: (context, state) => const ForgotPasswordScreen(),
+          builder: (context, state) => const ForgotPasswordScreen(role: 'car_owner'),
         ),
         GoRoute(
           path: '/otp-verify',

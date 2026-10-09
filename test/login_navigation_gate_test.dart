@@ -14,11 +14,12 @@ import 'fakes/fake_auth_service.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  (Widget, GoRouter) buildApp(FakeAuthService service) {
+  (Widget, GoRouter) buildApp(FakeAuthService service,
+      {String loginRole = 'car_owner'}) {
     final router = GoRouter(
       initialLocation: '/login',
       routes: [
-        GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+        GoRoute(path: '/login', builder: (context, state) => LoginScreen(role: loginRole)),
         GoRoute(
           path: '/otp-verify',
           builder: (context, state) => const Scaffold(
@@ -80,6 +81,14 @@ void main() {
         createdAt: 'now',
       );
 
+  User providerUser() => User(
+        id: 'fake-user-id',
+        appMetadata: const {},
+        userMetadata: const {'role': 'provider'},
+        aud: 'authenticated',
+        createdAt: 'now',
+      );
+
   testWidgets(
       'شاشة الدخول لا تتنقل حين تكون شاشة OTP أعلى منها، وتنتقل فقط حين تكون هي الأعلى',
       (tester) async {
@@ -96,6 +105,7 @@ void main() {
 
     // نُجهّز جلسة دخول حقيقية (يماثل GoTrue بعد إدخال OTP صحيح).
     fake.user = ownerUser();
+    fake.serverRole = 'car_owner';
 
     // بث حدث signedIn → AuthCubit يبث AuthAuthenticated، وشاشة الدخول
     // تحتهما مركّبة — لكنها لا تتحرك لأنها ليست الشاشة الأعلى.
@@ -103,7 +113,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(currentPath(router), '/otp-verify');
 
-    // نعود لشاشة الدخول ثم نعاود البث → هنا فقط تنتقل لرئيسية مالك السيارة.
+    // نُنهي الجلسة بينما شاشة OTP ما زالت في الأعلى: حالة AuthCubit تنتقل إلى
+    // AuthUnauthenticated (تغيير حقيقي لأن Equatable يدمج بث نفس حالة
+    // AuthAuthenticated). ثم نعود لشاشة الدخول ونعاود البث signedIn → يصبح
+    // AuthAuthenticated تغييرًا حقيقيًا، وعندها فقط تنتقل لرئيسية مالك السيارة.
+    fake.authStateController.add(AuthState(AuthChangeEvent.signedOut, null));
+    await tester.pumpAndSettle();
+    expect(currentPath(router), '/otp-verify');
+
     router.pop();
     await tester.pumpAndSettle();
     expect(currentPath(router), '/login');
@@ -111,6 +128,60 @@ void main() {
     fake.authStateController.add(signedInFor(fake.user!));
     await tester.pumpAndSettle();
     expect(currentPath(router), '/home/owner');
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets(
+      'مزوّد يحاول الدخول من صفحة دخول العميل: يُرفض، يُخرج من الجلسة، ولا ينتقل',
+      (tester) async {
+    final fake = FakeAuthService();
+    final (app, router) = buildApp(fake);
+
+    await tester.pumpWidget(app);
+    expect(currentPath(router), '/login');
+
+    // جلسة حساب مزوّد حقيقي لكن نقطة الدخول مقيّدة بالعميل.
+    fake.user = providerUser();
+    fake.serverRole = 'provider';
+    fake.authStateController.add(signedInFor(fake.user!));
+    await tester.pumpAndSettle();
+
+    // لا تنقّل لأي شاشة رئيسية، ويظهر حوار الخطأ، وتُلغى الجلسة.
+    expect(currentPath(router), '/login');
+    expect(find.text('خطأ'), findsOneWidget);
+    expect(fake.user, isNull);
+    expect(find.byKey(const Key('owner_home')), findsNothing);
+    expect(find.byKey(const Key('provider_home')), findsNothing);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets(
+      'عميل سيارة يحاول الدخول من صفحة دخول المزوّد: يُرفض، يُخرج من الجلسة، ولا ينتقل',
+      (tester) async {
+    final fake = FakeAuthService();
+    final (app, router) = buildApp(fake, loginRole: 'provider');
+
+    await tester.pumpWidget(app);
+    expect(currentPath(router), '/login');
+
+    // جلسة حساب مالك سيارة حقيقي لكن نقطة الدخول مقيّدة بالمزوّد.
+    fake.user = ownerUser();
+    fake.serverRole = 'car_owner';
+    fake.authStateController.add(signedInFor(fake.user!));
+    await tester.pumpAndSettle();
+
+    // لا تنقّل لأي شاشة رئيسية، ويظهر حوار الخطأ برسالة عدم التطابق، وتُلغى الجلسة.
+    expect(currentPath(router), '/login');
+    expect(find.text('خطأ'), findsOneWidget);
+    expect(
+      find.text('هذا الحساب مسجّل كعميل. يرجى تسجيل الدخول من صفحة تسجيل دخول العميل.'),
+      findsOneWidget,
+    );
+    expect(fake.user, isNull);
+    expect(find.byKey(const Key('owner_home')), findsNothing);
+    expect(find.byKey(const Key('provider_home')), findsNothing);
 
     await tester.pumpWidget(const SizedBox());
   });

@@ -11,6 +11,34 @@ class FakeAuthService extends AuthService {
   User? user;
   String expectedOtp = '123456';
 
+  /// المستخدم العائد من `getServerUser` (تحقّق الخادم). منفصل عن [user] حتى
+  /// تحاكي الاختبارات جلسة محلية موجودة لكنها منتهية/ملغاة لدى الخادم.
+  User? serverUser;
+
+  /// إن كان مضبوطًا فإن `getServerUser` يرميه (جلسة منتهية/ملغاة/فشل شبكة).
+  Object? serverUserError;
+
+  /// الدور العائد من `getServerRole` (جدول profiles). null = فشل/غياب الدور.
+  String? serverRole;
+
+  /// إن كان مضبوطًا فإن `getServerRole` يرميه قبل إرجاع [serverRole].
+  Object? serverRoleError;
+
+  /// تأخير مُصطنع في `getServerRole` لمحاكاة انتهاء المهلة في شاشة الإقلاع.
+  Duration? serverRoleDelay;
+
+  int serverUserCount = 0;
+  int serverRoleCount = 0;
+  int signOutCount = 0;
+  int clearLocalSessionCount = 0;
+
+  /// إن كان مضبوطًا فإن `signOut` يرميه (فشل شبكة/خادم) بعد تمرير التنظيف
+  /// المحلي لدى GoTrue (الجلسة المحلية تُسحب قبل الطلب الشبكي).
+  Object? signOutError;
+
+  /// إن كان مضبوطًا فإن `clearLocalSession` يرميه.
+  Object? clearLocalSessionError;
+
   /// خريطة (رقم محلي → إيميل) يستخدمها resolveEmail للرقم،
   /// ومحاكاة لجدول get_email_by_phone في السيرفر.
   final Map<String, String> emailByPhone = {};
@@ -69,6 +97,21 @@ class FakeAuthService extends AuthService {
   Future<String?> getUserRole() async => user?.userMetadata?['role'] as String?;
 
   @override
+  Future<User?> getServerUser() async {
+    serverUserCount++;
+    if (serverUserError != null) throw serverUserError!;
+    return serverUser;
+  }
+
+  @override
+  Future<String?> getServerRole() async {
+    serverRoleCount++;
+    if (serverRoleDelay != null) await Future<void>.delayed(serverRoleDelay!);
+    if (serverRoleError != null) throw serverRoleError!;
+    return serverRole;
+  }
+
+  @override
   Future<AuthResponse> signUpWithEmail({
     required String email,
     required String password,
@@ -118,7 +161,17 @@ class FakeAuthService extends AuthService {
 
   @override
   Future<void> signOut() async {
+    signOutCount++;
+    if (signOutError != null) throw signOutError!;
     user = null;
+  }
+
+  @override
+  Future<void> clearLocalSession() async {
+    clearLocalSessionCount++;
+    if (clearLocalSessionError != null) throw clearLocalSessionError!;
+    user = null;
+    serverUser = null;
   }
 
   @override

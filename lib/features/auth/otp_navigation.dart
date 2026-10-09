@@ -19,14 +19,16 @@ Future<void> continueToPhoneVerification(
   String? phone,
 ) async {
   if (AppConfig.otpBypass) {
-    context.go(homeRouteForRole(role));
+    final homeRoute = homeRouteForRole(role);
+    if (homeRoute != null) context.go(homeRoute);
     return;
   }
 
   final normalized = phone == null || phone.isEmpty ? '' : PhoneUtils.normalize(phone);
   if (normalized.isEmpty) {
     // لا يوجد رقم للتفعيل — لا نحجب المستخدم عن التطبيق.
-    context.go(homeRouteForRole(role));
+    final homeRoute = homeRouteForRole(role);
+    if (homeRoute != null) context.go(homeRoute);
     return;
   }
 

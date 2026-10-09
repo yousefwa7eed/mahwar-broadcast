@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../core/auth/auth_service.dart';
+import '../../core/auth/logout_coordinator.dart';
 import '../../core/auth/profile_cubit.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/errors/rpc_error_translator.dart';
@@ -12,6 +12,7 @@ import '../../core/services/location_service.dart';
 import '../../core/services/server_clock.dart';
 import '../../core/settings/app_settings_cubit.dart';
 import '../../core/widgets/confirm_dialog.dart';
+import '../../core/widgets/profile_name_text.dart';
 import '../../l10n/app_localizations.dart';
 import 'widgets/home_header.dart';
 import 'widgets/sos_emergency_banner.dart';
@@ -278,10 +279,6 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   }
 
   Widget _buildHomeTab(BuildContext context, bool isDark, AppLocalizations? l10n) {
-    final profileState = context.watch<ProfileCubit>().state;
-    final userName = profileState is ProfileLoaded ? profileState.profile.fullName : '';
-    final avatarId = profileState is ProfileLoaded ? profileState.profile.avatarId : null;
-    final photoUrl = profileState is ProfileLoaded ? profileState.profile.avatarUrl : null;
     final activeOrder = _activeOrder;
 
     return SingleChildScrollView(
@@ -289,14 +286,11 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           HomeHeader(
-            userName: userName.isNotEmpty ? userName : (l10n?.welcomeUser ?? 'مرحباً،').replaceAll('،', '').trim(),
             locationText: _addressText.isEmpty ? null : _addressText,
             isLocatingLocation: _isLocatingAddress,
             onLocationTap: _loadCurrentAddress,
             unreadNotifications: context.watch<NotificationCubit>().state.unreadCount,
             onNotificationTap: () => setState(() => _currentIndex = 2),
-            avatarId: avatarId,
-            photoUrl: photoUrl,
             role: 'car_owner',
           ),
           const SizedBox(height: 8),
@@ -650,8 +644,6 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   Widget _buildProfileTab(BuildContext context, bool isDark, AppLocalizations? l10n) {
     final settingsCubit = context.watch<AppSettingsCubit>();
     final isArabic = settingsCubit.state.locale.languageCode == 'ar';
-    final profileState = context.watch<ProfileCubit>().state;
-    final userName = profileState is ProfileLoaded ? profileState.profile.fullName : '';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -664,8 +656,12 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
             child: const Icon(Icons.person_rounded, size: 50, color: AppColors.orangePrimary),
           ),
           const SizedBox(height: 16),
-          Text(
-            userName.isNotEmpty ? userName : (l10n?.myAccount ?? 'حسابي'),
+          // أثناء تحميل الملف الشخصي نعرض شيمر مكان الاسم مع إعادة محاولة
+          // عند الخطأ — لا نص مؤقت من user_metadata.
+          ProfileNameText(
+            emptyFallback: l10n?.myAccount ?? 'حسابي',
+            skeletonWidth: 180,
+            skeletonHeight: 36,
             style: TextStyle(
               fontFamily: 'Zain',
               fontSize: 24,
@@ -714,45 +710,10 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
             width: double.infinity,
             height: 52,
             child: OutlinedButton(
-              onPressed: () async {
-                // C2: الخروج يجب ألا يُغادر الشاشة إلا عند نجاحه فعليًا —
-                // إن فشل (مثلًا انقطاع الشبكة) نُبقي المستخدم هنا مع رسالة قابلة لإعادة المحاولة.
-                Future<void> attemptLogout() async {
-                  try {
-                    await SupabaseAuthService().signOut();
-                  } catch (e) {
-                    debugPrint('[logout] signOut failed: $e');
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        behavior: SnackBarBehavior.floating,
-                        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        duration: const Duration(seconds: 4),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        content: Text(
-                          l10n?.logoutFailedMessage ??
-                              'لم نتمكن من تسجيل الخروج. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.',
-                          style: const TextStyle(
-                            fontFamily: 'Cairo',
-                            fontSize: 14,
-                            color: Colors.white,
-                          ),
-                        ),
-                        action: SnackBarAction(
-                          label: l10n?.retry ?? 'إعادة المحاولة',
-                          onPressed: () => attemptLogout(),
-                        ),
-                      ),
-                    );
-                    return;
-                  }
-                  if (context.mounted) context.go('/select-user-type');
-                }
-
-                await attemptLogout();
-              },
+              onPressed: () => LogoutCoordinator().logout(
+                context: context,
+                resetProfile: () => context.read<ProfileCubit>().reset(),
+              ),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: AppColors.error),
                 shape: RoundedRectangleBorder(

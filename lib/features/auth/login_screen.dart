@@ -3,36 +3,87 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth/auth_cubit.dart';
 import '../../core/auth/home_route.dart';
+import '../../core/auth/role_gate.dart';
+import '../../core/settings/app_settings_cubit.dart';
+import 'widgets/error_dialog.dart';
 import 'widgets/login_form_widget.dart';
 import 'widgets/login_header_widget.dart';
-import 'widgets/error_dialog.dart';
 
 class LoginScreen extends StatefulWidget {
   final String role;
-  const LoginScreen({super.key, this.role = 'car_owner'});
+  const LoginScreen({super.key, required this.role});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  /// يمنع إعادة الدخول للمستمع أثناء معالجة توجيه/خروج (خاصةً خطأ الخروج
+  /// الذي ينبعث نتيجة تسجيل خروج عدم التطابق — لا نعرضه فوق رسالة عدم التطابق).
+  bool _resolving = false;
+
   @override
   Widget build(BuildContext context) {
     return BlocListener<AuthCubit, AuthState>(
       listener: (context, state) async {
+        if (_resolving) return;
+
+        // لا نتنقل أبدًا إلا على AuthAuthenticated. أي حالة أخرى (تحميل/خطأ/
+        // غير مصادق) لا توجّه — كان السبب الأصلي في التوجيه المبكر إلى شاشة
+        // المالك قبل اكتمال الجلسة. نعرض أخطاء الدخول فقط ونحن على شاشة الدخول.
+        if (state is! AuthAuthenticated) {
+          if (state is AuthError && isTopmostRoute(context, '/login')) {
+            showErrorDialog(context, state.message);
+          }
+          return;
+        }
+
         // شاشة OTP أعلى هذه الشاشة أثناء تدفق التسجيل/الاستعادة هي المسؤولة
-        // الوحيدة عن التنقل بعد التحقق — لا نتحرك ونُبث رحلة مزدوجة. لا
-        // نتنقل إلا إذا كانت شاشة الدخول هي الشاشة الظاهرة فعلًا.
+        // الوحيدة عن التنقل بعد التحقق — لا نتحرك إلا إذا كانت شاشة الدخول هي
+        // الشاشة الظاهرة فعلًا.
         if (!isTopmostRoute(context, '/login')) return;
-        // الدور يُقرأ من جدول profiles (المصدر الموثوق) أولًا ثم من
-        // user_metadata كاحتياط — وليس من نقطة الدخول التي مرّ منها
-        // المستخدم (مثلاً: مالك سيارة سجّل دخوله من شاشة المزوّد).
-        // هذا يطابق سلوك splash والتنقل من الإشعارات، فيُوجَّه المستخدم
-        // دائمًا إلى شاشته الرئيسية حسب دوره الفعلي حتى لو استخدم شاشة
-        // دخول غير مناسبة.
-        final role = await context.read<AuthCubit>().resolveCurrentRole();
-        if (!context.mounted) return;
-        context.go(homeRouteForRole(role));
+
+        _resolving = true;
+        try {
+          // الدور الفعلي من جدول profiles (المصدر الموثوق) ثم user_metadata.
+          final actualRole =
+              AppRole.tryParse(await context.read<AuthCubit>().resolveCurrentRole());
+          if (!context.mounted) return;
+
+          final isArabic = context
+                  .read<AppSettingsCubit>()
+                  .state
+                  .locale
+                  .languageCode ==
+              'ar';
+
+          // تعذّر تحديد الدور → لا نفترض أي دور ولا نترك المستخدم في شاشة
+          // عالقة: نُخرج من الجلسة ونعرض رسالة قابلة لإعادة المحاولة.
+          if (actualRole == null) {
+            await context.read<AuthCubit>().signOut();
+            if (!context.mounted) return;
+            showErrorDialog(context, roleUnresolvedMessage(isArabic: isArabic));
+            return;
+          }
+
+          final expectedRole = AppRole.tryParse(widget.role);
+
+          // نقطة الدخول مقيّدة بالدور: حساب بدور مختلف عن صفحة الدخول التي
+          // استُخدمت يُرفض — نخرج من الجلسة ونوضّح الصفحة الصحيحة.
+          if (expectedRole != null && actualRole != expectedRole) {
+            await context.read<AuthCubit>().signOut();
+            if (!context.mounted) return;
+            showErrorDialog(
+              context,
+              roleMismatchMessage(actualRole: actualRole, isArabic: isArabic),
+            );
+            return;
+          }
+
+          context.go(actualRole.homeRoute);
+        } finally {
+          _resolving = false;
+        }
       },
       child: Scaffold(
         appBar: AppBar(

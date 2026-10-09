@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/auth/auth_service.dart';
+import '../../../core/auth/logout_coordinator.dart';
 import '../../../core/auth/profile_cubit.dart';
+import '../../../core/auth/role_gate.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/avatar_config.dart';
 import '../../../core/settings/app_settings_cubit.dart';
+import '../../../core/widgets/profile_name_text.dart';
 import '../../../l10n/app_localizations.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -17,12 +20,6 @@ class ProfileScreen extends StatelessWidget {
     final settingsCubit = context.watch<AppSettingsCubit>();
     final isArabic = settingsCubit.state.locale.languageCode == 'ar';
     final l10n = AppLocalizations.of(context);
-    final profileState = context.watch<ProfileCubit>().state;
-
-    String userName = '';
-    if (profileState is ProfileLoaded) {
-      userName = profileState.profile.fullName;
-    }
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
@@ -54,19 +51,23 @@ class ProfileScreen extends StatelessWidget {
             const SizedBox(height: 20),
             BlocBuilder<ProfileCubit, ProfileState>(
               builder: (context, state) {
-                String role = 'car_owner';
-                String? avatarId;
-                String? photoUrl;
-                if (state is ProfileLoaded) {
-                  role = state.profile.role == 'car_owner' ? 'car_owner' : 'provider';
-                  avatarId = state.profile.avatarId;
-                  photoUrl = state.profile.avatarUrl;
-                }
+                // الدور يأتي من profile فقط — لا افتراضي car_owner. بدون دور
+                // صالح نعطّل فتح شاشة اختيار الصورة بدل توجيه خاطئ.
+                final AppRole? role = state is ProfileLoaded
+                    ? AppRole.tryParse(state.profile.role)
+                    : null;
+                final String? avatarId =
+                    state is ProfileLoaded ? state.profile.avatarId : null;
+                final String? photoUrl =
+                    state is ProfileLoaded ? state.profile.avatarUrl : null;
                 return GestureDetector(
-                  onTap: () => context.push('/profile/avatar?role=$role'),
+                  onTap: role == null
+                      ? null
+                      : () =>
+                          context.push('/profile/avatar?role=${role.dbValue}'),
                   child: AvatarWidget(
                     avatarId: avatarId,
-                    role: role,
+                    role: role?.dbValue ?? '',
                     size: 100,
                     photoUrl: photoUrl,
                   ),
@@ -74,8 +75,13 @@ class ProfileScreen extends StatelessWidget {
               },
             ),
             const SizedBox(height: 16),
-            Text(
-              userName.isNotEmpty ? userName : (l10n?.myAccount ?? 'حسابي'),
+            // أثناء تحميل الملف الشخصي نعرض شيمر مكان الاسم مع إعادة
+            // محاولة عند الخطأ — لا نص مؤقت من user_metadata.
+            ProfileNameText(
+              emptyFallback: l10n?.myAccount ?? 'حسابي',
+              skeletonWidth: 180,
+              skeletonHeight: 36,
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: 'Zain',
                 fontSize: 24,
@@ -140,45 +146,10 @@ class ProfileScreen extends StatelessWidget {
               width: double.infinity,
               height: 52,
               child: OutlinedButton(
-                onPressed: () async {
-                  // C2: الخروج يجب ألا يُغادر الشاشة إلا عند نجاحه فعليًا —
-                  // إن فشل (مثلًا انقطاع الشبكة) نُبقي المستخدم هنا مع رسالة قابلة لإعادة المحاولة.
-                  Future<void> attemptLogout() async {
-                    try {
-                      await SupabaseAuthService().signOut();
-                    } catch (e) {
-                      debugPrint('[logout] signOut failed: $e');
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          behavior: SnackBarBehavior.floating,
-                          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                          duration: const Duration(seconds: 4),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          content: Text(
-                            l10n?.logoutFailedMessage ??
-                                'لم نتمكن من تسجيل الخروج. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.',
-                            style: const TextStyle(
-                              fontFamily: 'Cairo',
-                              fontSize: 14,
-                              color: Colors.white,
-                            ),
-                          ),
-                          action: SnackBarAction(
-                            label: l10n?.retry ?? 'إعادة المحاولة',
-                            onPressed: () => attemptLogout(),
-                          ),
-                        ),
-                      );
-                      return;
-                    }
-                    if (context.mounted) context.go('/select-user-type');
-                  }
-
-                  await attemptLogout();
-                },
+                onPressed: () => LogoutCoordinator().logout(
+                  context: context,
+                  resetProfile: () => context.read<ProfileCubit>().reset(),
+                ),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: AppColors.error),
                   shape: RoundedRectangleBorder(

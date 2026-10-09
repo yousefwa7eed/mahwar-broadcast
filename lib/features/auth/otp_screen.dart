@@ -163,11 +163,14 @@ class _OtpScreenState extends State<OtpScreen> {
     setState(() => _isBusy = false);
 
     switch (widget.mode) {
-      case OtpMode.signup:
+      case OtpMode.signup: {
         // يُمرَّر الدور بنصه الفعلي في قاعدة البيانات (car_owner/provider)،
         // ويُترجَم هنا إلى المسار المسجّل عبر الدالة الموحّدة — بدلاً من بناء
-        // مسار /home/$role قد لا يكون له مقابل في الـ router.
-        context.go(homeRouteForRole(widget.role ?? 'car_owner'));
+        // مسار /home/$role قد لا يكون له مقابل في الـ router. بدون دور صالح
+        // لا نتنقل (بدل افتراض car_owner بصمت).
+        final homeRoute = homeRouteForRole(widget.role);
+        if (homeRoute != null) context.go(homeRoute);
+      }
       case OtpMode.changeNumber:
         context.pop();
       case OtpMode.forgot:

@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import '../../core/auth/role_gate.dart';
 import '../../core/models/notification_model.dart';
 import '../../features/auth/forgot_password_screen.dart';
 import '../../features/auth/login_screen.dart';
@@ -50,17 +51,31 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/login',
       name: 'login',
+      // نقطة دخول مقيّدة بالدور: بدون دور صالح نعيد المستخدم لاختيار النوع
+      // بدلاً من افتراض car_owner بصمت.
+      redirect: (context, state) => AppRole.tryParse(
+                state.uri.queryParameters['role'],
+              ) ==
+              null
+          ? '/select-user-type'
+          : null,
       builder: (context, state) {
-        final role = state.uri.queryParameters['role'] ?? 'car_owner';
-        return LoginScreen(role: role);
+        final role = AppRole.tryParse(state.uri.queryParameters['role'])!;
+        return LoginScreen(role: role.dbValue);
       },
     ),
     GoRoute(
       path: '/signup',
       name: 'signup',
+      redirect: (context, state) => AppRole.tryParse(
+                state.uri.queryParameters['role'],
+              ) ==
+              null
+          ? '/select-user-type'
+          : null,
       builder: (context, state) {
-        final role = state.uri.queryParameters['role'] ?? 'car_owner';
-        if (role == 'provider') {
+        final role = AppRole.tryParse(state.uri.queryParameters['role'])!;
+        if (role == AppRole.provider) {
           return const SignupProviderScreen();
         }
         return const SignupOwnerScreen();
@@ -69,9 +84,15 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/forgot-password',
       name: 'forgot-password',
+      redirect: (context, state) => AppRole.tryParse(
+                state.uri.queryParameters['role'],
+              ) ==
+              null
+          ? '/select-user-type'
+          : null,
       builder: (context, state) {
-        final role = state.uri.queryParameters['role'] ?? 'car_owner';
-        return ForgotPasswordScreen(role: role);
+        final role = AppRole.tryParse(state.uri.queryParameters['role'])!;
+        return ForgotPasswordScreen(role: role.dbValue);
       },
     ),
     GoRoute(
@@ -222,9 +243,17 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/profile/avatar',
       name: 'profile-avatar',
+      // دور الصورة يجب أن يكون صريحًا (يأتي من profile)؛ بدون دور صالح نرجع
+      // لصفحة الملف الشخصي بدل افتراض car_owner.
+      redirect: (context, state) => AppRole.tryParse(
+                state.uri.queryParameters['role'],
+              ) ==
+              null
+          ? '/profile'
+          : null,
       builder: (context, state) {
-        final role = state.uri.queryParameters['role'] ?? 'car_owner';
-        return AvatarPickerScreen(role: role);
+        final role = AppRole.tryParse(state.uri.queryParameters['role'])!;
+        return AvatarPickerScreen(role: role.dbValue);
       },
     ),
     GoRoute(

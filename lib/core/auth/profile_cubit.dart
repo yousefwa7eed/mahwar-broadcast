@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -126,7 +128,8 @@ class ProfileCubit extends Cubit<ProfileState> {
           .from('profiles')
           .select('full_name, phone_number, email, national_id, role, avatar_id, avatar_url')
           .eq('id', userId)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(const Duration(seconds: 12));
 
       if (response == null) {
         emit(const ProfileLoaded(ProfileData()));
@@ -142,6 +145,10 @@ class ProfileCubit extends Cubit<ProfileState> {
         avatarId: response['avatar_id'],
         avatarUrl: response['avatar_url'],
       )));
+    } on TimeoutException {
+      // مهلة أمان: لا نبقى على شاشة هيكل شيمر بلا نهاية — نتحول لخطأ
+      // يُعرض مع زر إعادة المحاولة.
+      emit(const ProfileError('profile_load_timeout'));
     } catch (e) {
       emit(ProfileError(e.toString()));
     }
@@ -154,4 +161,8 @@ class ProfileCubit extends Cubit<ProfileState> {
   void updateProfile(ProfileData profile) {
     emit(ProfileLoaded(profile));
   }
+
+  /// يعيد الحالة إلى الابتدائية — يُستدعى عند تسجيل الخروج حتى لا تبقى
+  /// بيانات آخر مستخدم معروضة محليًا عند خروج أو دخول مستخدم آخر.
+  void reset() => emit(const ProfileInitial());
 }

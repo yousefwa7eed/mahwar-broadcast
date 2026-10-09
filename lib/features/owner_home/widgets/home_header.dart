@@ -1,30 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/auth/profile_cubit.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/avatar_config.dart';
+import '../../../core/widgets/profile_name_text.dart';
+import '../../../core/widgets/shimmer_box.dart';
 import '../../../l10n/app_localizations.dart';
 
 class HomeHeader extends StatelessWidget {
-  final String userName;
   final String? locationText;
   final bool isLocatingLocation;
   final VoidCallback? onLocationTap;
   final int unreadNotifications;
   final VoidCallback? onNotificationTap;
-  final String? avatarId;
-  final String? photoUrl;
   final String role;
 
   const HomeHeader({
     super.key,
-    required this.userName,
     this.locationText,
     this.isLocatingLocation = false,
     this.onLocationTap,
     this.unreadNotifications = 0,
     this.onNotificationTap,
-    this.avatarId,
-    this.photoUrl,
     this.role = 'car_owner',
   });
 
@@ -32,6 +30,8 @@ class HomeHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final profileState = context.watch<ProfileCubit>().state;
+    final profile = profileState is ProfileLoaded ? profileState.profile : null;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
@@ -39,26 +39,40 @@ class HomeHeader extends StatelessWidget {
         children: [
           GestureDetector(
             onTap: () => context.push('/profile/avatar?role=$role'),
-            child: AvatarWidget(
-              avatarId: avatarId,
-              role: role,
-              size: 40,
-              photoUrl: photoUrl,
-            ),
+            child: profile != null
+                ? AvatarWidget(
+                    avatarId: profile.avatarId,
+                    role: role,
+                    size: 40,
+                    photoUrl: profile.avatarUrl,
+                  )
+                : const ShimmerBox(
+                    width: 40,
+                    height: 40,
+                    circle: true,
+                  ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '${l10n?.welcomeUser ?? 'مرحباً،'} $userName',
+                // أثناء تحميل الملف الشخصي نعرض هيكل شيمر مكان الاسم، ولا
+                // نعرض نصاً مؤقتاً يبدو وكأنه الاسم الحقيقي.
+                ProfileNameText(
+                  prefix: l10n?.welcomeUser ?? 'مرحباً',
+                  emptyFallback:
+                      (l10n?.welcomeUser ?? 'مرحباً،').replaceAll('،', '').trim(),
                   style: TextStyle(
                     fontFamily: 'Zain',
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                    color: isDark
+                        ? AppColors.darkTextPrimary
+                        : AppColors.lightTextPrimary,
                   ),
+                  skeletonWidth: 130,
+                  skeletonHeight: 30,
                 ),
                 const SizedBox(height: 4),
                 GestureDetector(
@@ -80,7 +94,9 @@ class HomeHeader extends StatelessWidget {
                           style: TextStyle(
                             fontFamily: 'Cairo',
                             fontSize: 13,
-                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                            color: isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.lightTextSecondary,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),

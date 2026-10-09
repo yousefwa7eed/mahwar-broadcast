@@ -3,6 +3,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../auth/auth_cubit.dart';
 import '../auth/home_route.dart';
+import '../auth/role_gate.dart';
 import '../models/notification_model.dart';
 import '../notifications/notification_cubit.dart';
 import '../router/app_router.dart';
@@ -115,7 +116,7 @@ class PushNotificationService {
         case 'new_order':
           return '/request/quote?orderId=$orderId';
         case 'order_confirmed':
-          return homeRouteForRole(role);
+          return AppRole.provider.homeRoute;
         case 'rating_received':
           return '/notifications';
         case 'order_rejected':
@@ -207,7 +208,7 @@ class PushNotificationService {
       PushNotificationService.orderRouteFor(
         orderId: orderId,
         type: type ?? '',
-        role: role,
+        role: role ?? '',
       ),
     );
   }
@@ -244,7 +245,9 @@ class PushNotificationService {
   Future<void> _openHome() async {
     final role = await AuthCubit().resolveCurrentRole();
     // go() لأن الرئيسية شاشة جذرية — نتجنب تكديس نسخة فوق الشاشات الحالية.
-    appRouter.go(homeRouteForRole(role));
+    // بلا دور صالح لا نتنقل (بدل افتراض car_owner بصمت).
+    final homeRoute = homeRouteForRole(role);
+    if (homeRoute != null) appRouter.go(homeRoute);
   }
 
   /// مزامنة تبعاً لأي إشعار وصل — debounce بسيط لتفادي ازدحام النداءات.

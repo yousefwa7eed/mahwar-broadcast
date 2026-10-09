@@ -36,20 +36,23 @@ Future<void> openNotificationFromList(
   if (deepLink == 'home') {
     final role = await context.read<AuthCubit>().resolveCurrentRole();
     if (!context.mounted) return;
-    // go() لأن الرئيسية شاشة جذرية — نتجنب تكديس نسخة فوق الأخرى.
-    context.go(homeRouteForRole(role));
+    // go() لأن الرئيسية شاشة جذرية — نتجنب تكديس نسخة فوق الأخرى. بلا دور
+    // صالح لا نتنقل (بدل افتراض car_owner بصمت).
+    final homeRoute = homeRouteForRole(role);
+    if (homeRoute != null) context.go(homeRoute);
     return;
   }
 
   if (notification.orderId != null) {
     final role = await context.read<AuthCubit>().resolveCurrentRole();
     if (!context.mounted) return;
-    // نفس جدول مسارات الدفع الموحّد (حسب الدور ونوع الإشعار).
+    // نفس جدول مسارات الدفع الموحّد (حسب الدور ونوع الإشعار). الدور غير
+    // المعروف يُمرَّر فارغًا فيقع الجدول على شاشة التتبع الآمنة.
     context.push(
       PushNotificationService.orderRouteFor(
         orderId: notification.orderId!,
         type: notification.type,
-        role: role,
+        role: role ?? '',
       ),
     );
     return;

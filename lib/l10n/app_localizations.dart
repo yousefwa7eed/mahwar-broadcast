@@ -620,6 +620,12 @@ abstract class AppLocalizations {
   /// **'إعادة المحاولة'**
   String get retry;
 
+  /// No description provided for @profileLoadFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل بياناتك الشخصية'**
+  String get profileLoadFailed;
+
   /// No description provided for @carDataRequired.
   ///
   /// In ar, this message translates to:

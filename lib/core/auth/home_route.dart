@@ -1,13 +1,16 @@
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
+import 'role_gate.dart';
+
 /// المسار الجذري للرئيسية حسب دور المستخدم في قاعدة البيانات.
-/// أسماء الأدوار الفعلية في قاعدة البيانات (car_owner / provider) تُترجَم إلى
-/// المسارات المسجَّلة في الـ router (/home/owner و /home/provider) — أي قيمة
-/// أخرى نتعامل معها كمالك سيارة بأمان بدلاً من بناء مسار غير موجود يرمي
-/// GoException: no routes for location.
-String homeRouteForRole(String role) =>
-    role == 'provider' ? '/home/provider' : '/home/owner';
+/// أسماء الأدوار الفعلية (car_owner / provider) تُترجَم إلى المسارات المسجَّلة
+/// في الـ router (/home/owner و /home/provider).
+///
+/// تُرجع null لأي دور غير معروف أو غائب — لا يوجد افتراضي: سابقًا كان أي دور
+/// غير provider يُوجَّه بصمت إلى رئيسية مالك السيارة، وهو ما وجّه المزوّد
+/// (حين كان دوره غير معروف لحظيًا) إلى الشاشة الخاطئة.
+String? homeRouteForRole(String? role) => AppRole.tryParse(role)?.homeRoute;
 
 /// هل المسار الحالي في أعلى حزمة التنقل (topmost route) هو [path]؟
 /// يُستخدم لمنع أكثر من شاشة من الاستجابة لنفس حدث AuthAuthenticated: شاشة

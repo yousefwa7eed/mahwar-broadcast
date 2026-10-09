@@ -18,7 +18,7 @@ import 'widgets/error_dialog.dart';
 /// مسجّل أو حساب غير مكتمل التفعيل تُرسم برسالة واحدة لا تكشف حالة الرقم.
 class ForgotPasswordScreen extends StatefulWidget {
   final String role;
-  const ForgotPasswordScreen({super.key, this.role = 'car_owner'});
+  const ForgotPasswordScreen({super.key, required this.role});
 
   @override
   State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();

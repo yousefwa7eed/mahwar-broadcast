@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/auth/auth_service.dart';
+import '../../core/auth/logout_coordinator.dart';
 import '../../core/auth/profile_cubit.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/avatar_config.dart';
@@ -16,6 +17,8 @@ import '../../core/services/location_service.dart';
 import '../../core/services/server_clock.dart';
 import '../../core/settings/app_settings_cubit.dart';
 import '../../core/widgets/confirm_dialog.dart';
+import '../../core/widgets/profile_name_text.dart';
+import '../../core/widgets/shimmer_box.dart';
 import '../../l10n/app_localizations.dart';
 import '../notifications/notification_actions.dart';
 import 'widgets/active_order_card.dart';
@@ -621,9 +624,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
 
   Widget _buildDashboardTab(BuildContext context, bool isDark, AppLocalizations? l10n) {
     final profileState = context.watch<ProfileCubit>().state;
-    final userName = profileState is ProfileLoaded ? profileState.profile.fullName : '';
-    final avatarId = profileState is ProfileLoaded ? profileState.profile.avatarId : null;
-    final photoUrl = profileState is ProfileLoaded ? profileState.profile.avatarUrl : null;
+    final profile = profileState is ProfileLoaded ? profileState.profile : null;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -634,12 +635,18 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
             children: [
               GestureDetector(
                 onTap: () => context.push('/profile/avatar?role=provider'),
-                child: AvatarWidget(
-                  avatarId: avatarId,
-                  role: 'provider',
-                  size: 44,
-                  photoUrl: photoUrl,
-                ),
+                child: profile != null
+                    ? AvatarWidget(
+                        avatarId: profile.avatarId,
+                        role: 'provider',
+                        size: 44,
+                        photoUrl: profile.avatarUrl,
+                      )
+                    : const ShimmerBox(
+                        width: 44,
+                        height: 44,
+                        circle: true,
+                      ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -655,13 +662,20 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                         color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                       ),
                     ),
-                    Text(
-                      '${l10n?.welcomeUser ?? 'مرحباً،'} ${userName.isNotEmpty ? userName : (l10n?.serviceProvider ?? 'مقدم الخدمة')}',
+                    // أثناء تحميل الملف الشخصي نعرض شيمر مكان الاسم، ولا
+                    // نعرض نصاً مؤقتاً من user_metadata.
+                    ProfileNameText(
+                      prefix: l10n?.welcomeUser ?? 'مرحباً',
+                      emptyFallback: l10n?.serviceProvider ?? 'مقدم الخدمة',
                       style: TextStyle(
                         fontFamily: 'Cairo',
                         fontSize: 14,
-                        color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary,
                       ),
+                      skeletonWidth: 110,
+                      skeletonHeight: 21,
                     ),
                     if (_addressText.isNotEmpty || _isLocatingAddress) ...[
                       const SizedBox(height: 4),
@@ -1204,8 +1218,6 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
   Widget _buildProfileTab(BuildContext context, bool isDark, AppLocalizations? l10n) {
     final settingsCubit = context.watch<AppSettingsCubit>();
     final isArabic = settingsCubit.state.locale.languageCode == 'ar';
-    final profileState = context.watch<ProfileCubit>().state;
-    final userName = profileState is ProfileLoaded ? profileState.profile.fullName : '';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -1218,15 +1230,29 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
             child: const Icon(Icons.business_rounded, size: 50, color: AppColors.orangePrimary),
           ),
           const SizedBox(height: 16),
-          Text(
-            _workshopName.isNotEmpty ? _workshopName : userName,
-            style: TextStyle(
-              fontFamily: 'Zain',
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+          // اسم الورشة أولوية؛ وعند غيابه (أو أثناء تحميل الملف الشخصي)
+          // يظهر شيمر مكان الاسم مع إعادة محاولة عند الخطأ.
+          if (_workshopName.isNotEmpty)
+            Text(
+              _workshopName,
+              style: TextStyle(
+                fontFamily: 'Zain',
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+              ),
+            )
+          else
+            ProfileNameText(
+              skeletonWidth: 180,
+              skeletonHeight: 36,
+              style: TextStyle(
+                fontFamily: 'Zain',
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+              ),
             ),
-          ),
           const SizedBox(height: 32),
           _buildProfileOption(
             context,
@@ -1271,45 +1297,10 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
             width: double.infinity,
             height: 52,
             child: OutlinedButton(
-              onPressed: () async {
-                // C2: الخروج يجب ألا يُغادر الشاشة إلا عند نجاحه فعليًا —
-                // إن فشل (مثلًا انقطاع الشبكة) نُبقي المستخدم هنا مع رسالة قابلة لإعادة المحاولة.
-                Future<void> attemptLogout() async {
-                  try {
-                    await SupabaseAuthService().signOut();
-                  } catch (e) {
-                    debugPrint('[logout] signOut failed: $e');
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        behavior: SnackBarBehavior.floating,
-                        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        duration: const Duration(seconds: 4),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        content: Text(
-                          l10n?.logoutFailedMessage ??
-                              'لم نتمكن من تسجيل الخروج. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.',
-                          style: const TextStyle(
-                            fontFamily: 'Cairo',
-                            fontSize: 14,
-                            color: Colors.white,
-                          ),
-                        ),
-                        action: SnackBarAction(
-                          label: l10n?.retry ?? 'إعادة المحاولة',
-                          onPressed: () => attemptLogout(),
-                        ),
-                      ),
-                    );
-                    return;
-                  }
-                  if (context.mounted) context.go('/select-user-type');
-                }
-
-                await attemptLogout();
-              },
+              onPressed: () => LogoutCoordinator().logout(
+                context: context,
+                resetProfile: () => context.read<ProfileCubit>().reset(),
+              ),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: AppColors.error),
                 shape: RoundedRectangleBorder(

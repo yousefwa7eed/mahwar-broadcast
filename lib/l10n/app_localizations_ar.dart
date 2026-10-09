@@ -277,6 +277,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get retry => 'إعادة المحاولة';
 
   @override
+  String get profileLoadFailed => 'تعذّر تحميل بياناتك الشخصية';
+
+  @override
   String get carDataRequired => 'بيانات السيارة (إجباري)';
 
   @override

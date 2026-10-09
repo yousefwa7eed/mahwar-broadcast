@@ -101,6 +101,7 @@
   "logout": "Logout",
   "logoutFailedMessage": "Couldn't log out. Check your connection and try again.",
   "retry": "Retry",
+  "profileLoadFailed": "Couldn't load your profile",
   "carDataRequired": "Car Details (Required)",
   "selectMakeFirst": "Select car make first",
   "selectModelFirst": "Select model first",

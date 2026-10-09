@@ -281,6 +281,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get retry => 'Retry';
 
   @override
+  String get profileLoadFailed => 'Couldn\'t load your profile';
+
+  @override
   String get carDataRequired => 'Car Details (Required)';
 
   @override
