@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/models/provider_model.dart';
 import '../../core/services/location_service.dart';
+import '../../core/services/provider_location_write.dart';
 import '../../l10n/app_localizations.dart';
 
 class EditWorkshopScreen extends StatefulWidget {
@@ -30,6 +31,11 @@ class _EditWorkshopScreenState extends State<EditWorkshopScreen> {
   double _latitude = 0;
   double _longitude = 0;
 
+  // بيانات حداثة الموقع المخزّن — تُحمّل من قاعدة البيانات للحكم هل
+  // تحديثات هذا التحديد تستحق الكتابة فوق المخزّن.
+  DateTime? _locationUpdatedAt;
+  double? _locationAccuracy;
+
   @override
   void initState() {
     super.initState();
@@ -55,7 +61,7 @@ class _EditWorkshopScreenState extends State<EditWorkshopScreen> {
       final response = await _client
           .from('providers')
           .select(
-            'workshop_name, address, latitude, longitude, support_scope, has_vehicle, vehicle_specs',
+            'workshop_name, address, latitude, longitude, location_updated_at, location_accuracy, support_scope, has_vehicle, vehicle_specs',
           )
           .eq('id', userId)
           .maybeSingle();
@@ -66,6 +72,10 @@ class _EditWorkshopScreenState extends State<EditWorkshopScreen> {
         _vehicleSpecsController.text = response['vehicle_specs'] ?? '';
         _latitude = (response['latitude'] as num?)?.toDouble() ?? 0;
         _longitude = (response['longitude'] as num?)?.toDouble() ?? 0;
+        _locationUpdatedAt = DateTime.tryParse(
+          response['location_updated_at'] as String? ?? '',
+        )?.toUtc();
+        _locationAccuracy = (response['location_accuracy'] as num?)?.toDouble();
         _hasServiceVehicle = response['has_vehicle'] ?? false;
 
         final scope = response['support_scope'] as String?;
@@ -86,15 +96,39 @@ class _EditWorkshopScreenState extends State<EditWorkshopScreen> {
 
   Future<void> _pickCurrentLocation() async {
     setState(() => _isLocating = true);
+
     final position = await LocationService.instance.getCurrentPosition(forceRefresh: true);
-    final address = await LocationService.instance.getCurrentAddress(forceRefresh: true);
+    if (position != null) {
+      final now = DateTime.now().toUtc();
+      final movedMeters = distanceMetersBetween(
+        _latitude,
+        _longitude,
+        position.latitude,
+        position.longitude,
+      );
+      // نفس قاعدة قرار الكتابة المطبّقة على شاشة المزوّد الرئيسية: لا نقبل
+      // تحديداً أردأ فوق مخزّن طازج أدق، ولا حركة صغيرة على مخزّن طازج.
+      final decision = decideLocationWrite(
+        storedUpdatedAt: _locationUpdatedAt,
+        storedAccuracy: _locationAccuracy,
+        newAccuracy: position.accuracy,
+        movedMeters: movedMeters,
+        now: now,
+      );
+      if (decision.shouldWrite) {
+        _latitude = position.latitude;
+        _longitude = position.longitude;
+        _locationUpdatedAt = now;
+        _locationAccuracy = position.accuracy;
+      }
+    }
+
+    // العنوان يُشتق من آخر تحديد فعلي (نفس التحديد إن لم يُرفض) دون تكرار
+    // محاولة GPS ثانية.
+    final address = await LocationService.instance.getCurrentAddress(forceRefresh: false);
 
     if (mounted) {
       setState(() {
-        if (position != null) {
-          _latitude = position.latitude;
-          _longitude = position.longitude;
-        }
         if (address != null && address.isNotEmpty) {
           _addressController.text = address;
         }
@@ -129,6 +163,8 @@ class _EditWorkshopScreenState extends State<EditWorkshopScreen> {
         'address': _addressController.text.trim(),
         'latitude': _latitude,
         'longitude': _longitude,
+        'location_updated_at': _locationUpdatedAt?.toIso8601String(),
+        'location_accuracy': _locationAccuracy,
         'support_scope': scopeValue,
         'has_vehicle': _hasServiceVehicle,
         'vehicle_specs': vehicleSpecs,

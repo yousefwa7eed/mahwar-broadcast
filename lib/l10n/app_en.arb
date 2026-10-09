@@ -189,5 +189,10 @@
   "workingHoursSetTimes": "Please set both open and close times",
   "workingHoursInvalidRange": "Open time must be before close time",
   "searchProviderHint": "Search provider by name",
-  "noProvidersMatch": "No providers match your search"
+  "noProvidersMatch": "No providers match your search",
+  "nationalIdInvalid": "Invalid national ID. Make sure it is 14 digits matching your ID card.",
+  "nationalIdValid": "National ID is valid",
+  "nationalIdRequiredToOrderTitle": "National ID required",
+  "nationalIdRequiredToOrderBody": "To submit a service request, add your valid national ID in your personal info first.",
+  "goToPersonalInfo": "Go to personal info"
 }

@@ -14,6 +14,7 @@ import '../../core/errors/rpc_error_translator.dart';
 import '../../core/models/order.dart';
 import '../../core/notifications/notification_cubit.dart';
 import '../../core/services/location_service.dart';
+import '../../core/services/provider_location_write.dart';
 import '../../core/services/server_clock.dart';
 import '../../core/settings/app_settings_cubit.dart';
 import '../../core/widgets/confirm_dialog.dart';
@@ -65,6 +66,11 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
   double _providerLat = 0;
   double _providerLng = 0;
 
+  // بيانات حداثة موقع المزوّد المخزّن (تُحمّل مع بيانات المزوّد) — تُستخدم
+  // لاتخاذ قرار الكتابة: هل التحديد الجديد يستحق أن يحل محل المخزّن؟
+  DateTime? _providerLocationUpdatedAt;
+  double? _providerLocationAccuracy;
+
   // طلبات المزوّد النشطة (لوحة التحكم): إسناد أو عرض سعر أو تأكيد —
   // تبقى ظاهرة طوال دورة حياتها النشطة ولا تختفي إلّا عند الإتمام أو الإلغاء/الرفض.
   List<Order> _activeOrders = [];
@@ -94,7 +100,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _loadProviderData();
+    _loadProviderData().then((_) => _refreshProviderLocation());
     _loadCurrentAddress();
     _loadServiceNames();
     _loadActiveOrders();
@@ -170,7 +176,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     try {
       final provider = await _client
           .from('providers')
-          .select('workshop_name, latitude, longitude, is_online')
+          .select(
+            'workshop_name, latitude, longitude, location_updated_at, location_accuracy, is_online',
+          )
           .eq('id', userId)
           .maybeSingle();
 
@@ -180,6 +188,10 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
           _workshopName = provider?['workshop_name'] ?? '';
           _providerLat = (provider?['latitude'] as num?)?.toDouble() ?? 0;
           _providerLng = (provider?['longitude'] as num?)?.toDouble() ?? 0;
+          _providerLocationUpdatedAt = DateTime.tryParse(
+            provider?['location_updated_at'] as String? ?? '',
+          )?.toUtc();
+          _providerLocationAccuracy = (provider?['location_accuracy'] as num?)?.toDouble();
           _isOnline = online == true;
         });
       }
@@ -485,9 +497,10 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     }
   }
 
-  /// عند عودة التطبيق للأمام: تحدّث إحداثيات المزوّد من الموقع الفعلي
-  /// للجهاز لتبقى القائمة القريبة دقيقة. إن فشل التحديد أو مُنعت الصلاحية
-  /// نُبقي آخر إحداثيات معروفة بصمت دون إزعاج المستخدم.
+  /// عند فتح الشاشة أو عودة التطبيق للأمام: نحاول تحديداً مباشراً جديداً
+  /// ونكتبه فقط إذا استحق ذلك وفق قاعدة قرار الكتابة (لا نستبدل تحديداً
+  /// طازجاً أدق بتحديد أردأ). عند الفشل أو المنع نبقي آخر إحداثيات معروفة
+  /// بصمت دون إزعاج المستخدم، ونُسجّل دائماً وقت الكتابة ودقتها عند الكتابة.
   Future<void> _refreshProviderLocation() async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
@@ -497,15 +510,36 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
           .getCurrentPosition(forceRefresh: true);
       if (position == null || !mounted) return;
 
+      final now = DateTime.now().toUtc();
+      final movedMeters = distanceMetersBetween(
+        _providerLat,
+        _providerLng,
+        position.latitude,
+        position.longitude,
+      );
+
+      final decision = decideLocationWrite(
+        storedUpdatedAt: _providerLocationUpdatedAt,
+        storedAccuracy: _providerLocationAccuracy,
+        newAccuracy: position.accuracy,
+        movedMeters: movedMeters,
+        now: now,
+      );
+      if (!decision.shouldWrite) return;
+
       await _client.from('providers').update({
         'latitude': position.latitude,
         'longitude': position.longitude,
+        'location_updated_at': now.toIso8601String(),
+        'location_accuracy': position.accuracy,
       }).eq('id', userId);
 
       if (mounted) {
         setState(() {
           _providerLat = position.latitude;
           _providerLng = position.longitude;
+          _providerLocationUpdatedAt = now;
+          _providerLocationAccuracy = position.accuracy;
         });
       }
     } catch (_) {

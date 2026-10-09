@@ -189,5 +189,10 @@
   "workingHoursSetTimes": "يرجى تحديد وقت بداية ونهاية العمل",
   "workingHoursInvalidRange": "يجب أن يكون وقت البداية قبل وقت النهاية",
   "searchProviderHint": "ابحث عن مزوّد بالاسم",
-  "noProvidersMatch": "لا يوجد مزوّدون مطابقون للبحث"
+  "noProvidersMatch": "لا يوجد مزوّدون مطابقون للبحث",
+  "nationalIdInvalid": "الرقم القومي غير صحيح، تأكد من كتابة 14 رقماً مطابقاً للبطاقة",
+  "nationalIdValid": "الرقم القومي صحيح",
+  "nationalIdRequiredToOrderTitle": "الرقم القومي مطلوب",
+  "nationalIdRequiredToOrderBody": "لإرسال طلب خدمة يجب إضافة رقمك القومي الصحيح أولاً في البيانات الشخصية.",
+  "goToPersonalInfo": "الذهاب للبيانات الشخصية"
 }

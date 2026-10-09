@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -66,7 +68,10 @@ class _LocationPickerWidgetState extends State<LocationPickerWidget> {
       }
 
       final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 10),
+        ),
       );
 
       final newLocation = LatLng(position.latitude, position.longitude);
@@ -74,6 +79,8 @@ class _LocationPickerWidgetState extends State<LocationPickerWidget> {
       setState(() => _selectedLocation = newLocation);
       _mapController.move(newLocation, 16);
       widget.onLocationChanged(newLocation);
+    } on TimeoutException {
+      _showMessage('تعذّر تحديد موقعك خلال 10 ثوانٍ، تأكد من توافر GPS ثم أعد المحاولة');
     } catch (e) {
       _showMessage('تعذّر تحديد الموقع الحالي');
     } finally {

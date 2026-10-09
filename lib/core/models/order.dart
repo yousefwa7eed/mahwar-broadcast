@@ -145,4 +145,18 @@ class Order {
       status == OrderStatus.rejectedByProvider ||
       status == OrderStatus.rejectedByOwner ||
       status == OrderStatus.cancelled;
+
+  /// الطلب أُرسل فعلياً لمزوّد محدد (provider_id مسجّل) — وليس بعد مسودة
+  /// معلّقة قبل اختيار المزوّد في شاشة «اختيار المزوّد».
+  bool get isSentToProvider => providerId != null && providerId!.isNotEmpty;
+
+  /// بطاقة الطلب النشط في رئيسية المالك تظهر فقط عندما يكون الطلب قد أُرسل
+  /// فعلاً لمزوّد (provider_id مسجّل) ولم يصل بعد لحالة نهائية
+  /// (pending / priced / confirmed). الطلب المعلّق قبل اختيار المزوّد
+  /// (provider_id = null) لا يظهر لأنه لم يُرسل لأحد بعد.
+  bool get showsActiveOrderCard =>
+      isSentToProvider &&
+      (status == OrderStatus.pending ||
+          status == OrderStatus.priced ||
+          status == OrderStatus.confirmed);
 }

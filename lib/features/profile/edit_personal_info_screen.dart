@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/services.dart';
+import '../../../core/auth/national_id_utils.dart';
 import '../../../core/auth/phone_utils.dart';
 import '../../../core/auth/profile_cubit.dart';
 import '../../../core/constants/app_colors.dart';
@@ -34,7 +35,12 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
     _phoneController = TextEditingController();
     _emailController = TextEditingController();
     _nationalIdController = TextEditingController();
+    _nationalIdController.addListener(_onNationalIdChanged);
     _loadProfile();
+  }
+
+  void _onNationalIdChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -42,6 +48,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
     _fullNameController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
+    _nationalIdController.removeListener(_onNationalIdChanged);
     _nationalIdController.dispose();
     super.dispose();
   }
@@ -92,7 +99,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
         'email': newEmail,
         'national_id': _nationalIdController.text.trim().isEmpty
             ? null
-            : _nationalIdController.text.trim(),
+            : NationalIdUtils.normalize(_nationalIdController.text.trim()),
       }).eq('id', userId);
 
       if (newEmail != null && newEmail.isNotEmpty && newEmail != oldEmail) {
@@ -116,7 +123,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
               email: newEmail,
               nationalId: _nationalIdController.text.trim().isEmpty
                   ? null
-                  : _nationalIdController.text.trim(),
+                  : NationalIdUtils.normalize(_nationalIdController.text.trim()),
               role: context.read<ProfileCubit>().state is ProfileLoaded
                   ? (context.read<ProfileCubit>().state as ProfileLoaded).profile.role
                   : null,
@@ -168,6 +175,18 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final l10n = AppLocalizations.of(context);
     final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+
+    final nationalIdText = _nationalIdController.text.trim();
+    String? nationalIdHelper;
+    Color? nationalIdHelperColor;
+    if (nationalIdText.isEmpty) {
+      nationalIdHelper = l10n?.nationalIdOptionalHint ??
+          (isArabic ? 'اختياري عند التسجيل، مطلوب للطلب' : 'Optional on registration, required for orders');
+    } else if (NationalIdUtils.isValid(nationalIdText)) {
+      nationalIdHelper =
+          l10n?.nationalIdValid ?? (isArabic ? 'الرقم القومي صحيح' : 'National ID is valid');
+      nationalIdHelperColor = AppColors.success;
+    }
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
@@ -254,6 +273,24 @@ _buildField(
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       maxLength: 14,
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
+                      helperText: nationalIdHelper,
+                      helperStyle: TextStyle(
+                        fontFamily: 'Cairo',
+                        fontSize: 12,
+                        color: nationalIdHelperColor ??
+                            (isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.lightTextSecondary),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return null; // optional
+                        if (!NationalIdUtils.isValid(v)) {
+                          return l10n?.nationalIdInvalid ??
+                              (isArabic ? 'الرقم القومي غير صحيح' : 'Invalid national ID');
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 32),
 
@@ -305,10 +342,14 @@ _buildField(
     int? maxLength,
     List<TextInputFormatter>? inputFormatters,
     String? Function(String?)? validator,
+    AutovalidateMode? autovalidateMode,
+    String? helperText,
+    TextStyle? helperStyle,
   }) {
     return TextFormField(
       controller: controller,
       enabled: enabled,
+      autovalidateMode: autovalidateMode,
       keyboardType: keyboardType,
       maxLength: maxLength,
       inputFormatters: inputFormatters,
@@ -322,6 +363,8 @@ _buildField(
       decoration: InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(fontFamily: 'Cairo', fontSize: 14),
+        helperText: helperText,
+        helperStyle: helperStyle,
         prefixIcon: Icon(icon, color: AppColors.orangePrimary),
         counterText: '',
         filled: true,

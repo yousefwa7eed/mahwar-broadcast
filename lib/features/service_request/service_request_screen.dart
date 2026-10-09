@@ -7,6 +7,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/auth/national_id_utils.dart';
+import '../../../core/errors/rpc_error_translator.dart';
 import '../../../core/models/car_detail.dart';
 import '../../../core/services/image_compression_service.dart';
 import '../../../l10n/app_localizations.dart';
@@ -508,6 +510,75 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
     };
   }
 
+  /// بوابة إرسال الطلب: يتأكد (بجلب طازج) أن العميل يملك رقماً قومياً صالحاً.
+  /// عند النقص/الخطأ يعرض حواراً يوجّه للبيانات الشخصية عبر push() ليظل
+  /// النموذج (والمسودة) حياً في المكدس، ثم يعيد الفحص بعد العودة.
+  /// يعيد true للمتابعة، false عند الإلغاء أو تعذّر الفحص/الشبكة.
+  Future<bool> _confirmNationalIdGate(String userId) async {
+    final l10n = AppLocalizations.of(context);
+    final isArabic = l10n?.localeName.startsWith('ar') ?? true;
+
+    while (true) {
+      String? nationalId;
+      try {
+        final row = await _client
+            .from('profiles')
+            .select('national_id')
+            .eq('id', userId)
+            .single();
+        nationalId = row['national_id'] as String?;
+      } catch (e) {
+        debugPrint('national id gate fetch failed: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('حدث خطأ في الاتصال، حاول مرة أخرى.'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+        return false;
+      }
+
+      if (NationalIdUtils.isValid(nationalId)) return true;
+      if (!mounted) return false;
+
+      final go = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(
+            l10n?.nationalIdRequiredToOrderTitle ??
+                (isArabic ? 'الرقم القومي مطلوب' : 'National ID required'),
+          ),
+          content: Text(
+            l10n?.nationalIdRequiredToOrderBody ??
+                (isArabic
+                    ? 'لإرسال طلب خدمة يجب إضافة رقمك القومي الصحيح أولاً في بياناتك الشخصية.'
+                    : 'To submit a service request, add your valid national ID in your personal info first.'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(l10n?.cancel ?? (isArabic ? 'إلغاء' : 'Cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(l10n?.goToPersonalInfo ??
+                  (isArabic ? 'الذهاب للبيانات الشخصية' : 'Go to personal info')),
+            ),
+          ],
+        ),
+      );
+
+      if (go != true || !mounted) return false;
+
+      // push() لا go(): النموذج الحالي ومسودته يبقيان في المكدس حتى تُحدَّث
+      // البيانات ثم نعود، فيُعاد الفحص من جلب طازج.
+      await context.push('/profile/edit');
+    }
+  }
+
   Future<void> _submitRequest() async {
     final l10n = AppLocalizations.of(context);
 
@@ -546,6 +617,11 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
       }
       return;
     }
+
+    // بوابة الرقم القومي: لا يُرسَل طلب خدمة إلا بوجود رقم قومي صالح لدى
+    // العميل (فحص طازج). يُوجَّه المستخدم لبياناته الشخصية عند نقصه أو
+    // عدم صحته — والرجوع يعيد الفحص حتى يلتزم الشرط أو يُلغى الإرسال.
+    if (!await _confirmNationalIdGate(userId)) return;
 
     setState(() {
       _isSubmitting = true;
@@ -701,7 +777,9 @@ setState(() {
         setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('حدث خطأ أثناء إرسال الطلب: $e'),
+            content: Text(
+              RpcErrorTranslator.translate(e),
+            ),
             backgroundColor: AppColors.error,
           ),
         );

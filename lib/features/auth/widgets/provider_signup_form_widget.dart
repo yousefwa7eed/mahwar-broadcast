@@ -5,6 +5,7 @@ import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/auth/auth_cubit.dart';
+import '../../../core/auth/national_id_utils.dart';
 import '../../../core/auth/phone_utils.dart';
 import '../../../core/settings/app_settings_cubit.dart';
 import '../../../l10n/app_localizations.dart';
@@ -197,7 +198,7 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
       fullName: _nameController.text.trim(),
       phoneNumber: normalizedPhone,
       role: 'provider',
-      nationalId: _nationalIdController.text.trim(),
+      nationalId: NationalIdUtils.normalize(_nationalIdController.text.trim()),
       workshopName: _workshopController.text.trim(),
       address: _addressController.text.trim(),
       latitude: _latitude,
@@ -308,8 +309,9 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
               if (value == null || value.trim().isEmpty) {
                 return isArabic ? 'الرقم القومي إجباري لمزودي الخدمة' : 'National ID is mandatory';
               }
-              if (value.trim().length != 14 || !RegExp(r'^[0-9]+$').hasMatch(value.trim())) {
-                return isArabic ? 'الرقم القومي يجب أن يتكون من 14 رقم' : 'National ID must be 14 digits';
+              if (!NationalIdUtils.isValid(value)) {
+                return l10n?.nationalIdInvalid ??
+                    (isArabic ? 'الرقم القومي غير صحيح' : 'Invalid national ID');
               }
               return null;
             },

@@ -13,9 +13,19 @@ class LocationService {
   Position? _lastPosition;
   String? _lastAddress;
 
+  /// مهلة تحديد موقع مباشر قبل اعتباره فشلاً (ثوانٍ).
+  static const Duration _fixTimeout = Duration(seconds: 10);
+
   /// يجيب الموقع الحالي بعد التأكد من تفعيل الخدمة وطلب الصلاحية.
-  /// يبدأ بآخر موقع معروف (سريع) ثم يحاول GPS مباشر، ومع أي فشل حقيقي
-  /// يعيد null فقط لو الخدمة مغلقة أو الصلاحية مرفوضة.
+  /// يعيد null فقط لو الخدمة مغلقة أو الصلاحية مرفوضة أو فشل التحديد كله.
+  ///
+  /// بقيمة forceRefresh = true: نطلب تحديداً مباشراً جديداً بالدقة العالية
+  /// أولاً (الملاذ الأول)، ثم بالدقة المتوسطة، ولا نُسقط إلى آخر موقع معروف
+  /// من الجهاز إلا كملاذ أخير. بقيمة false: نُفضل مخزون الذاكرة ثم آخر موقع
+  /// معروف (سريع) ثم GPS مباشر.
+  ///
+  /// تُعرض دقة الإحداثيات (position.accuracy بالأمتار) على المتصل ليقرر
+  /// عليها — لا تُتجاهل.
   Future<Position?> getCurrentPosition({bool forceRefresh = false}) async {
     if (!forceRefresh && _lastPosition != null) return _lastPosition;
 
@@ -35,7 +45,25 @@ class LocationService {
 
     if (!forceRefresh && _lastPosition != null) return _lastPosition;
 
-    // 1) آخر موقع معروف من الجهاز (بدون تشغيل GPS)
+    if (forceRefresh) {
+      // تحديد مباشر جديد يجب ألا يُستبدل بموقع قديم أثناء وجوده.
+      Position? fresh = await _tryDirectFix(LocationAccuracy.high);
+      fresh ??= await _tryDirectFix(LocationAccuracy.medium);
+      if (fresh != null) {
+        _lastPosition = fresh;
+        return fresh;
+      }
+      // ملاذ أخير فقط: آخر موقع يعرفه الجهاز، بنقاوته الأصلية (accuracy).
+      try {
+        final lastKnown = await Geolocator.getLastKnownPosition();
+        if (lastKnown != null) _lastPosition = lastKnown;
+        return lastKnown;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    // المسار السريع (بدون قوة): آخر موقع معروف ثم GPS مباشر.
     try {
       final lastKnown = await Geolocator.getLastKnownPosition();
       if (lastKnown != null) {
@@ -46,24 +74,18 @@ class LocationService {
       // نكمل لمحاولة GPS المباشر
     }
 
-    // 2) تحديد مباشر بالدقة العالية
+    return _tryDirectFix(LocationAccuracy.high);
+  }
+
+  /// محاولة تحديد مباشر واحد بدقة معيّنة وبمهلة زمنية محدودة.
+  /// يعيد null عند أي فشل أو تجاوز المهلة (لا يعلق لأجل غير مسمى).
+  Future<Position?> _tryDirectFix(LocationAccuracy accuracy) async {
     try {
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      return await Geolocator.getCurrentPosition(
+        locationSettings: LocationSettings(accuracy: accuracy, timeLimit: _fixTimeout),
       );
-      _lastPosition = position;
-      return position;
     } catch (_) {
-      // 3) إعادة محاولة بدقة متوسطة (مقاومة لفشل الإصلاح السريع)
-      try {
-        final position = await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
-        );
-        _lastPosition = position;
-        return position;
-      } catch (_) {
-        return null;
-      }
+      return null;
     }
   }
 

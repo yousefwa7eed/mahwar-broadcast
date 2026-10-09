@@ -551,4 +551,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noProvidersMatch => 'No providers match your search';
+
+  @override
+  String get nationalIdInvalid =>
+      'Invalid national ID. Make sure it is 14 digits matching your ID card.';
+
+  @override
+  String get nationalIdValid => 'National ID is valid';
+
+  @override
+  String get nationalIdRequiredToOrderTitle => 'National ID required';
+
+  @override
+  String get nationalIdRequiredToOrderBody =>
+      'To submit a service request, add your valid national ID in your personal info first.';
+
+  @override
+  String get goToPersonalInfo => 'Go to personal info';
 }

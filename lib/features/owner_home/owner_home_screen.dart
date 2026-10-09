@@ -490,14 +490,14 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     }
   }
 
-  /// أحدث طلب نشط (غير نهائي) لهذا المالك — تُشتق من آخر قائمة محمّلة
-  /// (مرتّبة تنازلياً بالإنشاء) دون استعلام إضافي. تحديثها الحي يأتي من
-  /// اشتراك Realtime الموجود في [_subscribeToOrderChanges].
+  /// أحدث طلب نشط لهذا المالك — يُشتق من آخر قائمة محمّلة (مرتّبة تنازلياً
+  /// بالإنشاء) دون استعلام إضافي. البطاقة تظهر فقط لطلب أُرسل فعلياً لمزوّد
+  /// (provider_id مسجّل) ولم يصل بعد لحالة نهائية؛ الطلب المعلّق قبل اختيار
+  /// المزوّد لا يظهر لأنه لم يُرسل بعد. تحديثها الحي يأتي من اشتراك Realtime
+  /// الموجود في [_subscribeToOrderChanges].
   Order? get _activeOrder {
     for (final order in _recentOrders) {
-      if (order.status == OrderStatus.pending ||
-          order.status == OrderStatus.priced ||
-          order.status == OrderStatus.confirmed) {
+      if (order.showsActiveOrderCard) {
         return order;
       }
     }

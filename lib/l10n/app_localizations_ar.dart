@@ -546,4 +546,21 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get noProvidersMatch => 'لا يوجد مزوّدون مطابقون للبحث';
+
+  @override
+  String get nationalIdInvalid =>
+      'الرقم القومي غير صحيح، تأكد من كتابة 14 رقماً مطابقاً للبطاقة';
+
+  @override
+  String get nationalIdValid => 'الرقم القومي صحيح';
+
+  @override
+  String get nationalIdRequiredToOrderTitle => 'الرقم القومي مطلوب';
+
+  @override
+  String get nationalIdRequiredToOrderBody =>
+      'لإرسال طلب خدمة يجب إضافة رقمك القومي الصحيح أولاً في البيانات الشخصية.';
+
+  @override
+  String get goToPersonalInfo => 'الذهاب للبيانات الشخصية';
 }

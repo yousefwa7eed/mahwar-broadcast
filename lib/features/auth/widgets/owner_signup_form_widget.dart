@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/services.dart';
 import 'car_selection_dropdowns_widget.dart';
+import '../../../core/auth/national_id_utils.dart';
 import '../../../core/auth/phone_utils.dart';
 import '../../../core/settings/app_settings_cubit.dart';
 
@@ -74,7 +75,7 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
         _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
         _nationalIdController.text.trim().isEmpty
             ? null
-            : _nationalIdController.text.trim(),
+            : NationalIdUtils.normalize(_nationalIdController.text.trim()),
         _carMake!,
         _carModel!,
         _carYear!,
@@ -176,6 +177,17 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
               counterText: '',
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
             ),
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return null; // optional at signup
+              }
+              if (!NationalIdUtils.isValid(value)) {
+                return isArabic
+                    ? 'الرقم القومي غير صحيح (14 رقم)'
+                    : 'Invalid national ID (14 digits)';
+              }
+              return null;
+            },
           ),
           const SizedBox(height: 24),
 

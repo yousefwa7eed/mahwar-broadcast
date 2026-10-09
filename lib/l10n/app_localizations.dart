@@ -1147,6 +1147,36 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لا يوجد مزوّدون مطابقون للبحث'**
   String get noProvidersMatch;
+
+  /// No description provided for @nationalIdInvalid.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرقم القومي غير صحيح، تأكد من كتابة 14 رقماً مطابقاً للبطاقة'**
+  String get nationalIdInvalid;
+
+  /// No description provided for @nationalIdValid.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرقم القومي صحيح'**
+  String get nationalIdValid;
+
+  /// No description provided for @nationalIdRequiredToOrderTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرقم القومي مطلوب'**
+  String get nationalIdRequiredToOrderTitle;
+
+  /// No description provided for @nationalIdRequiredToOrderBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'لإرسال طلب خدمة يجب إضافة رقمك القومي الصحيح أولاً في البيانات الشخصية.'**
+  String get nationalIdRequiredToOrderBody;
+
+  /// No description provided for @goToPersonalInfo.
+  ///
+  /// In ar, this message translates to:
+  /// **'الذهاب للبيانات الشخصية'**
+  String get goToPersonalInfo;
 }
 
 class _AppLocalizationsDelegate
