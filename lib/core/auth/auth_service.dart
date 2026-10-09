@@ -62,6 +62,11 @@ abstract class AuthService {
   /// الجهاز مسجّل دخول أبدًا.
   Future<void> clearLocalSession();
 
+  /// مسار رفض الجلسة من نقطة دخول مقيّدة بالدور: ينظّف الجهاز/الخادم ثم يُبطل
+  /// الجلسة لدى الخادم فقط إن بقيت هي نفسها (لا يُبطل جلسة جديدة أنشأها
+  /// المستخدم بعد الرفض). منفصل عن [signOut] حتى يبقى سلوك الخروج العادي كما هو.
+  Future<void> signOutFromRejection();
+
   /// يحوّل identifier (إيميل أو رقم هاتف محلي) إلى الإيميل الحقيقي المرتبط
   /// بالحساب. يعيد null عندما يكون الإدخال فارغًا أو لا يوجد حساب مرتبط.
   Future<String?> resolveEmail(String identifier);
@@ -211,36 +216,46 @@ class SupabaseAuthService extends AuthService {
   @override
   Future<void> signOut() async {
     final userId = _client.auth.currentUser?.id;
-    if (userId != null) {
-      // 1) فصل الارتباط على الخادم أولًا. فشله لا يمنع الخروج أبدًا، لكنه
-      //    الحلقة الوحيدة التي تُبقي توكن هذا الجهاز مرتبطًا بالحساب — لذلك
-      //    يُسجَّل بعلامة مميزة بدل الابتلاع الصامت (A3).
-      try {
-        await _client.from('profiles').update({'fcm_token': null}).eq('id', userId);
-      } catch (e) {
-        AuthService.fcmTokenClearFailureCount++;
-        debugPrint(
-          '[AuthService] FCM_TOKEN_CLEAR_FAILED '
-          '(count=${AuthService.fcmTokenClearFailureCount}, userId=$userId): $e '
-          '- proceeding with signOut; device may still receive this account notifications.',
-        );
-      }
-      // 2) إبطال التوكن لدى FCM نفسه حتى لا يبقى صالحًا لهذا الجهاز (A2).
-      //    أفضل جهد — فشله لا يمنع الخروج أبدًا، ويُسجَّل فقط.
-      try {
-        await FirebaseMessaging.instance.deleteToken();
-      } catch (e) {
-        debugPrint('[AuthService] FCM deleteToken failed: $e');
-      }
-      // 3) إلغاء اشتراك الـ topics (أفضل جهد، يُسجَّل عند الفشل بدل الابتلاع).
-      try {
-        await FirebaseMessaging.instance.unsubscribeFromTopic('car_owners');
-        await FirebaseMessaging.instance.unsubscribeFromTopic('providers');
-      } catch (e) {
-        debugPrint('[AuthService] FCM topic unsubscribe failed: $e');
-      }
-    }
+    await _cleanupDevice(userId);
+    // مسار الخروج العادي: الإبطال العام يبقى دائمًا (بلا حارس) — سلوك غير مُتغيّر.
     await _client.auth.signOut();
+  }
+
+  @override
+  Future<void> signOutFromRejection() async {
+    final userId = _client.auth.currentUser?.id;
+    await _cleanupDevice(userId);
+    // الحارس هنا فقط: لا نُبطل إن تغيّرت الجلسة (تسجيل دخول جديد بعد الرفض).
+    if (userId != null && _client.auth.currentUser?.id == userId) {
+      await _client.auth.signOut();
+    }
+  }
+
+  /// فصل ارتباط الجهاز بالحساب (fcm_token + توكن FCM + الـ topics) بأفضل جهد.
+  /// لا يمسّ الجلسة المحلية. فشل أي خطوة يُسجَّل ولا يُوقف الباقي.
+  Future<void> _cleanupDevice(String? userId) async {
+    if (userId == null) return;
+    try {
+      await _client.from('profiles').update({'fcm_token': null}).eq('id', userId);
+    } catch (e) {
+      AuthService.fcmTokenClearFailureCount++;
+      debugPrint(
+        '[AuthService] FCM_TOKEN_CLEAR_FAILED '
+        '(count=${AuthService.fcmTokenClearFailureCount}, userId=$userId): $e '
+        '- proceeding with signOut; device may still receive this account notifications.',
+      );
+    }
+    try {
+      await FirebaseMessaging.instance.deleteToken();
+    } catch (e) {
+      debugPrint('[AuthService] FCM deleteToken failed: $e');
+    }
+    try {
+      await FirebaseMessaging.instance.unsubscribeFromTopic('car_owners');
+      await FirebaseMessaging.instance.unsubscribeFromTopic('providers');
+    } catch (e) {
+      debugPrint('[AuthService] FCM topic unsubscribe failed: $e');
+    }
   }
 
   @override

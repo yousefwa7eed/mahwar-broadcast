@@ -11,7 +11,19 @@ import 'widgets/login_header_widget.dart';
 
 class LoginScreen extends StatefulWidget {
   final String role;
-  const LoginScreen({super.key, required this.role});
+
+  /// المهلة القصوى لقراءة الدور من الخادم (كل محاولة). قابلة للحقن للاختبارات.
+  final Duration roleFetchTimeout;
+
+  /// عدد محاولات قراءة الدور قبل اعتباره غير معروف.
+  final int roleFetchAttempts;
+
+  const LoginScreen({
+    super.key,
+    required this.role,
+    this.roleFetchTimeout = const Duration(seconds: 10),
+    this.roleFetchAttempts = 2,
+  });
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -43,11 +55,16 @@ class _LoginScreenState extends State<LoginScreen> {
         // الشاشة الظاهرة فعلًا.
         if (!isTopmostRoute(context, '/login')) return;
 
-        _resolving = true;
+        setState(() => _resolving = true);
         try {
-          // الدور الفعلي من جدول profiles (المصدر الموثوق) ثم user_metadata.
-          final actualRole =
-              AppRole.tryParse(await context.read<AuthCubit>().resolveCurrentRole());
+          // الدور الفعلي مع مهلة وإعادة محاولة — لا نُبقي الزر قابلاً للضغط
+          // ولا نترك المستخدم بلا مؤشر أثناء تحديد الدور.
+          final actualRole = AppRole.tryParse(
+            await context.read<AuthCubit>().resolveCurrentRoleWithRetry(
+                  timeout: widget.roleFetchTimeout,
+                  attempts: widget.roleFetchAttempts,
+                ),
+          );
           if (!context.mounted) return;
 
           final isArabic = context
@@ -57,32 +74,30 @@ class _LoginScreenState extends State<LoginScreen> {
                   .languageCode ==
               'ar';
 
-          // تعذّر تحديد الدور → لا نفترض أي دور ولا نترك المستخدم في شاشة
-          // عالقة: نُخرج من الجلسة ونعرض رسالة قابلة لإعادة المحاولة.
+          // تعذّر تحديد الدور → رسالة فورية ثم رفض الجلسة في الخلفية (بلا
+          // انتظار أي طلب شبكي حتى لا تتأخر الرسالة).
           if (actualRole == null) {
-            await context.read<AuthCubit>().signOut();
-            if (!context.mounted) return;
             showErrorDialog(context, roleUnresolvedMessage(isArabic: isArabic));
+            context.read<AuthCubit>().rejectSession();
             return;
           }
 
           final expectedRole = AppRole.tryParse(widget.role);
 
           // نقطة الدخول مقيّدة بالدور: حساب بدور مختلف عن صفحة الدخول التي
-          // استُخدمت يُرفض — نخرج من الجلسة ونوضّح الصفحة الصحيحة.
+          // استُخدمت يُرفض — نعرض الرسالة فورًا ثم نرفض الجلسة في الخلفية.
           if (expectedRole != null && actualRole != expectedRole) {
-            await context.read<AuthCubit>().signOut();
-            if (!context.mounted) return;
             showErrorDialog(
               context,
               roleMismatchMessage(actualRole: actualRole, isArabic: isArabic),
             );
+            context.read<AuthCubit>().rejectSession();
             return;
           }
 
           context.go(actualRole.homeRoute);
         } finally {
-          _resolving = false;
+          if (mounted) setState(() => _resolving = false);
         }
       },
       child: Scaffold(
@@ -104,6 +119,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 28),
                 LoginFormWidget(
                   role: widget.role,
+                  isBusy: _resolving,
                   onSubmit: (identifier, password) {
                     context.read<AuthCubit>().signIn(
                           identifier: identifier,

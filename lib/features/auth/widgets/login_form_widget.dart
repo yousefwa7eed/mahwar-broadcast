@@ -8,6 +8,10 @@ import '../../../core/settings/app_settings_cubit.dart';
 
 class LoginFormWidget extends StatefulWidget {
   final String role;
+
+  /// يعكس انشغال الشاشة (تحديد الدور/الرفض) بعد نجاح المصادقة — يُبقي زر
+  /// الدخول في حالة تحميل حتى نتّخذ قرار التوجيه أو الرفض.
+  final bool isBusy;
   final Function(String identifier, String password) onSubmit;
   final VoidCallback onSignupTap;
   final VoidCallback onForgotPasswordTap;
@@ -15,6 +19,7 @@ class LoginFormWidget extends StatefulWidget {
   const LoginFormWidget({
     super.key,
     required this.role,
+    this.isBusy = false,
     required this.onSubmit,
     required this.onSignupTap,
     required this.onForgotPasswordTap,
@@ -67,7 +72,8 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
         ? (isDark ? AppColors.orangePrimary : const Color(0xFF1E1E1E))
         : AppColors.orangePrimary;
 
-    final bool isAuthLoading = context.watch<AuthCubit>().state is AuthLoading;
+    final bool isAuthLoading =
+        context.watch<AuthCubit>().state is AuthLoading || widget.isBusy;
 
     return Form(
       key: _formKey,

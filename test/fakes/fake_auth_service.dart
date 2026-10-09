@@ -27,14 +27,25 @@ class FakeAuthService extends AuthService {
   /// تأخير مُصطنع في `getServerRole` لمحاكاة انتهاء المهلة في شاشة الإقلاع.
   Duration? serverRoleDelay;
 
+  /// تأخيرات `getServerRole` بالترتيب (تُستهلك من الأمام)؛ ما زاد يرجع إلى
+  /// [serverRoleDelay] أو بلا تأخير. تُستخدم لاختبار إعادة المحاولة بعد المهلة.
+  final List<Duration> serverRoleDelays = [];
+
   int serverUserCount = 0;
   int serverRoleCount = 0;
   int signOutCount = 0;
   int clearLocalSessionCount = 0;
+  int signOutFromRejectionCount = 0;
 
   /// إن كان مضبوطًا فإن `signOut` يرميه (فشل شبكة/خادم) بعد تمرير التنظيف
   /// المحلي لدى GoTrue (الجلسة المحلية تُسحب قبل الطلب الشبكي).
   Object? signOutError;
+
+  /// تأخير مُصطنع في `signOut` و`signOutFromRejection` لمحاكاة خروج بطيء.
+  Duration? signOutDelay;
+
+  /// إن كان مضبوطًا فإن `signOutFromRejection` يرميه.
+  Object? signOutFromRejectionError;
 
   /// إن كان مضبوطًا فإن `clearLocalSession` يرميه.
   Object? clearLocalSessionError;
@@ -106,7 +117,10 @@ class FakeAuthService extends AuthService {
   @override
   Future<String?> getServerRole() async {
     serverRoleCount++;
-    if (serverRoleDelay != null) await Future<void>.delayed(serverRoleDelay!);
+    final delay = serverRoleDelays.isNotEmpty
+        ? serverRoleDelays.removeAt(0)
+        : serverRoleDelay;
+    if (delay != null) await Future<void>.delayed(delay);
     if (serverRoleError != null) throw serverRoleError!;
     return serverRole;
   }
@@ -162,8 +176,16 @@ class FakeAuthService extends AuthService {
   @override
   Future<void> signOut() async {
     signOutCount++;
+    if (signOutDelay != null) await Future<void>.delayed(signOutDelay!);
     if (signOutError != null) throw signOutError!;
     user = null;
+  }
+
+  @override
+  Future<void> signOutFromRejection() async {
+    signOutFromRejectionCount++;
+    if (signOutDelay != null) await Future<void>.delayed(signOutDelay!);
+    if (signOutFromRejectionError != null) throw signOutFromRejectionError!;
   }
 
   @override

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -118,8 +120,9 @@ class AuthCubit extends Cubit<AuthState> {
               event == AuthChangeEvent.initialSession) &&
           session != null) {
         emit(AuthAuthenticated(session.user));
-        _saveFcmToken(session.user.id);
-        _subscribeToRoleTopic(session.user);
+        // عمل غير حرج بعد الدخول — لا يُنتظر حتى لا يؤخّر التوجيه/الرفض.
+        unawaited(_saveFcmToken(session.user.id));
+        unawaited(_subscribeToRoleTopic(session.user));
       } else if (event == AuthChangeEvent.signedOut) {
         emit(const AuthUnauthenticated());
       }
@@ -183,6 +186,27 @@ class AuthCubit extends Cubit<AuthState> {
     if (user == null) return null;
 
     return _authService.getServerRole();
+  }
+
+  /// يحدّد الدور مع مهلة زمنية وإعادة محاولة — لمسار الدخول. أي انتهاء مهلة
+  /// أو خطأ عابر يُعاد معه المحاولة حتى [attempts] مرة، ثم يُرجع null (يُعامل
+  /// كدور غير معروف). دور `null` صريح من الخادم لا يُعاد معه المحاولة (حالة
+  /// نهائية). لا يُغيّر [resolveCurrentRole] المستخدم في شاشة الإقلاع.
+  Future<String?> resolveCurrentRoleWithRetry({
+    Duration timeout = const Duration(seconds: 10),
+    int attempts = 2,
+  }) async {
+    if (_authService.currentUser == null) return null;
+    for (var attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        return await resolveCurrentRole().timeout(timeout);
+      } on TimeoutException {
+        // انتهت المهلة — أعد المحاولة.
+      } catch (_) {
+        // فشل شبكي/خادمي عابر — أعد المحاولة.
+      }
+    }
+    return null;
   }
 
   /// يحدّد هل identifier ده إيميل أو رقم هاتف، ويرجع الإيميل الحقيقي الصالح
@@ -305,6 +329,16 @@ class AuthCubit extends Cubit<AuthState> {
     } catch (e) {
       emit(AuthError('حدث خطأ أثناء تسجيل الخروج'));
     }
+  }
+
+  /// يرفض الجلسة التي أُنشئت من نقطة دخول مقيّدة بالدور. يبدأ تنظيف الخادم/
+  /// الجهاز في الخلفية (يجلب توكن FCM قبل سحب الجلسة المحلية) ثم يسحب الجلسة
+  /// محليًا فورًا حتى يتوقف الوصول بلا انتظار شبكة. لا يبثّ [AuthError] أبدًا —
+  /// حتى لا تظهر رسالة خطأ خروج فوق رسالة عدم التطابق.
+  void rejectSession() {
+    _authService.signOutFromRejection().ignore();
+    _authService.clearLocalSession().ignore();
+    if (!isClosed) emit(const AuthUnauthenticated());
   }
 
   /// يرسل كود استعادة كلمة المرور عبر SMS للرقم المحلي. لا يبث حالات — الشاشة

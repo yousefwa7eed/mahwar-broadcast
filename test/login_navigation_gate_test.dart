@@ -14,12 +14,19 @@ import 'fakes/fake_auth_service.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  (Widget, GoRouter) buildApp(FakeAuthService service,
-      {String loginRole = 'car_owner'}) {
+  (Widget, GoRouter) buildApp(
+    FakeAuthService service, {
+    String loginRole = 'car_owner',
+    Duration roleFetchTimeout = const Duration(seconds: 10),
+  }) {
     final router = GoRouter(
       initialLocation: '/login',
       routes: [
-        GoRoute(path: '/login', builder: (context, state) => LoginScreen(role: loginRole)),
+        GoRoute(
+          path: '/login',
+          builder: (context, state) =>
+              LoginScreen(role: loginRole, roleFetchTimeout: roleFetchTimeout),
+        ),
         GoRoute(
           path: '/otp-verify',
           builder: (context, state) => const Scaffold(
@@ -182,6 +189,119 @@ void main() {
     expect(fake.user, isNull);
     expect(find.byKey(const Key('owner_home')), findsNothing);
     expect(find.byKey(const Key('provider_home')), findsNothing);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets(
+      'رسالة عدم التطابق تظهر فورًا دون انتظار تسجيل الخروج البطيء',
+      (tester) async {
+    final fake = FakeAuthService();
+    final (app, router) = buildApp(fake);
+
+    await tester.pumpWidget(app);
+    expect(currentPath(router), '/login');
+
+    // حساب مزوّد على صفحة دخول العميل، مع خروج خلفي بطيء (5 ثوانٍ).
+    fake.user = providerUser();
+    fake.serverRole = 'provider';
+    fake.signOutDelay = const Duration(seconds: 5);
+
+    fake.authStateController.add(signedInFor(fake.user!));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // الرسالة ظهرت، والجلسة المحلية سُحبت، رغم أن التنظيف الخلفي ما زال معلّقًا.
+    expect(currentPath(router), '/login');
+    expect(
+      find.text('هذا الحساب مسجّل كمزوّد. يرجى تسجيل الدخول من صفحة تسجيل دخول المزوّد.'),
+      findsOneWidget,
+    );
+    expect(fake.clearLocalSessionCount, 1);
+    expect(fake.user, isNull);
+    expect(find.byKey(const Key('owner_home')), findsNothing);
+    expect(find.byKey(const Key('provider_home')), findsNothing);
+
+    // نُصفّي المؤقت المعلّق قبل نهاية الاختبار.
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('مؤشر تحميل على زر الدخول أثناء تحديد الدور', (tester) async {
+    final fake = FakeAuthService();
+    final (app, router) = buildApp(fake);
+
+    await tester.pumpWidget(app);
+    expect(currentPath(router), '/login');
+
+    fake.user = ownerUser();
+    fake.serverRole = 'car_owner';
+    fake.serverRoleDelay = const Duration(milliseconds: 300);
+
+    fake.authStateController.add(signedInFor(fake.user!));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // أثناء تحديد الدور تبقى الشاشة في حالة تحميل (زر الدخول بمؤشر).
+    expect(find.byType(CircularProgressIndicator), findsWidgets);
+    expect(find.text('تسجيل الدخول'), findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    expect(currentPath(router), '/home/owner');
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  test('إعادة المحاولة عند انتهاء مهلة قراءة الدور', () async {
+    final fake = FakeAuthService();
+    fake.user = ownerUser();
+    fake.serverRole = 'car_owner';
+    // المحاولة الأولى تتجاوز المهلة، والثانية تُرجع الدور فورًا.
+    fake.serverRoleDelays
+      ..add(const Duration(milliseconds: 300))
+      ..add(Duration.zero);
+
+    final cubit = AuthCubit(service: fake);
+    addTearDown(cubit.close);
+
+    final role = await cubit.resolveCurrentRoleWithRetry(
+      timeout: const Duration(milliseconds: 100),
+      attempts: 2,
+    );
+
+    expect(role, 'car_owner');
+    expect(fake.serverRoleCount, 2);
+  });
+
+  testWidgets('يمكن تسجيل الدخول الصحيح مباشرة بعد الرفض', (tester) async {
+    final fake = FakeAuthService();
+    final (app, router) = buildApp(fake);
+
+    await tester.pumpWidget(app);
+    expect(currentPath(router), '/login');
+
+    // رفض أول: مزوّد على صفحة دخول العميل.
+    fake.user = providerUser();
+    fake.serverRole = 'provider';
+    fake.authStateController.add(signedInFor(fake.user!));
+    await tester.pumpAndSettle();
+
+    expect(find.text('خطأ'), findsOneWidget);
+    expect(fake.user, isNull);
+
+    // نُغلق الحوار ثم نُعيد الدخول الصحيح مباشرة.
+    await tester.tap(find.text('حسناً'));
+    await tester.pumpAndSettle();
+
+    fake.user = ownerUser();
+    fake.serverRole = 'car_owner';
+    fake.authStateController.add(signedInFor(fake.user!));
+    await tester.pumpAndSettle();
+
+    expect(currentPath(router), '/home/owner');
 
     await tester.pumpWidget(const SizedBox());
   });
