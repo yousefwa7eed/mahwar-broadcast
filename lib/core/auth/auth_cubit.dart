@@ -4,6 +4,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import '../services/device_identity.dart';
 import 'auth_service.dart';
 import 'phone_utils.dart';
 
@@ -140,9 +141,12 @@ class AuthCubit extends Cubit<AuthState> {
       final String? token = await messaging.getToken();
       if (token == null) return;
 
+      final deviceId = await DeviceIdentity.instance.get();
+      if (Supabase.instance.client.auth.currentUser?.id != userId) return;
+
       await Supabase.instance.client
           .from('profiles')
-          .update({'fcm_token': token})
+          .update({'fcm_token': token, 'device_id': deviceId})
           .eq('id', userId);
     } catch (e) {
       // تجاهل الخطأ هنا عمدًا - فشل حفظ التوكن مش المفروض يمنع تسجيل الدخول
@@ -331,13 +335,24 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
-  /// يرفض الجلسة التي أُنشئت من نقطة دخول مقيّدة بالدور. يبدأ تنظيف الخادم/
-  /// الجهاز في الخلفية (يجلب توكن FCM قبل سحب الجلسة المحلية) ثم يسحب الجلسة
-  /// محليًا فورًا حتى يتوقف الوصول بلا انتظار شبكة. لا يبثّ [AuthError] أبدًا —
-  /// حتى لا تظهر رسالة خطأ خروج فوق رسالة عدم التطابق.
-  void rejectSession() {
-    _authService.signOutFromRejection().ignore();
-    _authService.clearLocalSession().ignore();
+  /// يرفض الجلسة التي أُنشئت من نقطة دخول مقيّدة بالدور. يُنتظَر تنظيف الخادم/
+  /// الجهاز (مسح fcm_token + device_id + سحب الجلسة) مع مهلة قصيرة حتى يُضمن
+  /// قطع ارتباط الجهاز قبل سحب الجلسة محليًا، دون أن يعلّق الواجهة عند بطء
+  /// الشبكة. لا يبثّ [AuthError] أبدًا — حتى لا تظهر رسالة خطأ خروج فوق
+  /// رسالة عدم التطابق.
+  Future<void> rejectSession() async {
+    try {
+      await _authService
+          .signOutFromRejection()
+          .timeout(const Duration(seconds: 5));
+    } catch (_) {
+      // فشل التنظيف/الإبطال — نتابع السحب المحلي على كل حال.
+    }
+    try {
+      await _authService.clearLocalSession();
+    } catch (_) {
+      // فشل السحب المحلي — لا يُبث خطأ (الواجهة ستُخرج على كل حال).
+    }
     if (!isClosed) emit(const AuthUnauthenticated());
   }
 

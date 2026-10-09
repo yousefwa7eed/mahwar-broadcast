@@ -709,25 +709,40 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
           SizedBox(
             width: double.infinity,
             height: 52,
-            child: OutlinedButton(
-              onPressed: () => LogoutCoordinator().logout(
-                context: context,
-                resetProfile: () => context.read<ProfileCubit>().reset(),
-              ),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.error),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+            child: ListenableBuilder(
+              listenable: LogoutCoordinator.isRunning,
+              builder: (context, _) => OutlinedButton(
+                onPressed: LogoutCoordinator.isRunning.value
+                    ? null
+                    : () => LogoutCoordinator().logout(
+                          context: context,
+                          resetProfile:
+                              () => context.read<ProfileCubit>().reset(),
+                        ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.error),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
-              ),
-              child: Text(
-                l10n?.logout ?? 'تسجيل الخروج',
-                style: const TextStyle(
-                  fontFamily: 'Cairo',
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.error,
-                ),
+                child: LogoutCoordinator.isRunning.value
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.error,
+                        ),
+                      )
+                    : Text(
+                        l10n?.logout ?? 'تسجيل الخروج',
+                        style: const TextStyle(
+                          fontFamily: 'Cairo',
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.error,
+                        ),
+                      ),
               ),
             ),
           ),
