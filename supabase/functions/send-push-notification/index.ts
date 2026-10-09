@@ -229,8 +229,15 @@ Deno.serve(async (req: Request) => {
     .eq("id", notif.user_id)
     .maybeSingle();
 
-  const fcmToken = (profile?.fcm_token as string | null) ?? "";
-  const role = (profile?.role as string | null) ?? "car_owner";
+  if (!profile?.fcm_token) {
+    console.log(
+      `[send-push-notification] skip ${notif.id} type=${notif.type} reason=no_token user=${notif.user_id ?? "null"}`,
+    );
+    return json({ ok: true, skipped: "no_token" });
+  }
+
+  const fcmToken = profile.fcm_token as string;
+  const role = (profile.role as string | null) ?? "car_owner";
 
   // 3) تأكد أن FCM مُهيّأ (env فقط — بدون env نُقصي بأمان)
   if (!FCM_SERVICE_ACCOUNT_JSON) {
@@ -302,11 +309,7 @@ Deno.serve(async (req: Request) => {
       .notification as Record<string, unknown>;
     androidNotif.image = imageUrl;
   }
-  if (fcmToken) {
-    base.token = fcmToken;
-  } else {
-    base.condition = role === "provider" ? `'providers' in topics` : `'car_owners' in topics`;
-  }
+  base.token = fcmToken;
 
   // 5) إرسال
   try {
@@ -321,13 +324,45 @@ Deno.serve(async (req: Request) => {
     });
     if (!res.ok) {
       const text = await res.text();
+      let deadToken = false;
+      try {
+        const body = JSON.parse(text);
+        const fcmStatus = body?.error?.status ?? "";
+        const details: Array<Record<string, unknown>> = body?.error?.details ?? [];
+        const hasUnregistered = details.some(
+          (d) => d?.errorCode === "UNREGISTERED",
+        );
+        const tokenFieldViolated = details
+          .flatMap((d) =>
+            Array.isArray(d?.fieldViolations)
+              ? (d?.fieldViolations as Array<{ field?: unknown }>)
+              : [],
+          )
+          .some((v) => v?.field === "message.token");
+        deadToken =
+          hasUnregistered ||
+          (fcmStatus === "INVALID_ARGUMENT" && tokenFieldViolated);
+      } catch {
+        deadToken = false;
+      }
+      if (deadToken && notif.user_id && fcmToken) {
+        await supabase
+          .from("profiles")
+          .update({ fcm_token: null })
+          .eq("id", notif.user_id)
+          .eq("fcm_token", fcmToken);
+        console.log(
+          `[send-push-notification] dead token cleared for user ${notif.user_id} (notification ${notif.id}, type=${notif.type}, fcm_status=${res.status})`,
+        );
+        return json({ ok: true, recovered: "dead_token" });
+      }
       console.error(
-        `[send-push-notification] FCM send FAILED (${res.status}) for ${notif.id} (${notif.type}): ${text.slice(0, 400)}`,
+        `[send-push-notification] FCM send FAILED (${res.status}) for ${notif.id} (${notif.type}): ${text}`,
       );
       return json({ error: "fcm_send_failed", detail: res.status }, 502);
     }
     console.log(
-      `[send-push-notification] sent "${notif.type}" to ${fcmToken ? "token" : "topic:" + role} (notification ${notif.id})`,
+      `[send-push-notification] sent "${notif.type}" to token (notification ${notif.id})`,
     );
     return json({ ok: true, sent: true });
   } catch (e) {
