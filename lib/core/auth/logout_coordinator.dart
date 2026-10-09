@@ -1,8 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../services/app_messenger.dart';
+import 'auth_cubit.dart';
 import 'auth_service.dart';
 import 'role_hint_cache.dart';
 
@@ -10,26 +13,30 @@ import 'role_hint_cache.dart';
 /// المالك/المزوّد وشاشة الملف الشخصي) التي كانت تنادي `AuthService.signOut`
 /// مباشرة وتكرر نفس منطق الفشل والانتقال.
 ///
-/// القواعد (خطوة S7):
-/// 1) الجزء الشبكي (فصل FCM + سحب الجلسة لدى الخادم) جهدُ بذل الأفضل بمهلة
-///    قصيرة — فشله أو انقطاع شبكته لا يمنع الخروج المحلي أبدًا.
-/// 2) التنظيف المحلي يحدث دومًا مهما كانت نتيجة الخطوة السابقة: سحب الجلسة
-///    المحلية احتياطيًا، تفريغ [RoleHintCache]، وإعادة ضبط حالة الملف عبر
-///    [resetProfile].
-/// 3) الانتقال إلى `/select-user-type` بـ `context.go` (استبدال كامل للمكدّس)
-///    حتى لا يعيد زر الرجوع شاشة مسجّل دخول.
+/// القواعد (الخطوة 2 — خروج فوري أولًا محليًا):
+/// 1) تنظيف الخادم (فصل FCM + إبطال الجلسة القديمة عبر `signOut` غلوبال
+///    يلتقط توكنها متزامنًا) يبدأ في الخلفية فورًا وبلا انتظار، قبل سحب
+///    الجلسة المحلية، حتى يلتقط طلب fcm_token رمز الوصول الصالح. تُعرض رسالة
+///    نجاح الخروج فقط عند اكتمال ذلك بنجاح؛ أي فشل خلفي يُبتلع بلا رسالة
+///    خطأ (الخروج المحلي تم فعلًا).
+/// 2) التنظيف المحلي يحدث فورًا ولا ينتظر الشبكة إطلاقًا: سحب الجلسة المحلية
+///    احتياطيًا، تفريغ [RoleHintCache]، إعادة ضبط حالة الملف عبر [resetProfile]،
+///    وبثّ [AuthUnauthenticated] — ثم الانتقال فورًا إلى `/select-user-type`.
+/// 3) الانتقال بـ `context.go` (استبدال كامل للمكدّس) حتى لا يعيد زر الرجوع
+///    شاشة مسجّل دخول.
+/// 4) حارس ضد النقر المزدوج: مواقع الاستدعاء الثلاثة تُنشئ نسخة جديدة من
+///    المنسّق عند كل نقرة، فالعلامة المشتركة static وحدها تكفل تجاهل اللمسة
+///    الثانية حتى انتهاء الأولى.
 class LogoutCoordinator {
   final AuthService _authService;
   final RoleHintCache _roleHintCache;
 
-  /// مهلة الـ best-effort للجزء الشبكي. بعد انقضائها يمضي الخروج محليًا
-  /// بغضّ النظر عن النتيجة، حتى لو بقي طلب الخروج معلّقًا في الخلفية.
-  final Duration remoteTimeout;
+  /// حارس النقر المزدوج المشترك بين جميع نسخ المنسّق (كل نقرة تُنشئ نسخة).
+  static bool _loggingOut = false;
 
   LogoutCoordinator({
     AuthService? authService,
     RoleHintCache? roleHintCache,
-    this.remoteTimeout = const Duration(seconds: 5),
   })  : _authService = authService ?? SupabaseAuthService(),
         _roleHintCache = roleHintCache ?? RoleHintCache();
 
@@ -37,21 +44,40 @@ class LogoutCoordinator {
     required BuildContext context,
     required VoidCallback resetProfile,
   }) async {
+    if (_loggingOut) return;
+    _loggingOut = true;
     try {
-      await _authService.signOut().timeout(remoteTimeout);
-    } catch (e) {
-      // الشبكة/المهلة فشلت: لا نمنع الخروج المحلي أبدًا، ونحاول سحب الجلسة
-      // محليًا كاحتياط (لا ضرر إن كانت قد سُحبت فعلًا).
-      debugPrint('[LogoutCoordinator] signOut best-effort failed: $e');
+      // نلتقط هوية الجلسة القديمة قبل أي تنظيف — يذهب إلى الخلفية ويبقى
+      // صالحًا لتنظيف FCM حتى بعد سحب الجلسة محليًا.
+      final oldUserId = _authService.currentUser?.id;
+      final authCubit = context.read<AuthCubit>();
+
+      // 1) الخلفية بلا انتظار — تُستدعى أولًا (قبل سحب الجلسة المحلية) حتى
+      //    يلتقط طلب fcm_token رمز الوصول الصالح. رسالة الخروج تُعرض فقط عند
+      //    اكتمال ناجح؛ أي فشل يُبتلع بصمت لأن الخروج المحلي تم فعلًا.
+      unawaited(
+        _authService
+            .signOutInBackground(oldUserId)
+            .then((_) => AppMessenger.showText('تم تسجيل الخروج'))
+            .catchError((Object _) {}),
+      );
+
+      // 2) محلي فورًا — لا يُنتظر أي استدعاء شبكي قبل الانتقال.
       try {
         await _authService.clearLocalSession();
       } catch (e) {
         debugPrint('[LogoutCoordinator] clearLocalSession failed: $e');
       }
+      try {
+        await _roleHintCache.clear();
+      } catch (e) {
+        debugPrint('[LogoutCoordinator] RoleHintCache.clear failed: $e');
+      }
+      resetProfile();
+      authCubit.markUnauthenticated();
+      if (context.mounted) context.go('/select-user-type');
+    } finally {
+      _loggingOut = false;
     }
-
-    await _roleHintCache.clear();
-    resetProfile();
-    if (context.mounted) context.go('/select-user-type');
   }
 }

@@ -69,4 +69,13 @@ class AppMessenger {
       ),
     );
   }
+
+  static void showText(String text) {
+    final messenger = messengerKey.currentState;
+    if (messenger == null) return;
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(content: Text(text, style: const TextStyle(fontFamily: 'Cairo'))),
+    );
+  }
 }

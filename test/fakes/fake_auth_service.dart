@@ -50,6 +50,25 @@ class FakeAuthService extends AuthService {
   /// إن كان مضبوطًا فإن `clearLocalSession` يرميه.
   Object? clearLocalSessionError;
 
+  /// إن كان مضبوطًا فإن `clearLocalSession` ينتظر إكماله قبل متابعة التنظيف.
+  /// يُستخدم لاختبار أن التنظيف المحلي يتحقق قبل الانتقال/الحارس.
+  Completer<void>? clearLocalSessionGate;
+
+  /// الجلسة العائدة من `currentSession` (افتراضيًا null = لا جلسة محلية).
+  /// تُضبط لاختبار التقاط توكن الجلسة القديمة في الخروج.
+  Session? session;
+
+  int signOutInBackgroundCount = 0;
+  String? lastBackgroundUserId;
+
+  /// إن كان مضبوطًا فإن `signOutInBackground` يرميه بعد الانتظار —
+  /// لمحاكاة فشل الخادم في إبطال الجلسة القديمة.
+  Object? signOutInBackgroundError;
+
+  /// إن كان مضبوطًا فإن `signOutInBackground` ينتظر إكماله قبل إكمال نفسه —
+  /// لإمساك الخلفية معلّقة أثناء فحص الخروج المحلي الفوري.
+  Completer<void>? signOutInBackgroundGate;
+
   /// خريطة (رقم محلي → إيميل) يستخدمها resolveEmail للرقم،
   /// ومحاكاة لجدول get_email_by_phone في السيرفر.
   final Map<String, String> emailByPhone = {};
@@ -93,7 +112,7 @@ class FakeAuthService extends AuthService {
   User? get currentUser => user;
 
   @override
-  Session? get currentSession => null;
+  Session? get currentSession => session;
 
   /// بثّ قابلٍ للتحكم لأحداث حالة الدخول — للاختبارات التي تريد محاكاة
   /// onAuthStateChange الحقيقي من GoTrue (مثل تنقل شاشة الدخول بعد التحقق
@@ -191,6 +210,7 @@ class FakeAuthService extends AuthService {
   @override
   Future<void> clearLocalSession() async {
     clearLocalSessionCount++;
+    if (clearLocalSessionGate != null) await clearLocalSessionGate!.future;
     if (clearLocalSessionError != null) throw clearLocalSessionError!;
     user = null;
     serverUser = null;
@@ -288,5 +308,14 @@ class FakeAuthService extends AuthService {
   Future<void> syncPhoneToProfile(String localPhone) async {
     syncCount++;
     syncedPhone = localPhone;
+  }
+
+  @override
+  Future<void> signOutInBackground(String? oldUserId) async {
+    signOutInBackgroundCount++;
+    lastBackgroundUserId = oldUserId;
+    if (signOutDelay != null) await Future<void>.delayed(signOutDelay!);
+    if (signOutInBackgroundGate != null) await signOutInBackgroundGate!.future;
+    if (signOutInBackgroundError != null) throw signOutInBackgroundError!;
   }
 }

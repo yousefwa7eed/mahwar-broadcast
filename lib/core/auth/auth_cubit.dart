@@ -341,6 +341,13 @@ class AuthCubit extends Cubit<AuthState> {
     if (!isClosed) emit(const AuthUnauthenticated());
   }
 
+  /// يبثّ [AuthUnauthenticated] فورًا — الاستدعاء المحلي الوحيد الذي يسمّيه
+  /// منسّق الخروج بعد التنظيف المحلي وقبل الانتقال (بلا أي شبكة). بلا تأثير
+  /// عند إغلاق الـ cubit.
+  void markUnauthenticated() {
+    if (!isClosed) emit(const AuthUnauthenticated());
+  }
+
   /// يرسل كود استعادة كلمة المرور عبر SMS للرقم المحلي. لا يبث حالات — الشاشة
   /// تتحكم في الـ loading محليًا وتعالج الأخطاء عبر استثناءات تُمرَّر لها (نفس
   /// نمط attachPhone/verifyPhoneOtp). أخطاء GoTrue (user_not_found /

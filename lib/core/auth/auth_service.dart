@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -66,6 +68,14 @@ abstract class AuthService {
   /// الجلسة لدى الخادم فقط إن بقيت هي نفسها (لا يُبطل جلسة جديدة أنشأها
   /// المستخدم بعد الرفض). منفصل عن [signOut] حتى يبقى سلوك الخروج العادي كما هو.
   Future<void> signOutFromRejection();
+
+  /// تنظيف الخروج الخلفي بعد خروج محلي فوري (استدعاء بلا انتظار من منسّق
+  /// الخروج): يصفّر fcm_token لصفّ المستخدم القديم — يُبدأ قبل سحب الجلسة
+  /// المحلية فيلتقط الطلب رمز الوصول الصالح لحظيًا — ويفصل الجهاز من FCM،
+  /// ثم يُبطل الجلسة القديمة لدى الخادم عبر `signOut(scope: global)` الذي
+  /// يلتقط توكنها متزامنًا قبل مسحها محليًا (لا يمسّ جلسة جديدة إن سجّل
+  /// المستخدم دخولًا مرة أخرى). لا يمسّ الجلسة المحلية إطلاقًا بعد البدء.
+  Future<void> signOutInBackground(String? oldUserId);
 
   /// يحوّل identifier (إيميل أو رقم هاتف محلي) إلى الإيميل الحقيقي المرتبط
   /// بالحساب. يعيد null عندما يكون الإدخال فارغًا أو لا يوجد حساب مرتبط.
@@ -263,6 +273,63 @@ class SupabaseAuthService extends AuthService {
     // `SignOutScope.local`: يزيل الجلسة من الجهاز (ويبث signedOut) ويطلب
     // إبطالها لدى الخادم بأفضل جهد — إن فشل الطلب الشبكي تبقى المحلية مُسحوبة.
     await _client.auth.signOut(scope: SignOutScope.local);
+  }
+
+  /// مهلة قصيرة لكل خطوة من تنظيف الخروج الخلفي، حتى لا تُعلّق العملية
+  /// بلا فائدة عند بطء الشبكة/انقطاعها (العملية خلفية بلا انتظار أصلاً).
+  static const Duration _backgroundStepTimeout = Duration(seconds: 3);
+
+  @override
+  Future<void> signOutInBackground(String? oldUserId) async {
+    // بداية متزامنة قبل أي await — طالما الجلسة المحلية القديمة ما زالت
+    // قائمة يلتقط gotrue توكنها متزامنًا (انظر أدناه). كل خطوة وراء
+    // مهلة حتى لا تُعلّق العملية (هي خلفية بلا انتظار أصلًا).
+    //
+    // 1) حذف fcm_token لصفّ المستخدم القديم: يقرأ Postgrest/AuthHttpClient
+    //    توكن الجلسة الحالية متزامنًا لحظة إطلاق الطلب، فيلتقط التوكن
+    //    الصالح قبل أي مسح محلي. فشله يُسجَّل فقط (لا يمنع الخروج المحلي).
+    if (oldUserId != null) {
+      unawaited(
+        _client
+            .from('profiles')
+            .update({'fcm_token': null})
+            .eq('id', oldUserId)
+            .timeout(_backgroundStepTimeout)
+            .catchError((Object e) {
+          AuthService.fcmTokenClearFailureCount++;
+          debugPrint(
+            '[AuthService] background FCM_TOKEN_CLEAR_FAILED '
+            '(count=${AuthService.fcmTokenClearFailureCount}, userId=$oldUserId): $e',
+          );
+        }),
+      );
+    }
+    // 2) إبطال الجلسة القديمة لدى الخادم: `signOut(scope: global)` يقرأ
+    //    `currentSession` متزامنًا في أول سطر له، فيلتقط توكن الجلسة
+    //    القديمة، يمسح الجلسة المحلية محليًا، ثم يستدعي /logout بالتوكن
+    //    القديم نفسه (بدون مفتاح خدمة/أدمن). بعد ذلك لا يمسّ gotrue
+    //    `currentSession` أبدًا — جلسة إعادة الدخول أثناء الشبكة تبقى سليمة.
+    //    هذه الخطوة وحدها تنقل نجاح الخروج إلى المنسّق؛ فشلها يُرمى فيمنع
+    //    عرض رسالة الخروج (الخروج المحلي تم فعلًا).
+    await _client.auth
+        .signOut(scope: SignOutScope.global)
+        .timeout(_backgroundStepTimeout);
+    // 3) فصل الجهاز من FCM — لا يحتاج جلسة. أفضل جهد.
+    try {
+      await FirebaseMessaging.instance.deleteToken().timeout(_backgroundStepTimeout);
+    } catch (e) {
+      debugPrint('[AuthService] background FCM deleteToken failed: $e');
+    }
+    try {
+      await FirebaseMessaging.instance
+          .unsubscribeFromTopic('car_owners')
+          .timeout(_backgroundStepTimeout);
+      await FirebaseMessaging.instance
+          .unsubscribeFromTopic('providers')
+          .timeout(_backgroundStepTimeout);
+    } catch (e) {
+      debugPrint('[AuthService] background FCM topic unsubscribe failed: $e');
+    }
   }
 
   /// يحوّل رقمًا محليًا (01012345678) إلى الصيغة الدولية التي تتطلبها GoTrue
