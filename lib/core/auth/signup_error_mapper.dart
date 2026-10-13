@@ -10,6 +10,10 @@ import 'role_gate.dart';
 
 const String _signupGenericError = 'حدث خطأ أثناء إنشاء الحساب، حاول مرة أخرى';
 
+// Postgres unique-key violations surfaced by GoTrue with the constraint name or
+// the 23505 code (e.g. "duplicate key value violates unique constraint ...").
+const String _signupUniqueViolation = 'رقم الهاتف أو الرقم القومي مسجّل بالفعل';
+
 const Map<String, String> _signupErrorMessages = {
   'MISSING_WORKSHOP_NAME': 'من فضلك أدخل اسم الورشة',
   'MISSING_NATIONAL_ID': 'من فضلك أدخل الرقم القومي',
@@ -22,9 +26,14 @@ const Map<String, String> _signupErrorMessages = {
   'MISSING_SPECIALIZATION': 'من فضلك اختر تخصص واحد على الأقل',
   'MISSING_ROLE': 'حدث خطأ في نوع الحساب، حاول التسجيل مرة أخرى',
   'INVALID_ROLE': 'حدث خطأ في نوع الحساب، حاول التسجيل مرة أخرى',
-  // Legacy duplicate codes — kept while the role-locked migration is on hold.
+  // Legacy duplicate codes — still raised by the live trigger and understood by
+  // older app builds; kept for rollback safety until the role-locked migration
+  // lands.
   'DUPLICATE_PHONE': 'رقم الهاتف مسجّل بالفعل',
   'DUPLICATE_NATIONAL_ID': 'الرقم القومي مسجّل بالفعل',
+  // New code raised after the role-locked migration: duplicate national ID,
+  // without revealing the existing role and never echoing the submitted value.
+  'NATIONAL_ID_EXISTS': 'الرقم القومي مسجّل بالفعل',
 };
 
 // New (role-locked) format raised by the migration: "ACCOUNT_EXISTS_AS:<role>",
@@ -64,7 +73,22 @@ String mapSignupError(String rawMessage) {
     if (message.contains(entry.key)) return entry.value;
   }
 
+  // Postgres unique violation (one of the canonical phone/national-id indexes)
+  // surfaced by GoTrue with the constraint message or the 23505 code.
+  if (_isUniqueViolation(message)) return _signupUniqueViolation;
+
   return _signupGenericError;
+}
+
+/// يكتشف انتهاكات قيد التفرّد من Postgres/GoTrue (رمز 23505 أو نصوص
+/// "duplicate key" / "already registered" / "already exists") لرسمها كرسالة
+/// تكرار واضحة بدلًا من الخطأ العام.
+bool _isUniqueViolation(String message) {
+  final lower = message.toLowerCase();
+  return lower.contains('23505') ||
+      lower.contains('duplicate key') ||
+      lower.contains('already registered') ||
+      lower.contains('already exists');
 }
 
 String _accountExistsMessage(String? rawRole) {

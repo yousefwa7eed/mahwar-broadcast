@@ -29,6 +29,36 @@ void main() {
     );
   });
 
+  test('NATIONAL_ID_EXISTS bare يعطي رسالة الرقم القومي', () {
+    expect(
+      mapSignupError('NATIONAL_ID_EXISTS: national ID is already registered'),
+      'الرقم القومي مسجّل بالفعل',
+    );
+  });
+
+  test('NATIONAL_ID_EXISTS مع بادئة GoTrue يُلتقط', () {
+    expect(
+      mapSignupError(
+        'Database error saving new user: NATIONAL_ID_EXISTS: national ID is already registered',
+      ),
+      'الرقم القومي مسجّل بالفعل',
+    );
+  });
+
+  test('انتهاك قيد التفرّد (23505/duplicate key) يعطي رسالة تكرار', () {
+    expect(
+      mapSignupError(
+        'Database error saving new user: duplicate key value violates '
+        'unique constraint "profiles_phone_number_canonical_key"',
+      ),
+      'رقم الهاتف أو الرقم القومي مسجّل بالفعل',
+    );
+    expect(
+      mapSignupError('23505: duplicate key value violates unique constraint'),
+      'رقم الهاتف أو الرقم القومي مسجّل بالفعل',
+    );
+  });
+
   test('ACCOUNT_EXISTS_AS:car_owner يوجّه لصفحة دخول العميل', () {
     expect(
       mapSignupError('ACCOUNT_EXISTS_AS:car_owner'),
