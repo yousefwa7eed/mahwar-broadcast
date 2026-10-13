@@ -10,6 +10,13 @@
 //      resending have phone_confirmed_at). A brand-new phone-only user created
 //      straight from /otp has neither → the SMS is blocked, so an unverified
 //      phone can never self-create an account through SMS delivery.
+//   3b. Destination: use sms.phone — gotrue's own computed target (the NEW
+//      number for a phone change, the sign-in number otherwise). This is
+//      authoritative and immune to a stale auth.users.phone_change. Only if
+//      sms.phone is absent (older gotrue) do we fall back to user.new_phone,
+//      honoured only while live (phone_change_sent_at within
+//      sms_cap_config.otp_expiry_seconds); an expired change is then cleared
+//      server-side so it cannot shadow a later sign-in OTP.
 //   4. Daily budget caps (per-phone / global) read from sms_cap_config.
 //      Caps count ONLY rows with result = 'sent'; 'rejected' / 'failed' /
 //      'dryrun' rows are recorded but never eat into the budget.
@@ -161,10 +168,10 @@ Deno.serve(async (req) => {
   const raw = await req.text();
   const headers = Object.fromEntries(req.headers);
 
-  let payload: { user?: Record<string, unknown>; sms?: { otp?: string } };
+  let payload: { user?: Record<string, unknown>; sms?: { otp?: string; phone?: string; sms_type?: string } };
   try {
     const wh = new Webhook(secret);
-    payload = wh.verify(raw, headers) as { user?: Record<string, unknown>; sms?: { otp?: string } };
+    payload = wh.verify(raw, headers) as { user?: Record<string, unknown>; sms?: { otp?: string; phone?: string; sms_type?: string } };
   } catch {
     console.warn("[send-sms-hook] signature verification failed");
     return json({ error: { http_code: 400, message: "invalid_signature" } }, 400);
@@ -172,12 +179,74 @@ Deno.serve(async (req) => {
 
   const user = payload.user ?? {};
   const otp = payload.sms?.otp ?? "";
-  // Phone-change sends the number being verified in user.new_phone while
-  // user.phone stays empty; plain sign-in/verification puts it in user.phone.
-  const targetPhone = typeof user.new_phone === "string" && user.new_phone.length > 0
-    ? user.new_phone
-    : (typeof user.phone === "string" ? user.phone : "");
   const userId = typeof user.id === "string" ? user.id : null;
+  const newPhone = typeof user.new_phone === "string" ? user.new_phone : "";
+  const rawPhone = typeof user.phone === "string" ? user.phone : "";
+  const smsPhone = typeof payload.sms?.phone === "string" ? payload.sms.phone : "";
+
+  // DIAGNOSTIC: key names + booleans only — never values, phones, or the OTP.
+  console.info(
+    `[send-sms-hook] payload-keys sms=[${Object.keys(payload.sms ?? {}).sort().join(",")}] user=[${Object.keys(user).sort().join(",")}] new_phone_present=${newPhone.length > 0}`,
+  );
+
+  // The Supabase client + config are read BEFORE choosing the destination,
+  // because the fallback path needs the OTP-expiry window
+  // (sms_cap_config.otp_expiry_seconds) to decide whether an in-progress
+  // phone change is still trusted (see below).
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    console.error("[send-sms-hook] SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not set");
+    return json({ error: { http_code: 500, message: "supabase_env_missing" } }, 500);
+  }
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const { data: cfgRows } = await supabase.from("sms_cap_config").select("key, value");
+  const cfg = new Map<string, number>((cfgRows ?? []).map((r) => [r.key, +r.value]));
+  const perPhoneCap = cfg.get("per_phone_per_day") ?? 3;
+  const globalCap = cfg.get("global_per_day") ?? 20;
+  // OTP validity window in seconds. MUST mirror Auth -> Settings -> SMS OTP
+  // Expiry. Missing/<=0 => we never trust an in-progress change (fail closed).
+  const otpExpirySeconds = cfg.get("otp_expiry_seconds") ?? 0;
+  if (!otpExpirySeconds || otpExpirySeconds <= 0) {
+    console.error("[send-sms-hook] sms_cap_config.otp_expiry_seconds missing/invalid; not trusting new_phone");
+  }
+
+  // 1) Destination. sms.phone is gotrue's own computed target
+  //    (internal/api/phone.go -> NewSendSMSInput{OTP, Phone}): the NEW number
+  //    for a phone change, and the sign-in / forgot-password number otherwise.
+  //    It is authoritative, so we trust it first. Only when it is absent (older
+  //    gotrue) do we fall back to user.new_phone — honoured only while the
+  //    change is still live (phone_change_sent_at within the OTP expiry window,
+  //    read from sms_cap_config.otp_expiry_seconds) — else user.phone. Note the
+  //    payload's phone_change_sent_at is the PREVIOUS attempt's value (gotrue
+  //    persists the new one only AFTER this hook returns), so the fallback can
+  //    only ever observe an already-set change, never the one minted now.
+  const sentAtMs = typeof user.phone_change_sent_at === "string"
+    ? Date.parse(user.phone_change_sent_at)
+    : Number.NaN;
+  const newPhoneFresh = newPhone.length > 0 &&
+    otpExpirySeconds > 0 &&
+    Number.isFinite(sentAtMs) &&
+    Date.now() - sentAtMs <= otpExpirySeconds * 1000;
+  const targetPhone = smsPhone || (newPhoneFresh ? newPhone : rawPhone);
+
+  // Clear a stale phone change so it can never shadow a later sign-in OTP. The
+  // rpc is service_role-only and clears ONLY an already-expired change, so a
+  // live change — or the change this OTP is minting — is never touched. We call
+  // it only when this OTP is NOT destined for the new number.
+  const destinedForNewPhone = newPhone.length > 0 && targetPhone === newPhone;
+  if (newPhone.length > 0 && !destinedForNewPhone && userId) {
+    const { error: clearErr } = await supabase.rpc("clear_stale_phone_change", {
+      p_user_id: userId,
+      p_window_seconds: otpExpirySeconds,
+    });
+    if (clearErr) {
+      console.warn(`[send-sms-hook] clear_stale_phone_change failed: ${clearErr.message}`);
+    } else {
+      console.info("[send-sms-hook] cleared an expired phone change");
+    }
+  }
 
   if (!otp || !targetPhone || !userId) {
     console.warn("[send-sms-hook] incomplete payload (missing sms.otp / target phone / user.id)");
@@ -200,18 +269,6 @@ Deno.serve(async (req) => {
   }
 
   // 4) Budget caps (DB is authoritative; defaults here are fallbacks only).
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    console.error("[send-sms-hook] SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not set");
-    return json({ error: { http_code: 500, message: "supabase_env_missing" } }, 500);
-  }
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
-  const { data: cfgRows } = await supabase.from("sms_cap_config").select("key, value");
-  const cfg = new Map<string, number>((cfgRows ?? []).map((r) => [r.key, +r.value]));
-  const perPhoneCap = cfg.get("per_phone_per_day") ?? 3;
-  const globalCap = cfg.get("global_per_day") ?? 20;
 
   const dayStart = new Date();
   dayStart.setUTCHours(0, 0, 0, 0);

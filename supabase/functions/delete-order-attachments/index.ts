@@ -12,7 +12,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
  */
 
 const BUCKET = "order-attachments";
-const ENDPOINT_PREFIX = "/storage/v1/object/public/order-attachments/";
+const PUBLIC_PREFIX = "/storage/v1/object/public/order-attachments/";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,23 +27,52 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-/** يستخرج مسارات الملفات (نسبةً لجذر الباكت) من روابط public المتوقعة. */
-function extractPaths(urls: string[] | null): string[] {
-  const paths: string[] = [];
-  for (const url of urls ?? []) {
-    const marker = url.indexOf(ENDPOINT_PREFIX);
-    if (marker >= 0) {
-      const path = url.slice(marker + ENDPOINT_PREFIX.length);
-      if (path.trim().length > 0) {
-        paths.push(decodeURIComponent(path));
-        continue;
-      }
-    }
-    // fallback: name end-of-path segment فقط
-    const seg = url.split("/").filter(Boolean).pop();
-    if (seg) paths.push(seg);
+function originOf(url: string | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
   }
-  return [...new Set(paths)];
+}
+
+/**
+ * يحوّل رابط public للباكت إلى مسار نسبي آمن (نسبةً لجذر الباكت)، أو null إن
+ * كان غير صالح. صارم: يجب أن يكون الرابط من نفس أصل Supabase بالضبط، وبلا
+ * query/fragment، وأن يطابق مساره تماماً الصيغة orders/<ownerId>/<file>
+ * حيث <file> يبدأ بحرف/رقم/شرطة سفلية ثم حروف/أرقام/نقطة/شرطة/شرطة سفلية.
+ * أي رابط لا يطابق يُرفض (لا fallback "آخر مقطع").
+ */
+function toSafeObjectPath(
+  url: unknown,
+  expectedOrigin: string,
+  ownerId: string | null,
+): string | null {
+  if (typeof url !== "string" || url.length === 0 || ownerId === null) {
+    return null;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+
+  if (parsed.origin !== expectedOrigin) return null;
+  if (parsed.search !== "" || parsed.hash !== "") return null;
+  if (!parsed.pathname.startsWith(PUBLIC_PREFIX)) return null;
+
+  let rel: string;
+  try {
+    rel = decodeURIComponent(parsed.pathname.slice(PUBLIC_PREFIX.length));
+  } catch {
+    return null;
+  }
+
+  const escapedOwner = ownerId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`^orders/${escapedOwner}/[A-Za-z0-9_-][A-Za-z0-9._-]*$`);
+  return re.test(rel) ? rel : null;
 }
 
 Deno.serve(async (req: Request) => {
@@ -90,7 +119,7 @@ Deno.serve(async (req: Request) => {
   // 3) جلب الطلب للتأكد أنه ما يزال في حالة نهائية (حماية من السباقات)
   const { data: order, error: fetchErr } = await supabase
     .from("orders")
-    .select("id, status, attachments, provider_attachments")
+    .select("id, status, car_owner_id, attachments, provider_attachments")
     .eq("id", orderId)
     .maybeSingle();
 
@@ -108,10 +137,33 @@ Deno.serve(async (req: Request) => {
   }
 
   // 4) حذف كل الملفات المرتبطة من Storage (client + provider)
-  const paths = extractPaths([
+  //    نقبل فقط الروابط المطابقة تماماً: نفس أصل Supabase، وبلا query/fragment،
+  //    ومسارها تحت orders/<car_owner_id>/ لهذا الطلب. أي مرجع آخر يُتجاهَل
+  //    ويُسجَّل عدده فقط (بدون طباعة الروابط).
+  const expectedOrigin = originOf(supabaseUrl);
+  const ownerId = order.car_owner_id ?? null;
+  const rawAttachments = [
     ...(order.attachments ?? []),
     ...(order.provider_attachments ?? []),
-  ]);
+  ];
+
+  const valid: string[] = [];
+  let rejected = 0;
+  for (const u of rawAttachments) {
+    const p = expectedOrigin
+      ? toSafeObjectPath(u, expectedOrigin, ownerId)
+      : null;
+    if (p) valid.push(p);
+    else rejected++;
+  }
+
+  const paths = [...new Set(valid)];
+
+  if (rejected > 0) {
+    console.warn(
+      `[delete-order-attachments] ignored ${rejected} invalid/foreign attachment reference(s) for ${orderId}`,
+    );
+  }
 
   if (paths.length > 0) {
     const { data: removed, error: removeErr } = await supabase.storage
