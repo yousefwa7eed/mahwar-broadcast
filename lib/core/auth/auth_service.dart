@@ -363,12 +363,9 @@ class SupabaseAuthService extends AuthService {
 
   @override
   Future<void> syncPhoneToProfile(String localPhone) async {
-    final userId = currentUser?.id;
-    if (userId == null) return;
-    await _client
-        .from('profiles')
-        .update({'phone_number': localPhone})
-        .eq('id', userId);
+    // مزامنة الرقم أصبحت مسؤولية الخادم: مُشغِّل sync_phone_number_from_auth
+    // يحدّث profiles.phone_number بعد تأكيد auth.users.phone. لا نكتب مباشرة من
+    // العميل لأن الكتابة المباشرة يحظرها الحارس profiles_phone_requires_verified.
   }
 
   @override
@@ -463,4 +460,14 @@ class SupabaseAuthService extends AuthService {
 
     await _client.auth.signOut();
   }
+}
+
+/// الدور الحقيقي للمستخدم المسجّل من `profiles.role` (المصدر الموثوق) بلا بناء
+/// `AuthCubit` — كان `PushNotificationService` يبني cubitًا رميًا لكل نداء
+/// فيسجّل اشتراكًا في تدفق المصادقة لا يُلغى أبدًا (تسريب مستمعين). نفس منطق
+/// `AuthCubit.resolveCurrentRole` بالضبط. تُرجع null عند غياب مستخدم مسجّل أو
+/// تعذّر تحديد الدور من الخادم.
+Future<String?> resolveCurrentUserRole(AuthService service) async {
+  if (service.currentUser == null) return null;
+  return service.getServerRole();
 }

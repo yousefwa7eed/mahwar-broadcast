@@ -135,4 +135,16 @@ void main() {
     expect(fake.setPasswordCount, 1);
     expect(fake.user, isNotNull);
   });
+
+  test('close يلغي الاشتراك في تدفق المصادقة (لا مستمعين معلّقين)', () async {
+    final fake = FakeAuthService();
+    final cubit = AuthCubit(service: fake);
+
+    // الباني يشترك فورًا في onAuthStateChange.
+    expect(fake.authStateController.hasListener, isTrue);
+
+    await cubit.close();
+
+    expect(fake.authStateController.hasListener, isFalse);
+  });
 }

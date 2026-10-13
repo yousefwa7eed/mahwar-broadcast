@@ -140,7 +140,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('الانتقال يحدث فورًا ورسالة الخروج تظهر بعد اكتمال الخلفية البطيئة',
+  testWidgets('الانتقال يحدث بعد اكتمال الخلفية البطيئة ورسالة النجاح بعدها',
       (tester) async {
     final fake = FakeAuthService()
       ..user = user('car_owner')
@@ -155,22 +155,22 @@ void main() {
     await tester.pumpAndSettle();
 
     await tapLogout(tester, settle: false);
-    // نُعيد فحصًا قبل انتهاء الخلفية: التنقل والمحلي تمّا فورًا والرسالة لم تظهر
-    // (الخلفية ما زالت معلّقة على تأخيرها المُصطنع).
-    expect(resetProfileCalls, 1);
-    expect(fake.user, isNull);
+    // الخلفية ما زالت معلّقة على تأخيرها المُصطنع — لا سحب محلي ولا انتقال
+    // ولا رسالة نجاح قبل اكتمال تنظيف الخادم.
     expect(fake.signOutInBackgroundCount, 1);
+    expect(fake.lastBackgroundUserId, 'fake-user-id');
+    expect(resetProfileCalls, 0);
     expect(find.text('تم تسجيل الخروج'), findsNothing);
 
+    // نُنهي تأخير الخلفية: يُسحب المحلي، يحدث الانتقال، وتظهر رسالة النجاح.
+    await tester.pump(const Duration(seconds: 5));
     await tester.pumpAndSettle();
     expect(currentPath(router), '/select-user-type');
     expect(find.byKey(const Key('select')), findsOneWidget);
     expect(router.canPop(), isFalse);
     expect(fake.signOutCount, 0);
-
-    // بعد انقضاء تأخير الخلفية تظهر رسالة النجاح.
-    await tester.pump(const Duration(seconds: 5));
-    await tester.pumpAndSettle();
+    expect(fake.clearLocalSessionCount, 1);
+    expect(resetProfileCalls, 1);
     expect(find.text('تم تسجيل الخروج'), findsOneWidget);
 
     await clearSnackBar(tester);
@@ -273,7 +273,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('إعادة الدخول بعد الخروج لا تُبطَل جلسة المستخدم الجديد من الخلفية',
+  testWidgets('إعادة الدخول أثناء خروج معلّق لا تُبطَل جلسة المستخدم الجديد',
       (tester) async {
     final fake = FakeAuthService()..user = user('car_owner');
     final gate = Completer<void>();
@@ -288,8 +288,10 @@ void main() {
     await tester.pumpAndSettle();
 
     await tapLogout(tester);
-    expect(currentPath(router), '/select-user-type');
-    // الخلفية التقطت هوية الجلسة القديمة قبل أي تنظيف.
+    // الخلفية معلّقة على بوّابتها — لم يحدث انتقال ولا سحب محلي بعد،
+    // لكن الهوية القديمة التُقطت منذ بداية الخروج.
+    expect(currentPath(router), '/harness');
+    expect(fake.signOutInBackgroundCount, 1);
     expect(fake.lastBackgroundUserId, 'fake-user-id');
 
     // مستخدم جديد يسجّل دخولًا أثناء انشغال الخلفية.
@@ -305,10 +307,11 @@ void main() {
     gate.complete();
     await tester.pumpAndSettle();
 
-    // الخلفية لم تلمس جلسة/مستخدم الحالة الحالية.
-    expect(fake.user, same(newUser));
-    expect(fake.signOutCount, 0);
+    // التنظيف استُكمل بهوية الجلسة القديمة ولم يمسّ الجلسة لدى الخادم.
+    expect(currentPath(router), '/select-user-type');
     expect(fake.lastBackgroundUserId, 'fake-user-id');
+    expect(fake.signOutCount, 0);
+    expect(fake.clearLocalSessionCount, 1);
 
     await clearSnackBar(tester);
     await tester.pumpWidget(const SizedBox());

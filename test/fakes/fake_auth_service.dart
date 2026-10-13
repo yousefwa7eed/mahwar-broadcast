@@ -76,6 +76,11 @@ class FakeAuthService extends AuthService {
   /// قــاعدة fallback لـ resolveEmail مع الإيميل: يُرجَع الإيميل نفسه.
   String normalizeEmail(String input) => input.trim().toLowerCase();
 
+  /// إن كان مضبوطًا فإن `resolveEmail` يرميه عند البحث برقم هاتف — لمحاكاة
+  /// فشل/انتهاء مهلة/حدّ معدّل RPC `get_email_by_phone`. لا يؤثر على البحث
+  /// بالإيميل.
+  Object? resolveEmailError;
+
   Object? attachError;
   Object? verifyError;
   Object? resendError;
@@ -221,6 +226,7 @@ class FakeAuthService extends AuthService {
     final value = identifier.trim();
     if (value.isEmpty) return null;
     if (value.contains('@')) return normalizeEmail(value);
+    if (resolveEmailError != null) throw resolveEmailError!;
     final phone = value.replaceAll(RegExp(r'[\s\-\(\)]'), '');
     return emailByPhone[phone.startsWith('0') ? phone : '0${phone.substring(3)}'];
   }

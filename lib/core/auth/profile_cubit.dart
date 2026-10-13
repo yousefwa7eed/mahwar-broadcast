@@ -101,12 +101,16 @@ class ProfileError extends ProfileState {
 class ProfileCubit extends Cubit<ProfileState> {
   final SupabaseClient _client = Supabase.instance.client;
 
+  /// اشتراك مستمع `onAuthStateChange`. يُخزَّن ليُلغى في [close] — بدون ذلك
+  /// يبقى المستمع حيًّا بعد إغلاق الـ cubit (تسريب/أحداث مكررة).
+  StreamSubscription<AuthState>? _authSub;
+
   ProfileCubit() : super(const ProfileInitial()) {
     _listenToAuthChanges();
   }
 
   void _listenToAuthChanges() {
-    _client.auth.onAuthStateChange.listen((authState) {
+    _authSub = _client.auth.onAuthStateChange.listen((authState) {
       final event = authState.event;
       if (event == AuthChangeEvent.signedIn) {
         loadProfile();
@@ -114,6 +118,14 @@ class ProfileCubit extends Cubit<ProfileState> {
         emit(const ProfileInitial());
       }
     });
+  }
+
+  /// يلغي الاشتراك في تدفق المصادقة قبل إغلاق الـ cubit.
+  @override
+  Future<void> close() async {
+    await _authSub?.cancel();
+    _authSub = null;
+    return super.close();
   }
 
   Future<void> loadProfile() async {

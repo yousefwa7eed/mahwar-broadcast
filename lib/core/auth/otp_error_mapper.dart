@@ -77,6 +77,36 @@ String mapRecoverySendError(Object error, {required bool isArabic}) {
   return mapOtpError(error, isArabic: isArabic);
 }
 
+/// يرسم فشل الفحص المسبق لتفرّد الرقم في مسار تغيير الرقم (RPC
+/// `get_email_by_phone`) — السياسة «فشل مُغلق»: أي خطأ في الفحص يمنع إرسال
+/// الكود، فلا يُربط رقم لم يتحقق الخادم من تفرّده. يفرّق بين الحدّ المعدّل
+/// ([_isThrottleError]) ورسالة عامة، ولا يكشف أي بيانات عن الرقم/الحساب.
+String mapChangePhoneLookupError(Object error, {required bool isArabic}) {
+  if (_isThrottleError(error)) {
+    return isArabic
+        ? 'تم تجاوز عدد المحاولات. حاول مرة أخرى لاحقاً.'
+        : 'Too many attempts. Please try again later.';
+  }
+  return isArabic
+      ? 'تعذّر التحقق من رقم الهاتف. حاول مرة أخرى.'
+      : "Couldn't verify the phone number. Please try again.";
+}
+
+/// يميّز خطأ الحدّ المعدّل عن الفشل العام: إمّا رفض خادمي من RPC الفحص
+/// (`get_email_by_phone` يرمي `TOO_MANY_LOOKUPS` بعد 5 محاولات/ساعة/رقم)، أو
+/// رمز حدّ معدّل من GoTrue.
+bool _isThrottleError(Object error) {
+  if (error is PostgrestException) {
+    if (error.code == 'TOO_MANY_LOOKUPS') return true;
+    return error.message.toUpperCase().contains('TOO_MANY_LOOKUPS');
+  }
+  if (error is AuthApiException) {
+    return error.code == 'over_request_rate_limit' ||
+        error.code == 'over_sms_send_rate_limit';
+  }
+  return false;
+}
+
 String _generic(bool isArabic) => isArabic
     ? 'حدث خطأ ما. تحقق من اتصالك وحاول مرة أخرى.'
     : 'Something went wrong. Check your connection and try again.';

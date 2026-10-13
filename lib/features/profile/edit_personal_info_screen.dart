@@ -8,6 +8,7 @@ import '../../../core/auth/phone_utils.dart';
 import '../../../core/auth/profile_cubit.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../l10n/app_localizations.dart';
+import '../auth/otp_screen.dart' show changePhoneRoute;
 
 class EditPersonalInfoScreen extends StatefulWidget {
   const EditPersonalInfoScreen({super.key});
@@ -85,7 +86,6 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
     setState(() => _isSaving = true);
 
     try {
-      final phone = PhoneUtils.normalize(_phoneController.text.trim());
       final newName = _fullNameController.text.trim();
       final newEmail = _emailController.text.trim().isEmpty
           ? null
@@ -93,9 +93,10 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
 
       final oldEmail = _client.auth.currentUser?.email;
 
+      // لا نكتب phone_number من العميل: تغيير الرقم يمرّ عبر تدفق OTP فقط
+      // (زر "تغيير الرقم")، ويُزامَن خادميًا بعد تأكيد auth.users.phone.
       await _client.from('profiles').update({
         'full_name': newName,
-        'phone_number': phone,
         'email': newEmail,
         'national_id': _nationalIdController.text.trim().isEmpty
             ? null
@@ -117,16 +118,22 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
       );
 
       if (mounted) {
-        context.read<ProfileCubit>().updateProfile(ProfileData(
+        final cubit = context.read<ProfileCubit>();
+        final current = cubit.state is ProfileLoaded
+            ? (cubit.state as ProfileLoaded).profile
+            : const ProfileData();
+        cubit.updateProfile(ProfileData(
               fullName: newName,
-              phoneNumber: phone,
+              phoneNumber: _phoneController.text.trim().isEmpty
+                  ? null
+                  : _phoneController.text.trim(),
               email: newEmail,
               nationalId: _nationalIdController.text.trim().isEmpty
                   ? null
                   : NationalIdUtils.normalize(_nationalIdController.text.trim()),
-              role: context.read<ProfileCubit>().state is ProfileLoaded
-                  ? (context.read<ProfileCubit>().state as ProfileLoaded).profile.role
-                  : null,
+              role: current.role,
+              avatarId: current.avatarId,
+              avatarUrl: current.avatarUrl,
             ));
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -168,6 +175,17 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
+  }
+
+  /// يفتح تدفق تغيير الرقم (إدخال الرقم الجديد → OTP). بعد العودة بنجاح يكون
+  /// الخادم قد حدّث profiles.phone_number عبر مُشغِّل المزامنة، فنعيد تحميل
+  /// الملف لعرض الرقم الجديد.
+  Future<void> _onChangePhone() async {
+    await context.push(changePhoneRoute);
+    if (!mounted) return;
+    await context.read<ProfileCubit>().refreshProfile();
+    if (!mounted) return;
+    await _loadProfile();
   }
 
   @override
@@ -233,12 +251,12 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
-
-_buildField(
+                    _buildField(
                       controller: _phoneController,
                       label: l10n?.phoneNumber ?? 'رقم الهاتف',
                       icon: Icons.phone_android_rounded,
                       isDark: isDark,
+                      enabled: false,
                       keyboardType: TextInputType.phone,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       validator: (v) {
@@ -253,6 +271,25 @@ _buildField(
                         }
                         return null;
                       },
+                    ),
+                    Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: TextButton.icon(
+                        onPressed: _isSaving ? null : _onChangePhone,
+                        icon: const Icon(
+                          Icons.edit_outlined,
+                          size: 18,
+                          color: AppColors.orangePrimary,
+                        ),
+                        label: Text(
+                          l10n?.changeNumberTitle ?? 'تغيير رقم الهاتف',
+                          style: const TextStyle(
+                            fontFamily: 'Cairo',
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.orangePrimary,
+                          ),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 16),
 

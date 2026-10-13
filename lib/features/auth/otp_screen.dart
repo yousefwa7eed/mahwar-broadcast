@@ -16,6 +16,22 @@ import 'otp_cooldown_store.dart';
 
 enum OtpMode { signup, changeNumber, forgot }
 
+/// مسار شاشة التحقق لوضع تغيير الرقم (بلا رقم مسبق → تبدأ بإدخال الرقم الجديد).
+const String changePhoneRoute = '/otp-verify?mode=change-number';
+
+/// يترجم قيمة `mode` في الـ query إلى [OtpMode]. أي قيمة غير معروفة → signup،
+/// فلا تُخمّن شاشةٌ مسارًا غير مطلوب.
+OtpMode otpModeFromQuery(String? modeName) {
+  switch (modeName) {
+    case 'change-number':
+      return OtpMode.changeNumber;
+    case 'forgot':
+      return OtpMode.forgot;
+    default:
+      return OtpMode.signup;
+  }
+}
+
 class OtpScreen extends StatefulWidget {
   final OtpMode mode;
   final String? phone;
@@ -231,10 +247,43 @@ class _OtpScreenState extends State<OtpScreen> {
     try {
       // وضع الاستعادة يُرسل كود دخول SMS للرقم؛ وضع تغيير الرقم يربط الرقم
       // بحساب المستخدم الحالي. كلاهما يفتح شاشة الكود بعد النجاح.
+      final cubit = context.read<AuthCubit>();
       if (widget.mode == OtpMode.forgot) {
-        await context.read<AuthCubit>().requestForgotPasswordOtp(normalized);
+        await cubit.requestForgotPasswordOtp(normalized);
       } else {
-        await context.read<AuthCubit>().attachPhone(normalized);
+        // فحص تفرّد مسبق: لا نرسل كودًا لرقم مملوك لحساب آخر (تفادي إهدار SMS).
+        // مسار تغيير الرقم يفشل مُغلقًا: أي خطأ/انتهاء مهلة/حدّ معدّل في الفحص
+        // يعني أن التفرّد لم يُتحقَّق منه ⇒ لا نرسل الكود ولا نربط الرقم.
+        final isChangeNumber = widget.mode == OtpMode.changeNumber;
+        String? ownerEmail;
+        var lookupFailed = false;
+        try {
+          ownerEmail = await cubit.emailForPhone(normalized);
+        } catch (e) {
+          lookupFailed = true;
+          if (isChangeNumber) {
+            setState(() {
+              _isBusy = false;
+              _errorText = mapChangePhoneLookupError(e, isArabic: isArabic);
+            });
+            return;
+          }
+          // مسار التسجيل (بلا رقم مسبق) يبقى على سلوكه السابق: فشل الفحص لا
+          // يحجب المستخدم — الحارس الخادمي (PHONE_CHANGE_REQUIRES_OTP + قيد
+          // التفرّد) خط الدفاع الأخير.
+        }
+        if (!lookupFailed &&
+            ownerEmail != null &&
+            ownerEmail != cubit.currentUserEmail) {
+          setState(() {
+            _isBusy = false;
+            _errorText = isArabic
+                ? 'رقم الهاتف مسجل بالفعل لدى مستخدم آخر'
+                : 'This phone number is already registered';
+          });
+          return;
+        }
+        await cubit.attachPhone(normalized);
       }
       if (!mounted) return;
       OtpCooldownStore.start(normalized);

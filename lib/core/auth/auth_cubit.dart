@@ -97,6 +97,11 @@ class AuthError extends AuthState {
 class AuthCubit extends Cubit<AuthState> {
   final AuthService _authService;
 
+  /// اشتراك مستمع `onAuthStateChange`. يُخزَّن ليُلغى في [close] —
+  /// بدون ذلك يبقى المستمع حيًّا بعد إغلاق الـ cubit (تسريب/أحداث مكررة).
+  /// النوع `Object?` لأن `AuthState` هنا اسم الحالة المحلية لا حالة Supabase.
+  StreamSubscription<Object?>? _authSub;
+
   AuthCubit({AuthService? service})
       : _authService = service ?? SupabaseAuthService(),
         super(const AuthInitial()) {
@@ -113,7 +118,7 @@ class AuthCubit extends Cubit<AuthState> {
     }
 
     // Listen to auth state changes
-    _authService.authStateChanges.listen((authState) {
+    _authSub = _authService.authStateChanges.listen((authState) {
       final event = authState.event;
       final session = authState.session;
 
@@ -128,6 +133,15 @@ class AuthCubit extends Cubit<AuthState> {
         emit(const AuthUnauthenticated());
       }
     });
+  }
+
+  /// يلغي الاشتراك في تدفق المصادقة قبل إغلاق الـ cubit — وإلّا ظل المستمع
+  /// مسجّلًا في `onAuthStateChange` ويستقبل أحداثًا ويبثّ حالات بعد الإغلاق.
+  @override
+  Future<void> close() async {
+    await _authSub?.cancel();
+    _authSub = null;
+    return super.close();
   }
 
   /// يجلب FCM token الخاص بالجهاز الحالي ويحفظه في عمود fcm_token
@@ -185,12 +199,7 @@ class AuthCubit extends Cubit<AuthState> {
   /// الموثوق للتوجيه). تُرجع null عندما لا يوجد مستخدم مسجّل، أو عندما يتعذّر
   /// تحديد الدور من الخادم — بلا أي افتراضي إلى `car_owner` وبلا رجوع إلى
   /// `user_metadata` (كان السبب في توجيه المزوّد إلى رئيسية مالك السيارة).
-  Future<String?> resolveCurrentRole() async {
-    final user = _authService.currentUser;
-    if (user == null) return null;
-
-    return _authService.getServerRole();
-  }
+  Future<String?> resolveCurrentRole() => resolveCurrentUserRole(_authService);
 
   /// يحدّد الدور مع مهلة زمنية وإعادة محاولة — لمسار الدخول. أي انتهاء مهلة
   /// أو خطأ عابر يُعاد معه المحاولة حتى [attempts] مرة، ثم يُرجع null (يُعامل
@@ -420,4 +429,13 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> syncPhoneToProfile(String localPhone) async {
     await _authService.syncPhoneToProfile(localPhone);
   }
+
+  /// الإيميل المرتبط برقم محلي، أو null إن لم يكن مرتبطًا بأي حساب. تُستخدم
+  /// لفحص تفرّد الرقم قبل إرسال كود تغييره (تفادي إهدار رسالة SMS).
+  Future<String?> emailForPhone(String localPhone) =>
+      _authService.resolveEmail(localPhone);
+
+  /// إيميل المستخدم الحالي — لتمييز رقمه الخاص عن رقم مملوك لحساب آخر في
+  /// الفحص المسبق لتغيير الرقم. null خارج جلسة مصادَقة.
+  String? get currentUserEmail => _authService.currentUser?.email;
 }

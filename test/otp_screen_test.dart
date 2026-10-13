@@ -333,6 +333,145 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  User currentUser({String email = 'me@mahwar.app'}) => User(
+        id: 'fake-user-id',
+        appMetadata: const {},
+        userMetadata: const {'role': 'car_owner'},
+        aud: 'authenticated',
+        createdAt: 'now',
+        email: email,
+      );
+
+  testWidgets(
+      'تغيير الرقم: رقم مملوك لحساب آخر يُرفض مسبقًا ولا يُرسل كود', (tester) async {
+    final fake = FakeAuthService()..user = currentUser();
+    fake.emailByPhone['01123456789'] = 'other@mahwar.app';
+    final (app, _) = buildApp(fake, mode: OtpMode.changeNumber);
+
+    await tester.pumpWidget(app);
+    await tester.enterText(find.byType(TextField), '01123456789');
+    await tester.tap(find.text('إرسال الرمز'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('رقم الهاتف مسجل بالفعل لدى مستخدم آخر'), findsOneWidget);
+    expect(fake.attachCount, 0);
+    expect(find.text('إرسال الرمز'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('تغيير الرقم: رقم جديد يُربط ويفتح شاشة الكود', (tester) async {
+    final fake = FakeAuthService()..user = currentUser();
+    final (app, _) = buildApp(fake, mode: OtpMode.changeNumber);
+
+    await tester.pumpWidget(app);
+    await tester.enterText(find.byType(TextField), '01123456789');
+    await tester.tap(find.text('إرسال الرمز'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(fake.attachCount, 1);
+    expect(fake.attachedPhone, '01123456789');
+    expect(
+      find.text('أدخل رمز التحقق المكوّن من 6 أرقام الذي أُرسل إلى •••• ••• 6789'),
+      findsOneWidget,
+    );
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('تغيير الرقم: إعادة إدخال نفس رقم المستخدم مسموحة',
+      (tester) async {
+    final fake = FakeAuthService()..user = currentUser();
+    fake.emailByPhone['01123456789'] = 'me@mahwar.app';
+    final (app, _) = buildApp(fake, mode: OtpMode.changeNumber);
+
+    await tester.pumpWidget(app);
+    await tester.enterText(find.byType(TextField), '01123456789');
+    await tester.tap(find.text('إرسال الرمز'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(fake.attachCount, 1);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('تغيير الرقم: فشل الفحص المسبق (شبكة) يفشل مُغلقًا ولا يرسل كود',
+      (tester) async {
+    final fake = FakeAuthService()..user = currentUser();
+    fake.resolveEmailError = Exception('network down');
+    final (app, _) = buildApp(fake, mode: OtpMode.changeNumber);
+
+    await tester.pumpWidget(app);
+    await tester.enterText(find.byType(TextField), '01123456789');
+    await tester.tap(find.text('إرسال الرمز'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(fake.attachCount, 0);
+    expect(
+      find.text('تعذّر التحقق من رقم الهاتف. حاول مرة أخرى.'),
+      findsOneWidget,
+    );
+    // بقيت في شاشة إدخال الرقم (لم يُرسل كود ولم يُفتح عدّاد).
+    expect(find.text('إرسال الرمز'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('تغيير الرقم: حدّ الفحص (TOO_MANY_LOOKUPS) يفشل مُغلقًا برسالة الحدّ',
+      (tester) async {
+    final fake = FakeAuthService()..user = currentUser();
+    fake.resolveEmailError =
+        const PostgrestException(message: 'TOO_MANY_LOOKUPS', code: 'P0001');
+    final (app, _) = buildApp(fake, mode: OtpMode.changeNumber);
+
+    await tester.pumpWidget(app);
+    await tester.enterText(find.byType(TextField), '01123456789');
+    await tester.tap(find.text('إرسال الرمز'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(fake.attachCount, 0);
+    expect(
+      find.text('تم تجاوز عدد المحاولات. حاول مرة أخرى لاحقاً.'),
+      findsOneWidget,
+    );
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  test('mapChangePhoneLookupError يفرّق بين الحدّ المعدّل والرسالة العامة', () {
+    expect(
+      mapChangePhoneLookupError(
+        const PostgrestException(message: 'TOO_MANY_LOOKUPS', code: 'P0001'),
+        isArabic: true,
+      ),
+      'تم تجاوز عدد المحاولات. حاول مرة أخرى لاحقاً.',
+    );
+    expect(
+      mapChangePhoneLookupError(
+        AuthApiException('rl', code: 'over_request_rate_limit'),
+        isArabic: false,
+      ),
+      'Too many attempts. Please try again later.',
+    );
+    expect(
+      mapChangePhoneLookupError(Exception('network'), isArabic: true),
+      'تعذّر التحقق من رقم الهاتف. حاول مرة أخرى.',
+    );
+  });
+
+  test('otpModeFromQuery يترجم قيم الـ query ويُسقط المجهول إلى signup', () {
+    expect(otpModeFromQuery('change-number'), OtpMode.changeNumber);
+    expect(otpModeFromQuery('forgot'), OtpMode.forgot);
+    expect(otpModeFromQuery('signup'), OtpMode.signup);
+    expect(otpModeFromQuery(null), OtpMode.signup);
+    expect(otpModeFromQuery('unknown'), OtpMode.signup);
+  });
+
   testWidgets('وضع الاستعادة: كود صحيح ينتقل لتعيين كلمة مرور بدون مزامنة',
       (tester) async {
     final fake = FakeAuthService();

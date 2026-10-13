@@ -194,7 +194,7 @@ void main() {
   });
 
   testWidgets(
-      'رسالة عدم التطابق تظهر فورًا دون انتظار تسجيل الخروج البطيء',
+      'رسالة عدم التطابق تظهر فورًا رغم انتظار تنظيف الخروج البطيء',
       (tester) async {
     final fake = FakeAuthService();
     final (app, router) = buildApp(fake);
@@ -211,20 +211,22 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    // الرسالة ظهرت، والجلسة المحلية سُحبت، رغم أن التنظيف الخلفي ما زال معلّقًا.
+    // الرسالة ظهرت فورًا، والجلسة المحلية لم تُسحب بعد (الرفض ينتظر الخلفية).
     expect(currentPath(router), '/login');
     expect(
       find.text('هذا الحساب مسجّل كمزوّد. يرجى تسجيل الدخول من صفحة تسجيل دخول المزوّد.'),
       findsOneWidget,
     );
+    expect(fake.clearLocalSessionCount, 0);
+    expect(fake.user, isNotNull);
+
+    // نُنهي التأخير: يُسحب المحلي بعد اكتمال تنظيف الخلفية.
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
     expect(fake.clearLocalSessionCount, 1);
     expect(fake.user, isNull);
     expect(find.byKey(const Key('owner_home')), findsNothing);
     expect(find.byKey(const Key('provider_home')), findsNothing);
-
-    // نُصفّي المؤقت المعلّق قبل نهاية الاختبار.
-    await tester.pump(const Duration(seconds: 5));
-    await tester.pumpAndSettle();
 
     await tester.pumpWidget(const SizedBox());
   });
