@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../auth/auth_cubit.dart';
+import '../auth/auth_service.dart';
 import '../auth/home_route.dart';
 import '../auth/role_gate.dart';
 import '../models/notification_model.dart';
@@ -218,7 +218,7 @@ class PushNotificationService {
   /// مسار آمن لرسالة قديمة تحمل order_id بدون screen معرّف (أو بقيمة غير
   /// معروفة): نستنتج الوجهة من الدور والنوع بنفس قاعدة مسارات القائمة.
   Future<void> _openOrderByRole(String orderId, String? type) async {
-    final role = await AuthCubit().resolveCurrentRole();
+    final role = await resolveCurrentUserRole(SupabaseAuthService());
     appRouter.push(
       PushNotificationService.orderRouteFor(
         orderId: orderId,
@@ -258,7 +258,7 @@ class PushNotificationService {
 
   /// يفتح الرئيسية حسب دور المستخدم (إشعار عام بعمق link = home).
   Future<void> _openHome() async {
-    final role = await AuthCubit().resolveCurrentRole();
+    final role = await resolveCurrentUserRole(SupabaseAuthService());
     // go() لأن الرئيسية شاشة جذرية — نتجنب تكديس نسخة فوق الشاشات الحالية.
     // بلا دور صالح لا نتنقل (بدل افتراض car_owner بصمت).
     final homeRoute = homeRouteForRole(role);
