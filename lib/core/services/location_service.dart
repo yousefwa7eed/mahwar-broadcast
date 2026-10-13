@@ -24,9 +24,16 @@ class LocationService {
   /// من الجهاز إلا كملاذ أخير. بقيمة false: نُفضل مخزون الذاكرة ثم آخر موقع
   /// معروف (سريع) ثم GPS مباشر.
   ///
+  /// [maxLastKnownAge] (اختياري): عند ضبطه يقتصر قبول آخر موقع معروف على ما
+  /// كان زمنه ضمن هذه المدة (خلاف ذلك يُعامَل كعديم). الافتراضي null يُبقي
+  /// السلوك الحالي كما هو لجميع المتصلين.
+  ///
   /// تُعرض دقة الإحداثيات (position.accuracy بالأمتار) على المتصل ليقرر
   /// عليها — لا تُتجاهل.
-  Future<Position?> getCurrentPosition({bool forceRefresh = false}) async {
+  Future<Position?> getCurrentPosition({
+    bool forceRefresh = false,
+    Duration? maxLastKnownAge,
+  }) async {
     if (!forceRefresh && _lastPosition != null) return _lastPosition;
 
     final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -53,11 +60,15 @@ class LocationService {
         _lastPosition = fresh;
         return fresh;
       }
-      // ملاذ أخير فقط: آخر موقع يعرفه الجهاز، بنقاوته الأصلية (accuracy).
+      // ملاذ أخير فقط: آخر موقع يعرفه الجهاز، بنقاوته الأصلية (accuracy)،
+      // وضمن العمر الأقصى إن طُلبت قيود الحداثة (maxLastKnownAge).
       try {
         final lastKnown = await Geolocator.getLastKnownPosition();
-        if (lastKnown != null) _lastPosition = lastKnown;
-        return lastKnown;
+        if (lastKnown != null && isFreshEnough(lastKnown.timestamp, maxLastKnownAge)) {
+          _lastPosition = lastKnown;
+          return lastKnown;
+        }
+        return null;
       } catch (_) {
         return null;
       }
@@ -66,7 +77,7 @@ class LocationService {
     // المسار السريع (بدون قوة): آخر موقع معروف ثم GPS مباشر.
     try {
       final lastKnown = await Geolocator.getLastKnownPosition();
-      if (lastKnown != null) {
+      if (lastKnown != null && isFreshEnough(lastKnown.timestamp, maxLastKnownAge)) {
         _lastPosition = lastKnown;
         return lastKnown;
       }
@@ -87,6 +98,20 @@ class LocationService {
     } catch (_) {
       return null;
     }
+  }
+
+  /// دالة حداثة نقيّة: هل زمان [timestamp] ضمن [maxAge] بالنسبة إلى [now]؟
+  /// عند غياب [maxAge] تُقبل أي قيمة (السلوك الحالي)، وعند غياب الطابع الزمني
+  /// تُرفض. مفصولة عن الاستدعاء لتُختبَر وحدةً مستقلة.
+  static bool isFreshEnough(
+    DateTime? timestamp,
+    Duration? maxAge, {
+    DateTime? now,
+  }) {
+    if (maxAge == null) return true;
+    if (timestamp == null) return false;
+    final reference = now ?? DateTime.now();
+    return reference.difference(timestamp).abs() <= maxAge;
   }
 
   /// يجيب عنوان نصي مقروء للموقع الحالي (مثل: المعادي، القاهرة، مصر).

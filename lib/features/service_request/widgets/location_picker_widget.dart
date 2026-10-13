@@ -1,10 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/services/location_service.dart';
 import '../../../l10n/app_localizations.dart';
 
 class LocationPickerWidget extends StatefulWidget {
@@ -41,8 +40,10 @@ class _LocationPickerWidgetState extends State<LocationPickerWidget> {
     }
   }
 
-  /// يطلب صلاحية الموقع من نظام التشغيل، ويجيب الموقع الحالي الحقيقي للجهاز،
-  /// وينقل الخريطة والعلامة (marker) إليه مباشرة.
+  /// يطلب صلاحية الموقع من نظام التشغيل، ثم يجيب موقع الجهاز عبر LocationService
+  /// (تحديد مباشر عالي/متوسط، أو آخر موقع معروف حديث ضمن 10 دقائق)، وينقل
+  /// الخريطة والعلامة (marker) إليه مباشرة. إن تعذّر التحديد يبقى الاختيار
+  /// اليدوي بالنقر على الخريطة متاحاً.
   Future<void> _goToCurrentLocation() async {
     setState(() => _isLocating = true);
 
@@ -67,20 +68,25 @@ class _LocationPickerWidgetState extends State<LocationPickerWidget> {
         return;
       }
 
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 10),
-        ),
+      // تحديد مباشر جديد عبر LocationService: دقة عالية ثم متوسطة، ولا نُسقط
+      // إلى آخر موقع معروف إلا إن كان حديثاً (ضمن 10 دقائق). إن تعذّر الكل
+      // نعرض رسالة مع زر إعادة محاولة ولا نمنع المستخدم من اختيار موقعه يدوياً
+      // بالنقر على الخريطة أو تحريك العلامة.
+      final position = await LocationService.instance.getCurrentPosition(
+        forceRefresh: true,
+        maxLastKnownAge: const Duration(minutes: 10),
       );
+
+      if (position == null) {
+        _showMessageWithRetry('تعذّر تحديد موقعك خلال 10 ثوانٍ، تأكد من توافر GPS ثم أعد المحاولة');
+        return;
+      }
 
       final newLocation = LatLng(position.latitude, position.longitude);
 
       setState(() => _selectedLocation = newLocation);
       _mapController.move(newLocation, 16);
       widget.onLocationChanged(newLocation);
-    } on TimeoutException {
-      _showMessage('تعذّر تحديد موقعك خلال 10 ثوانٍ، تأكد من توافر GPS ثم أعد المحاولة');
     } catch (e) {
       _showMessage('تعذّر تحديد الموقع الحالي');
     } finally {
@@ -93,6 +99,21 @@ class _LocationPickerWidgetState extends State<LocationPickerWidget> {
   void _showMessage(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// رسالة فشل تحديد الموقع مع زر «إعادة المحاولة» يعيد المحاولة فوراً،
+  /// دون إجبار المستخدم على أي مسار آخر (يبقى قادراً على النقر على الخريطة).
+  void _showMessageWithRetry(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        action: SnackBarAction(
+          label: 'إعادة المحاولة',
+          onPressed: _goToCurrentLocation,
+        ),
+      ),
+    );
   }
 
   @override
