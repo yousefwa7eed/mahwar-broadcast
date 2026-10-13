@@ -108,11 +108,7 @@ final GoRouter appRouter = GoRouter(
         final phone = state.uri.queryParameters['phone'];
         final role = state.uri.queryParameters['role'];
         return OtpScreen(
-          mode: modeName == 'change-number'
-              ? OtpMode.changeNumber
-              : modeName == 'forgot'
-                  ? OtpMode.forgot
-                  : OtpMode.signup,
+          mode: otpModeFromQuery(modeName),
           phone: phone,
           role: role,
         );
@@ -133,9 +129,7 @@ final GoRouter appRouter = GoRouter(
       name: 'request-create',
       builder: (context, state) {
         final serviceId = state.uri.queryParameters['serviceId'] ?? 'crane';
-        // معرّف طلب معلّق قائم — يُمرَّر لتعبئة النموذج مسبقاً وتحديثِه بدل إنشاء مكرر.
-        final orderId = state.uri.queryParameters['orderId'] ?? '';
-        return ServiceRequestScreen(serviceId: serviceId, orderId: orderId);
+        return ServiceRequestScreen(serviceId: serviceId);
       },
     ),
     GoRoute(
@@ -150,12 +144,10 @@ final GoRouter appRouter = GoRouter(
       path: '/request/providers',
       name: 'request-providers',
       builder: (context, state) {
-        final orderId = state.uri.queryParameters['orderId'] ?? '';
         final serviceId = state.uri.queryParameters['serviceId'] ?? 'crane';
         final lat = double.tryParse(state.uri.queryParameters['lat'] ?? '') ?? 0;
         final lng = double.tryParse(state.uri.queryParameters['lng'] ?? '') ?? 0;
         return NearbyProvidersScreen(
-          orderId: orderId,
           serviceId: serviceId,
           lat: lat,
           lng: lng,
@@ -166,9 +158,8 @@ final GoRouter appRouter = GoRouter(
       path: '/request/provider-details',
       name: 'request-provider-details',
       builder: (context, state) {
-        final orderId = state.uri.queryParameters['orderId'] ?? '';
         final providerId = state.uri.queryParameters['providerId'] ?? '';
-        return ProviderDetailsScreen(orderId: orderId, providerId: providerId);
+        return ProviderDetailsScreen(providerId: providerId);
       },
     ),
     GoRoute(

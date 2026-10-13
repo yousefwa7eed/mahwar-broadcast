@@ -12,10 +12,13 @@ class ServiceRequestDraft {
   const ServiceRequestDraft({
     required this.userId,
     required this.serviceId,
-    this.orderId,
+    this.serviceTypeId,
     this.latitude,
     this.longitude,
     this.carId,
+    this.carMake,
+    this.carModel,
+    this.carYear,
     this.notes = '',
     this.autoCancel = true,
     this.sharePhone = false,
@@ -27,15 +30,20 @@ class ServiceRequestDraft {
   static const Duration stalenessWindow = Duration(minutes: 30);
 
   final String userId;
+
+  /// معرّف الخدمة في واجهة التطبيق (قد يختلف عن معرّف قاعدة البيانات).
   final String serviceId;
 
-  /// معرّف الطلب المعلّق الذي كان النموذج يعدّله — للتأكد أن الاستعادة تخصّ
-  /// نفس الطلب عند فتح النموذج مرة أخرى بمعرّف محدد.
-  final String? orderId;
+  /// معرّف الخدمة الحقيقي في قاعدة البيانات — يُحمل في المسودة لأن الطلب لا
+  /// يُنشأ إلا عند اختيار المزوّد، ووقتها لا يكون النموذج في المكدس.
+  final String? serviceTypeId;
 
   final double? latitude;
   final double? longitude;
   final String? carId;
+  final String? carMake;
+  final String? carModel;
+  final int? carYear;
   final String notes;
   final bool autoCancel;
   final bool sharePhone;
@@ -47,6 +55,7 @@ class ServiceRequestDraft {
       latitude != null ||
       longitude != null ||
       carId != null ||
+      carMake != null ||
       notes.trim().isNotEmpty ||
       sharePhone ||
       imagePaths.isNotEmpty ||
@@ -55,10 +64,13 @@ class ServiceRequestDraft {
   Map<String, dynamic> toJson() => {
         'userId': userId,
         'serviceId': serviceId,
-        'orderId': orderId,
+        'serviceTypeId': serviceTypeId,
         'latitude': latitude,
         'longitude': longitude,
         'carId': carId,
+        'carMake': carMake,
+        'carModel': carModel,
+        'carYear': carYear,
         'notes': notes,
         'autoCancel': autoCancel,
         'sharePhone': sharePhone,
@@ -71,10 +83,13 @@ class ServiceRequestDraft {
     return ServiceRequestDraft(
       userId: json['userId'] as String? ?? '',
       serviceId: json['serviceId'] as String? ?? '',
-      orderId: json['orderId'] as String?,
+      serviceTypeId: json['serviceTypeId'] as String?,
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
       carId: json['carId'] as String?,
+      carMake: json['carMake'] as String?,
+      carModel: json['carModel'] as String?,
+      carYear: (json['carYear'] as num?)?.toInt(),
       notes: json['notes'] as String? ?? '',
       autoCancel: json['autoCancel'] as bool? ?? true,
       sharePhone: json['sharePhone'] as bool? ?? false,

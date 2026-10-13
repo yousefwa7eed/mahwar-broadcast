@@ -10,7 +10,6 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/auth/national_id_utils.dart';
 import '../../../core/errors/rpc_error_translator.dart';
 import '../../../core/models/car_detail.dart';
-import '../../../core/services/image_compression_service.dart';
 import '../../../l10n/app_localizations.dart';
 import 'widgets/location_picker_widget.dart';
 import 'widgets/car_selector_widget.dart';
@@ -19,14 +18,9 @@ import 'service_request_draft.dart';
 class ServiceRequestScreen extends StatefulWidget {
   final String serviceId;
 
-  /// إن وُجد: يُفتح النموذج للتعديل على هذا الطلب المعلّق (يُحمَّل ويُعبّأ
-  /// مسبقاً، والزر يُحدّث نفس الصف بدل إدراج صف جديد).
-  final String? orderId;
-
   const ServiceRequestScreen({
     super.key,
     required this.serviceId,
-    this.orderId,
   });
 
   @override
@@ -76,14 +70,11 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
   final List<XFile> _pickedImages = [];
   final ImagePicker _picker = ImagePicker();
 
-  static const ImageCompressionService _compressionService = ImageCompressionService();
-  final OrderSubmitTimer _timer = OrderSubmitTimer();
-
   List<CarDetail> _userCars = [];
   bool _isLoadingCars = true;
 
-  /// طلب معلّق قائم لنفس المالك — إن وُجد يُعدَّل (تحديث) بدل إنشاء مكرر.
-  _PendingOrderDraft? _existingOrder;
+  /// يبقى true حتى تكتمل تعبئة النموذج الأولية (السيارات + المسودة) فتُبنى
+  /// الخريطة مرة واحدة بموقعها النهائي.
   bool _loadingExistingOrder = true;
 
   /// مسودة النموذج المحفوظة محلياً: تُستعاد عند إعادة فتح النموذج بعد انتهاء
@@ -248,14 +239,10 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
     _initForm();
   }
 
-  /// تسلسل آمن: تحميل السيارات أولاً، ثم البحث عن طلب معلّق، ثم تعبئة
-  /// النموذج منه حتى لا تتنافس العمليات غير المتزامنة على الحالة.
+  /// تسلسل آمن: تحميل السيارات أولاً، ثم تعبئة المسودة المحفوظة محلياً
+  /// (آخر تعديلات المستخدم تتغلب على القيم الافتراضية).
   Future<void> _initForm() async {
     await _loadUserCars();
-    await _loadExistingPendingOrder();
-    _applyExistingPrefill();
-    // تعبئة المسودة المحفوظة بعد أساس بيانات الطلب المعلّق حتى تتغلب
-    // تعديلات المستخدم الأخيرة (المسودة) على قيم التعبئة من الخادم.
     await _applySavedDraft();
     // إنهاء «الحاوية المستقرة» بعد اكتمال كل التعبئة — تُبنى الخريطة مرة
     // واحدة بموقعها النهائي دون أن «تقفز».
@@ -292,10 +279,13 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
     final draft = ServiceRequestDraft(
       userId: userId,
       serviceId: widget.serviceId,
-      orderId: widget.orderId,
+      serviceTypeId: _resolveServiceTypeId(),
       latitude: _selectedLocation?.latitude,
       longitude: _selectedLocation?.longitude,
       carId: _selectedCar?.id,
+      carMake: _selectedCar?.make,
+      carModel: _selectedCar?.model,
+      carYear: _selectedCar?.year,
       notes: _notesController.text.trim(),
       autoCancel: _autoCancel,
       sharePhone: _sharePhone,
@@ -368,74 +358,6 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
     }
   }
 
-  /// يفحص إن كان للمالك طلب معلّق (pending) قائم فيُعبّئ النموذج منه؛ لو ممرّر
-  /// widget.orderId يفضّل الطلب المحدد، وإلا أحدث طلب pending للمالك.
-  Future<void> _loadExistingPendingOrder() async {
-    try {
-      final userId = _client.auth.currentUser?.id;
-      if (userId == null) return;
-
-      var query = _client
-          .from('orders')
-          .select(
-        'id, service_type_id, latitude, longitude, notes, car_make, car_model, car_year, auto_cancel, share_phone, attachments',
-      )
-          .eq('car_owner_id', userId)
-          .eq('status', 'pending');
-
-      if (widget.orderId != null && widget.orderId!.isNotEmpty) {
-        query = query.eq('id', widget.orderId!);
-      }
-
-      final row = await query.order('created_at', ascending: false).maybeSingle();
-      if (row != null) {
-        _existingOrder = _PendingOrderDraft.fromJson(Map<String, dynamic>.from(row));
-      }
-    } catch (e) {
-      debugPrint('load existing pending order failed: $e');
-    }
-    // لا يُقلَب مؤشر _loadingExistingOrder هنا — يقلبه _initForm بعد اكتمال
-    // كل التعبئة (بما فيها استعادة المسودة) كي تُبنى الخريطة مرة واحدة فقط.
-  }
-
-  /// يجد معرّف طلب pending قائم لحظة الإرسال (جلب طازج) — null إن لا يوجد.
-  Future<String?> _findExistingPendingOrderId() async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) return null;
-    try {
-      final row = await _client
-          .from('orders')
-          .select('id')
-          .eq('car_owner_id', userId)
-          .eq('status', 'pending')
-          .order('created_at', ascending: false)
-          .maybeSingle();
-      return row?['id'] as String?;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// تعبئة النموذج من بيانات الطلب المعلّق: الموقع، الملاحظات، التفضيلات،
-  /// ومطابقة السيارة (إن وُجدت في السيارات المسجّلة).
-  void _applyExistingPrefill() {
-    final draft = _existingOrder;
-    if (draft == null || !mounted) return;
-    setState(() {
-      _selectedLocation = LatLng(draft.latitude, draft.longitude);
-      _notesController.text = draft.notes;
-      _autoCancel = draft.autoCancel;
-      _sharePhone = draft.sharePhone;
-      final match = _userCars
-          .where((c) =>
-      c.make == draft.carMake &&
-          c.model == draft.carModel &&
-          c.year == draft.carYear)
-          .toList();
-      if (match.isNotEmpty) _selectedCar = match.first;
-    });
-  }
-
   /// يستعيد مسودة محفوظة محلياً وتطبقها على النموذج (إن كانت حديثة وتخصّ هذا
   /// المستخدم والمعرّف نفسه). مسودة قديمة أو لأخرى/لحساب آخر تُمسح ولا تُطبق.
   Future<void> _applySavedDraft() async {
@@ -448,9 +370,7 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
 
       final isFresh =
           DateTime.now().difference(draft.savedAt) < ServiceRequestDraft.stalenessWindow;
-      final mismatchesOrder =
-          draft.orderId != null && widget.orderId != null && draft.orderId != widget.orderId;
-      if (!isFresh || draft.userId != userId || draft.serviceId != widget.serviceId || mismatchesOrder) {
+      if (!isFresh || draft.userId != userId || draft.serviceId != widget.serviceId) {
         await _discardDraft();
         return;
       }
@@ -483,31 +403,25 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
     }
   }
 
-  /// يطابق السيارة المحفوظة (بالمعرّف) مع السيارات المسجّلة الحالية.
+  /// يطابق السيارة المحفوظة مع السيارات المسجّلة الحالية: بالمعرّف أولاً،
+  /// ثم بالطراز/السنة (في حال حُذفت السيارة وأُعيدت إضافتها بمعرّف جديد).
   CarDetail? _matchCar(ServiceRequestDraft draft) {
     final carId = draft.carId;
-    if (carId == null) return null;
-    for (final car in _userCars) {
-      if (car.id == carId) return car;
+    if (carId != null) {
+      for (final car in _userCars) {
+        if (car.id == carId) return car;
+      }
+    }
+    if (draft.carMake != null) {
+      for (final car in _userCars) {
+        if (car.make == draft.carMake &&
+            car.model == draft.carModel &&
+            car.year == draft.carYear) {
+          return car;
+        }
+      }
     }
     return null;
-  }
-
-  /// بارامترات مشتركة بين RPC التحديث والإدراج — تجنّب تكرار منطق الحقول.
-  Map<String, dynamic> _orderPayload(String orderId, String ownerPhone, String serviceTypeId) {
-    return {
-      'p_order_id': orderId,
-      'p_service_type_id': serviceTypeId,
-      'p_car_make': _selectedCar!.make,
-      'p_car_model': _selectedCar!.model,
-      'p_car_year': _selectedCar!.year,
-      'p_latitude': _selectedLocation!.latitude,
-      'p_longitude': _selectedLocation!.longitude,
-      'p_notes': _notesController.text.trim(),
-      'p_owner_phone': ownerPhone,
-      'p_auto_cancel': _autoCancel,
-      'p_share_phone': _sharePhone,
-    };
   }
 
   /// بوابة إرسال الطلب: يتأكد (بجلب طازج) أن العميل يملك رقماً قومياً صالحاً.
@@ -623,162 +537,39 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
     // عدم صحته — والرجوع يعيد الفحص حتى يلتزم الشرط أو يُلغى الإرسال.
     if (!await _confirmNationalIdGate(userId)) return;
 
+    // لا يُنشأ أي صف في قاعدة البيانات هنا: يُحفظ النموذج كمسودة محلية فقط ثم
+    // ننتقل لاختيار المزوّد. الطلب الحقيقي يُنشأ ذرّياً في شاشة تفاصيل المزوّد
+    // لحظة التأكيد (RPC create_order_for_provider) — فإن أُغلق التطبيق الآن لا
+    // يوجد أي طلب معلّق يتيم في قاعدة البيانات.
     setState(() {
       _isSubmitting = true;
-      _submitStatusText = 'جاري حفظ طلبك...';
+      _submitStatusText = 'جاري تجهيز طلبك...';
     });
-    _timer.start('saving order');
 
     try {
-      // 1) حفظ الطلب فوراً في قاعدة البيانات (بدون الصور) — استجابة سريعة
-      //    حتى لو تبقى ضغط/رفع الصور جارياً.
-      final profile = await _client
-          .from('profiles')
-          .select('phone_number')
-          .eq('id', userId)
-          .single();
-      final String ownerPhone = profile['phone_number'] as String? ?? '';
-
-      // 1) حفظ الطلب فوراً: إن كان المالك يملك طلباً معلّقاً قائماً نُحدّثه في
-      //    مكانه (ويمرّر نفس معرّفه لشاشة المزوّدين)، وإلا نُدرج طلباً جديداً.
-      //    لا تنشأ طلبات معلّقة مكررة أبداً — ويمتد ذلك لقاعدة البيانات عبر
-      //    فهرس جزئي فريد يرفض الإدراج المكرر (خطأ 23505).
-      final existingOrderId = await _findExistingPendingOrderId();
-
-      String realOrderId;
-      if (existingOrderId != null) {
-        _timer.start('updating pending order');
-        await _client.rpc(
-          'update_pending_order',
-          params: _orderPayload(existingOrderId, ownerPhone, realServiceTypeId),
-        );
-        _timer.stop();
-        realOrderId = existingOrderId;
-      } else {
-        try {
-          final inserted = await _client
-              .from('orders')
-              .insert({
-            'car_owner_id': userId,
-            'service_type_id': realServiceTypeId,
-            'car_make': _selectedCar!.make,
-            'car_model': _selectedCar!.model,
-            'car_year': _selectedCar!.year,
-            'latitude': _selectedLocation!.latitude,
-            'longitude': _selectedLocation!.longitude,
-            'notes': _notesController.text.trim(),
-            'status': 'pending',
-            'owner_phone': ownerPhone,
-            'auto_cancel': _autoCancel,
-            'share_phone': _sharePhone,
-          })
-              .select('id')
-              .single();
-        _timer.stop();
-
-        realOrderId = inserted['id'] as String;
-        } on PostgrestException catch (e) {
-          // سباق: طلب pending أُنشئ لحظياً بين فحصنا والإدراج، ورفضه الفهرس
-          // الفريد. نتخذ الطلب القائم بسلاسة: جلب ثم تحديثه بنفس الحقول.
-          if (e.code != '23505') rethrow;
-          final racedOrderId = await _findExistingPendingOrderId();
-          if (racedOrderId == null) rethrow;
-          await _client.rpc(
-            'update_pending_order',
-            params: _orderPayload(racedOrderId, ownerPhone, realServiceTypeId),
-          );
-          _timer.stop();
-          realOrderId = racedOrderId;
-        }
-      }
-
-      // 2) ضغط الصور (بالموازاة) ثم رفعها وربطها بالطلب
-      if (_pickedImages.isNotEmpty) {
-        if (mounted) {
-setState(() {
-          _submitStatusText = 'جاري تحسين الصور...';
-        });
-        }
-        _timer.start('compressing images');
-
-        final compressed =
-            await Future.wait(_pickedImages.map((img) => _compressionService.compress(File(img.path))));
-        _timer.stop();
-
-        final List<String> imageUrls = [];
-        try {
-          for (var i = 0; i < compressed.length; i++) {
-            if (mounted) {
-              setState(() {
-                _submitStatusText = 'جاري رفع الصور (${i + 1}/${compressed.length})';
-              });
-            }
-            _timer.start('uploading image ${i + 1}');
-
-            final fileExt = compressed[i].path.split('.').last;
-            final fileName =
-                '${DateTime.now().millisecondsSinceEpoch}_$i.$fileExt';
-            final filePath = 'orders/$userId/$fileName';
-
-            await _client.storage.from('order-attachments').upload(
-              filePath,
-              compressed[i],
-              fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
-            );
-
-            imageUrls.add(
-              _client.storage.from('order-attachments').getPublicUrl(filePath),
-            );
-            _timer.stop();
-          }
-
-          // 3) ربط الصور بالطلب عبر RPC آمن (RSL يمنع UPDATE مباشر)
-          if (imageUrls.isNotEmpty) {
-            if (mounted) {
-              setState(() {
-                _submitStatusText = 'جاري إنهاء الطلب...';
-              });
-            }
-            _timer.start('saving attachments');
-            await _client.rpc('set_order_attachments', params: {
-              'p_order_id': realOrderId,
-              'p_attachments': imageUrls,
-            });
-            _timer.stop();
-          }
-        } catch (uploadError) {
-          // لا نفشل الطلب بالكامل: الطلب محفوظ، الصور فقط لم تكتمل.
-          debugPrint('[OrderSubmit] رفع صور فشل (الطلب محفوظ بدون صور): $uploadError');
-          _timer.stop();
-        }
-      }
-
-      _timer.report();
-
-      // الطلب حُفظ بنجاح: تُمسح المسودة المحلية نهائياً حتى تُفتح النماذج
-      // التالية فارغة (المسح ينتظر أي حفظ جارٍ — لا سباق).
-      await _discardDraft();
+      // حفظ نهائي (يمرّ عبر سلسلة الكتابات فينتظر أي حفظ مؤجل جارٍ) لضمان
+      // توفّر المسودة في شاشة المزوّد حتى لو انتقل المستخدم بسرعة.
+      await _saveDraft();
 
       if (!mounted) return;
 
       setState(() => _isSubmitting = false);
-      // push() بدلاً من go(): النموذج يبقى في المكدس تحت شاشة المزوّدين،
-      // فزرّ الرجوع (السهم/زر النظام) يعيد للمستخدم نموذجاً معبّأً بنفس
-      // بيانات الطلب المحفوظ، لا لمُنسّاخ جديد — والتعديل اللاحق يحدّث نفس
-      // الطلب المعلّق بدل إنشاء مكرر (مع حماية DB أيضاً).
+      // push() بدلاً من go(): النموذج (ومسودته) يبقى في المكدس تحت شاشة
+      // المزوّدين، فزرّ الرجوع يعيد لنموذج معبّأ بدل نموذج فارغ.
       context.push(
-        '/request/providers?orderId=$realOrderId'
-        '&serviceId=$realServiceTypeId'
+        '/request/providers?serviceId=$realServiceTypeId'
         '&lat=${_selectedLocation!.latitude}'
         '&lng=${_selectedLocation!.longitude}',
       );
     } catch (e) {
       if (mounted) {
         setState(() => _isSubmitting = false);
+        final isArabic =
+            AppLocalizations.of(context)?.localeName.startsWith('ar') ?? true;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              RpcErrorTranslator.translate(e),
+              RpcErrorTranslator.translate(e, arabic: isArabic),
             ),
             backgroundColor: AppColors.error,
           ),
@@ -1181,51 +972,4 @@ Text(
 }
 }
 
-/// نسخة مصغّرة من طلب المالك المعلّق — تُستخدم لتعبئة النموذج مسبقاً
-/// ولتمرير نفس المعرّف عند التحديث بدل إنشاء طلب معلّق مكرر.
-class _PendingOrderDraft {
-  const _PendingOrderDraft({
-    required this.id,
-    required this.serviceTypeId,
-    required this.latitude,
-    required this.longitude,
-    required this.carMake,
-    required this.carModel,
-    required this.carYear,
-    this.notes = '',
-    this.autoCancel = true,
-    this.sharePhone = false,
-    this.attachments = const [],
-  });
 
-  final String id;
-  final String serviceTypeId;
-  final double latitude;
-  final double longitude;
-  final String carMake;
-  final String carModel;
-  final int carYear;
-  final String notes;
-  final bool autoCancel;
-  final bool sharePhone;
-
-  /// روابط صور الطلب الحالية — تُبقى كما هي عند التعديل دون إعادة رفعها.
-  final List<String> attachments;
-
-  factory _PendingOrderDraft.fromJson(Map<String, dynamic> json) {
-    final attachmentsRaw = json['attachments'];
-    return _PendingOrderDraft(
-      id: json['id'] as String,
-      serviceTypeId: json['service_type_id'] as String? ?? '',
-      latitude: (json['latitude'] as num?)?.toDouble() ?? 0,
-      longitude: (json['longitude'] as num?)?.toDouble() ?? 0,
-      carMake: json['car_make'] as String? ?? '',
-      carModel: json['car_model'] as String? ?? '',
-      carYear: json['car_year'] as int? ?? 0,
-      notes: json['notes'] as String? ?? '',
-      autoCancel: json['auto_cancel'] as bool? ?? true,
-      sharePhone: json['share_phone'] as bool? ?? false,
-      attachments: (attachmentsRaw is List) ? attachmentsRaw.cast<String>() : const [],
-    );
-  }
-}

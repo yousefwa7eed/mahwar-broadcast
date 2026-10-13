@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -6,15 +8,15 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/avatar_config.dart';
 import '../../core/errors/rpc_error_translator.dart';
 import '../../core/models/provider_details.dart';
+import '../../core/services/image_compression_service.dart';
+import '../../features/service_request/service_request_draft.dart';
 import '../../l10n/app_localizations.dart';
 
 class ProviderDetailsScreen extends StatefulWidget {
-  final String orderId;
   final String providerId;
 
   const ProviderDetailsScreen({
     super.key,
-    required this.orderId,
     required this.providerId,
   });
 
@@ -24,6 +26,8 @@ class ProviderDetailsScreen extends StatefulWidget {
 
 class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
   final SupabaseClient _client = Supabase.instance.client;
+  final ServiceRequestDraftStore _draftStore = ServiceRequestDraftStore();
+  static const ImageCompressionService _compressionService = ImageCompressionService();
 
   ProviderDetails? _provider;
   Map<String, String> _serviceNames = {};
@@ -76,31 +80,111 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
   }
 
   Future<void> _sendRequest() async {
+    if (_isSending) return;
+
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) {
+      _showError('يجب تسجيل الدخول لإرسال الطلب');
+      return;
+    }
+
+    // النموذج لم يعد في المكدس، فمصدر البيانات هو المسودة المحفوظة.
+    final draft = await _draftStore.load();
+    final missingDraft = draft == null ||
+        draft.userId != userId ||
+        draft.serviceTypeId == null ||
+        draft.latitude == null ||
+        draft.longitude == null ||
+        draft.carMake == null;
+    if (missingDraft) {
+      _showError('تعذّر العثور على بيانات الطلب، يرجى إعادة إدخاله من جديد');
+      return;
+    }
+
     setState(() => _isSending = true);
 
+    // مسارات الصور المرفوعة — تُحذف عند فشل الطلب كي لا تبقى ملفات يتيمة.
+    final uploadedPaths = <String>[];
     try {
-      await _client.rpc('assign_order_to_provider', params: {
-        'p_order_id': widget.orderId,
-        'p_provider_id': widget.providerId,
-      });
+      final profile = await _client
+          .from('profiles')
+          .select('phone_number')
+          .eq('id', userId)
+          .single();
+      final String ownerPhone = profile['phone_number'] as String? ?? '';
 
-      if (mounted) {
-        setState(() => _isSending = false);
-        // الانتقال إلى شاشة التتبّع عبر push — يحفظ المكدّس (النموذج المعبّأ
-    // وقائمة المزوّدين) فيبقى زر الرجوع يعمل ويعود لطلبٍ مُحدَّث مسبقاً.
-    context.push('/request/track?orderId=${widget.orderId}');
+      // ضغط ورفع الصور لحظة الإرسال فقط (لا نرفع شيئاً إن لم يُرسَل الطلب).
+      final imageUrls = <String>[];
+      final validPaths =
+          draft.imagePaths.where((path) => File(path).existsSync()).toList();
+      for (var i = 0; i < validPaths.length; i++) {
+        final compressed = await _compressionService.compress(File(validPaths[i]));
+        final fileExt = compressed.path.split('.').last;
+        final filePath =
+            'orders/$userId/${DateTime.now().millisecondsSinceEpoch}_$i.$fileExt';
+        await _client.storage.from('order-attachments').upload(
+              filePath,
+              compressed,
+              fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+            );
+        uploadedPaths.add(filePath);
+        imageUrls.add(
+          _client.storage.from('order-attachments').getPublicUrl(filePath),
+        );
       }
+
+      // إنشاء الطلب ذرّياً مع المزوّد المختار (SECURITY DEFINER): صف واحد
+      // يكتمل بـ provider_id وrespond_deadline وإشعار المزوّد.
+      final newOrderId = await _client.rpc('create_order_for_provider', params: {
+        'p_provider_id': widget.providerId,
+        'p_service_type_id': draft.serviceTypeId,
+        'p_car_make': draft.carMake,
+        'p_car_model': draft.carModel,
+        'p_car_year': draft.carYear,
+        'p_latitude': draft.latitude,
+        'p_longitude': draft.longitude,
+        'p_notes': draft.notes,
+        'p_owner_phone': ownerPhone,
+        'p_auto_cancel': draft.autoCancel,
+        'p_share_phone': draft.sharePhone,
+        'p_attachments': imageUrls.isEmpty ? null : imageUrls,
+      }) as String;
+
+      await _draftStore.clear();
+
+      if (!mounted) return;
+      setState(() => _isSending = false);
+      // الانتقال إلى شاشة التتبّع عبر push — يحفظ المكدّس (قائمة المزوّدين
+      // والنموذج) فيبقى زر الرجوع يعمل.
+      context.push('/request/track?orderId=$newOrderId');
     } catch (e) {
+      // تراجع عن الصور: لا نترك ملفات يتيمة عند فشل إنشاء الطلب.
+      for (final path in uploadedPaths) {
+        try {
+          await _client.storage.from('order-attachments').remove([path]);
+        } catch (cleanupError) {
+          debugPrint('attachment cleanup failed: $cleanupError');
+        }
+      }
       if (mounted) {
         setState(() => _isSending = false);
+        final l10n = AppLocalizations.of(context);
+        final isArabic = l10n?.localeName.startsWith('ar') ?? true;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(RpcErrorTranslator.translate(e)),
+            content: Text(RpcErrorTranslator.translate(e, arabic: isArabic)),
             backgroundColor: AppColors.error,
           ),
         );
       }
     }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: AppColors.error),
+    );
   }
 
   Future<void> _callProvider() async {

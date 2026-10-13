@@ -8,14 +8,12 @@ import '../../core/models/provider_details.dart';
 import '../../l10n/app_localizations.dart';
 
 class NearbyProvidersScreen extends StatefulWidget {
-  final String orderId;
   final String serviceId;
   final double lat;
   final double lng;
 
   const NearbyProvidersScreen({
     super.key,
-    required this.orderId,
     required this.serviceId,
     required this.lat,
     required this.lng,
@@ -304,7 +302,7 @@ class _NearbyProvidersScreenState extends State<NearbyProvidersScreen> with Widg
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () => context.push(
-        '/request/provider-details?orderId=${widget.orderId}&providerId=${p.providerId}',
+        '/request/provider-details?providerId=${p.providerId}',
       ),
       child: Container(
         padding: const EdgeInsets.all(16),
