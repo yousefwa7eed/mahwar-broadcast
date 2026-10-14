@@ -570,7 +570,7 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
                             ),
                           ],
                         ),
-                        if (order.ownerPhone.isNotEmpty) ...[
+                        if (.isNotEmpty) ...[
                           const SizedBox(height: 8),
                           Row(
                             children: [
@@ -579,7 +579,7 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  order.ownerPhone,
+                                  ,
                                   style: const TextStyle(
                                     fontFamily: 'Cairo',
                                     fontSize: 14,
@@ -591,7 +591,7 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
                               InkWell(
                                 borderRadius: BorderRadius.circular(8),
                                 onTap: () => launchUrl(
-                                  Uri(scheme: 'tel', path: order.ownerPhone),
+                                  Uri(scheme: 'tel', path: ),
                                 ),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(
