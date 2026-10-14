@@ -565,8 +565,8 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
             ],
           ],
 
-          if (order.status == OrderStatus.rejectedByOwner ||
-              order.status == OrderStatus.rejectedByProvider ||
+          if (order.status == OrderStatus.rejected ||
+              order.status == OrderStatus.rejected ||
               order.status == OrderStatus.cancelled) ...[
             const SizedBox(height: 40),
             SizedBox(

@@ -53,8 +53,8 @@ class ActiveOrderCard extends StatelessWidget {
       case OrderStatus.confirmed:
       case OrderStatus.completed:
         return AppColors.success;
-      case OrderStatus.rejectedByProvider:
-      case OrderStatus.rejectedByOwner:
+      case OrderStatus.rejected:
+      case OrderStatus.rejected:
       case OrderStatus.cancelled:
         return AppColors.error;
     }

@@ -481,8 +481,8 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         return AppColors.orangePrimary;
       case OrderStatus.confirmed:
         return AppColors.success;
-      case OrderStatus.rejectedByProvider:
-      case OrderStatus.rejectedByOwner:
+      case OrderStatus.rejected:
+      case OrderStatus.rejected:
       case OrderStatus.cancelled:
         return AppColors.error;
       case OrderStatus.completed:
@@ -497,7 +497,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   /// الموجود في [_subscribeToOrderChanges].
   Order? get _activeOrder {
     for (final order in _recentOrders) {
-      if (order.showsActiveOrderCard) {
+      if (order.isActive) {
         return order;
       }
     }
