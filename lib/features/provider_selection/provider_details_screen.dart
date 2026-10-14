@@ -11,6 +11,7 @@ import '../../core/models/provider_details.dart';
 import '../../core/services/image_compression_service.dart';
 import '../../features/service_request/service_request_draft.dart';
 import '../../l10n/app_localizations.dart';
+import 'order_rpc_params.dart';
 
 class ProviderDetailsScreen extends StatefulWidget {
   final String providerId;
@@ -106,13 +107,6 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
     // مسارات الصور المرفوعة — تُحذف عند فشل الطلب كي لا تبقى ملفات يتيمة.
     final uploadedPaths = <String>[];
     try {
-      final profile = await _client
-          .from('profiles')
-          .select('phone_number')
-          .eq('id', userId)
-          .single();
-      final String ownerPhone = profile['phone_number'] as String? ?? '';
-
       // ضغط ورفع الصور لحظة الإرسال فقط (لا نرفع شيئاً إن لم يُرسَل الطلب).
       final imageUrls = <String>[];
       final validPaths =
@@ -134,20 +128,24 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
       }
 
       // إنشاء الطلب ذرّياً مع المزوّد المختار (SECURITY DEFINER): صف واحد
-      // يكتمل بـ provider_id وrespond_deadline وإشعار المزوّد.
-      final newOrderId = await _client.rpc('create_order_for_provider', params: {
-        'p_provider_id': widget.providerId,
-        'p_service_type_id': draft.serviceTypeId,
-        'p_car_make': draft.carMake,
-        'p_car_model': draft.carModel,
-        'p_car_year': draft.carYear,
-        'p_latitude': draft.latitude,
-        'p_longitude': draft.longitude,
-        'p_notes': draft.notes,
-        'p_owner_phone': ownerPhone,
-        'p_auto_cancel': draft.autoCancel,
-        'p_attachments': imageUrls.isEmpty ? null : imageUrls,
-      }) as String;
+      // يكتمل بـ provider_id وrespond_deadline وإشعار المزوّد. تُرسل معاملات
+      // p_owner_phone/p_share_phone الإلزامية كـ null/false — القاعدة تُصفّر
+      // الهاتف عبر trg_orders_force_null_phone.
+      final newOrderId = await _client.rpc(
+        'create_order_for_provider',
+        params: buildCreateOrderForProviderParams(
+          providerId: widget.providerId,
+          serviceTypeId: draft.serviceTypeId,
+          carMake: draft.carMake,
+          carModel: draft.carModel,
+          carYear: draft.carYear,
+          latitude: draft.latitude,
+          longitude: draft.longitude,
+          notes: draft.notes,
+          autoCancel: draft.autoCancel,
+          attachments: imageUrls.isEmpty ? null : imageUrls,
+        ),
+      ) as String;
 
       await _draftStore.clear();
 
