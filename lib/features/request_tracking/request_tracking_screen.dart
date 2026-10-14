@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -565,8 +565,8 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
             ],
           ],
 
-          if (order.status == OrderStatus.rejected ||
-              order.status == OrderStatus.rejected ||
+          if (order.status == OrderStatus.rejectedByOwner ||
+              order.status == OrderStatus.rejectedByProvider ||
               order.status == OrderStatus.cancelled) ...[
             const SizedBox(height: 40),
             SizedBox(

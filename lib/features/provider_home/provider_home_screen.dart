@@ -1,3 +1,4 @@
+﻿import '../orders/widgets/order_contact_card.dart';
 import 'dart:async';
 import 'dart:math';
 
@@ -40,22 +41,28 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
 
   bool _isOnline = false;
 
-  // قرار التوفّر اليدوي المخزَّن على السيرفر (providers.availability_override):
-  //   'auto' = الجدول هو الحاكم (الافتراضي).
-  //   'on'   = المزوّد فرض التوفّر يدوياً → يبقى متاحاً حتى يغيّره هو أو يحين
-  //            أقرب حدّ جدول (دالة cron تُعيده 'auto' عند أي قلب).
-  //   'off'  = المزوّد فرض التخفّي يدوياً → يبقى مخفياً حتى يغيّره هو أو يحين
-  //            أقرب حدّ جدول.
-  // يُقرأ من السيرفر عند فتح الشاشة ويُحدَّث فورياً عبر Realtime، فلا يُفقد
-  // بإعادة تشغيل التطبيق — بخلاف الأعلام المؤقتة السابقة.
-  String _availabilityOverride = 'auto';
+  // هل أخفي المزوّد توفّره يدوياً في هذه الجلسة الحالية؟ إن كان كذلك فلا
+  // نعيد تفعيله تلقائياً (احتراماً لقراره الصريح: إجازة قصيرة/عدم رغبة
+  // بالتوافر اليوم رغم وجود جدول). لا يُشتق من قيمة is_online المحمّلة عند
+  // فتح الشاشة — فافتتاح الحساب مخفياً قد يكون مجرد تأخر بداية الدوام ولا
+  // ينبغي أن يحول دون توحيد الزر مع الجدول.
+  bool _manuallyOffline = false;
 
-  // مراقب الجدول: كل ثانيتين نوحّد is_online مع الجدول — لكن فقط عندما يكون
-  // قرار التوفّر على 'auto'، فلا نتجاوز قراراً يدوياً صريحاً. فدالة cron لا
-  // تلتقط سوى الحدود المستقبلية، بينما تعديل الجدول لبداية مضت (أو ليوم مغلق)
-  // يترك الحالة عالقة بدون هذا المراقب.
+  // هل فعّل المزوّد توافره يدوياً في هذه الجلسة؟ يُحترم قراره فلا نرجعه
+  // إلى مخفي تلقائياً رغم خروجه عن الجدول (البقاء للعمل المتأخر أو خارج
+  // الدوام). لا يُشتق من قيمة is_online المحمّلة عند الفتح — فالافتتاح على
+  // OFF قد يكون لمجرد تآخر الجدول ولا ينبغي أن يمنع المراقب من تفعيله.
+  bool _manuallyOnline = false;
+
+  // مراقب الجدول: كل ثانيتين نتحقق من هل يستوجب الجدول تفعيلاً أم تخفياً،
+  // ونوْحّد is_online معه — فدالة cron لا تلتقط سوى حدود مستقبلية، بينما
+  // تغيير الجدول لبداية مضت (أو ليوم مغلق) يترك الحالة عالقة بدون هذا.
   Timer? _availabilityPoller;
 
+  // هل مرّ التطبيق بدورة خلفية أثناء مراقبتنا؟ يُستخدم لجعل إعادة التفعيل
+  // التلقائية متماثلة مع التخفي التلقائي: نعيد التفعيل فقط لمن خفّفناه نحن
+  // في جلسة الاستخدام الحالية، لا لمن كان مخفياً قبل فتح التطبيق.
+  bool _backgroundedWhileObserving = false;
   String _workshopName = '';
   double _providerLat = 0;
   double _providerLng = 0;
@@ -118,15 +125,48 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     super.dispose();
   }
 
-  // دورة حياة التطبيق: لا نُغيّر توفّر المزوّد هنا إطلاقاً — الخلفية لا يجب أن
-  // تُخفيه، والعودة للأمام لا يجب أن تُفعّله من تلقاء نفسها. نتحدّث الموقع فقط
-  // عند العودة. المسؤول عن التفعيل/التخفي التلقائي هو الجدول عبر دالة cron،
-  // والقرار اليدوي يُحفظ على السيرفر (availability_override) حتى يغيّره المزوّد
-  // أو يحين أقرب حدّ جدول.
+  // تتبّع دورة حياة التطبيق: عند الخلفية نُخفيه عن قائمة المزوّدين القريبين،
+  // وعند العودة للأمام نعيد تفعيله — إلا إذا كان قد أخفى نفسه يدوياً، أو كان
+  // خارج ساعات دوامه المحددة (الجدول محترم: لا نُحيي حالة أطفأها cron عند
+  // نهاية الدوام، فتستقر الحالة ولا ترجع للمزود من تلقاء نفسها).
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _refreshProviderLocation();
+  Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        _backgroundedWhileObserving = true;
+        if (_isOnline) {
+          _setProviderOnline(false);
+        }
+      case AppLifecycleState.resumed:
+        if (_backgroundedWhileObserving) {
+          _backgroundedWhileObserving = false;
+          if (!_manuallyOffline && await _isWithinWorkingHours()) {
+            _setProviderOnline(true);
+          }
+        }
+        _refreshProviderLocation();
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+        break;
+    }
+  }
+
+  // هل المزوّد حالياً داخل ساعات دوامه؟ نستدعي دالة جاهزة على السيرفر
+  // (is_provider_available_now): تعيد true داخل الدوام أو إذا بلا جدول، و
+  // false إذا خارج الدوام/اليوم مغلق. عند انقطاع الشبكة نعود true لنحافظ
+  // على السلوك القديم (إعادة التفعيل) ولا نوقف عملاً قائماً.
+  Future<bool> _isWithinWorkingHours() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return true;
+    try {
+      final result = await _client.rpc(
+        'is_provider_available_now',
+        params: {'p_provider_id': userId},
+      );
+      return result as bool? ?? true;
+    } catch (_) {
+      return true;
     }
   }
 
@@ -138,18 +178,15 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
       final provider = await _client
           .from('providers')
           .select(
-            'workshop_name, latitude, longitude, location_updated_at, location_accuracy, is_online, availability_override',
+            'workshop_name, latitude, longitude, location_updated_at, location_accuracy, is_online',
           )
           .eq('id', userId)
           .maybeSingle();
 
       if (mounted) {
         final online = provider?['is_online'] ?? false;
-        final override = provider?['availability_override'] as String?;
         setState(() {
           _workshopName = provider?['workshop_name'] ?? '';
-          _availabilityOverride =
-              (override == 'on' || override == 'off') ? override! : 'auto';
           _providerLat = (provider?['latitude'] as num?)?.toDouble() ?? 0;
           _providerLng = (provider?['longitude'] as num?)?.toDouble() ?? 0;
           _providerLocationUpdatedAt = DateTime.tryParse(
@@ -374,14 +411,10 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
         // افتراضياً ولا يرسل عبره إلّا المفتاح، فكانت مقارنة true->false تفشل
         // ويبقى الزر مفتوحاً رغم إغلاق المزوّد على السيرفر.
         final online = (payload.newRecord['is_online'] ?? false) == true;
-        final override = payload.newRecord['availability_override'] as String?;
-        if (!mounted) return;
-        final overrideChanged =
-            override != null && override != _availabilityOverride;
-        if (online == _isOnline && !overrideChanged) return;
+        if (!mounted || online == _isOnline) return;
         setState(() {
           _isOnline = online;
-          if (override != null) _availabilityOverride = override;
+          _manuallyOffline = !online;
         });
       },
     )
@@ -389,39 +422,30 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
   }
 
   Future<void> _toggleOnline(bool val) async {
-    // قرار يدوي صريح: نكتب is_online + availability_override معاً على السيرفر
-    // حتى يبقى ساري المفعول عبر إعادة تشغيل التطبيق، ولا يصحّحه مراقب الجدول
-    // حتى يغيّره المزوّد أو يحين أقرب حدّ جدول.
-    await _setProviderOnline(val, override: val ? 'on' : 'off');
+    // قرار يدوي من المستخدم: نُسجّله حتى لا نتراجع عنه عند العودة للأمام
+    // ولا يصحّحه مراقب الجدول.
+    _manuallyOffline = !val;
+    _manuallyOnline = val;
+    await _setProviderOnline(val);
   }
 
   /// يكتب حالة التوفّر في قاعدة البيانات ويُبقي الواجهة متطابقة مع النتيجة؛
-  /// أي فشل في الحفظ يُعيد الحالة السابقة بصمت. عند تمرير [override] (تبديل
-  /// يدوي) يُكتب أيضاً على السيرفر؛ وبدونه (تصحيح مراقب الجدول) لا يُلمس
-  /// قرار يدوي لأن override يبقى 'auto'.
-  Future<void> _setProviderOnline(bool val, {String? override}) async {
+  /// أي فشل في الحفظ يُعيد الحالة السابقة بصمت (لكل من التبديل اليدوي
+  /// وتغيّرات دورة الحياة).
+  Future<void> _setProviderOnline(bool val) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
 
-    final previousOnline = _isOnline;
-    final previousOverride = _availabilityOverride;
-
-    setState(() {
-      _isOnline = val;
-      if (override != null) _availabilityOverride = override;
-    });
+    setState(() => _isOnline = val);
 
     try {
-      await _client.from('providers').update({
-        'is_online': val,
-        'availability_override': ?override,
-      }).eq('id', userId);
+      await _client
+          .from('providers')
+          .update({'is_online': val})
+          .eq('id', userId);
     } catch (_) {
       if (mounted) {
-        setState(() {
-          _isOnline = previousOnline;
-          _availabilityOverride = previousOverride;
-        });
+        setState(() => _isOnline = !val);
       }
     }
   }
@@ -429,7 +453,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
   // يبدأ مراقب الجدول: فحص أول فوري (بعد تحميل البيانات) ثم دورة كل 2 ثانية.
   // لا يتشغل إلا بوجود الجدول (المزوّد بلا جدول يبقى يدوياً مطلقاً)، ويصحّح
   // الحالة فقط حين تتعارض مع الجدول — دون التراجع عن قرار يدوي صريح
-  // (availability_override = 'on'/'off').
+  // (إجازة قصيرة ⇒ _manuallyOffline، عمل متأخر ⇒ _manuallyOnline).
   void _startAvailabilityPoller() {
     _availabilityPoller?.cancel();
     _pollAvailability();
@@ -454,19 +478,21 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
       final data = Map<String, dynamic>.from(rows.first as Map);
       final hasSchedule = data['has_schedule'] == true;
       final inHours = data['in_hours'] == true;
-      final override = data['availability_override'] as String?;
-
-      // نُزامن حالتنا الداخلية مع السيرفر أولاً (احتمال انقطاع Realtime)، ثم
-      // نحترم أي قرار يدوي ساري فلا يتجاوزه المراقب.
-      if (override != null && mounted && override != _availabilityOverride) {
-        setState(() => _availabilityOverride = override);
-      }
-      if (override == 'on' || override == 'off') return;
 
       // بلا جدول = تحكم يدوي كامل: لا نلمس الحالة إطلاقاً.
       if (!hasSchedule || inHours == _isOnline) return;
 
-      await _setProviderOnline(inHours);
+      if (inHours) {
+        // الجدول يقتضي التفعيل: لا نتدخل إذا كان التخفي قراراً يدوياً.
+        if (_manuallyOffline) return;
+        _manuallyOnline = false;
+        await _setProviderOnline(true);
+      } else {
+        // الجدول يقتضي التخفي: لا نتدخل إذا كان التفعيل يدوياً صريحاً.
+        if (_manuallyOnline) return;
+        _manuallyOffline = false;
+        await _setProviderOnline(false);
+      }
     } catch (_) {
       // مراقب ثانوي: قطع شبكة مؤقت لا يُزعج المستخدم.
     }
@@ -826,7 +852,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                               address: _orderAddresses[order.id] ?? '',
                               attachments: order.attachments ?? const [],
                               deadline: order.respondDeadline,
-                                                                                          onAccept: () => _acceptOrder(order.id),
+                              ownerPhone: order.ownerPhone,
+                              sharePhone: order.sharePhone,
+                              onAccept: () => _acceptOrder(order.id),
                               onReject: () => _rejectOrder(order.id),
                               onLocationTap: () =>
                                   context.push('/request/map?orderId=${order.id}'),
@@ -841,7 +869,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                               issueType: _serviceName(order.serviceTypeId),
                               address: _orderAddresses[order.id] ?? '',
                               attachments: order.attachments ?? const [],
-                                                                                          status: order.status,
+                              ownerPhone: order.ownerPhone,
+                              sharePhone: order.sharePhone,
+                              status: order.status,
                               statusLabel: order.statusLabel,
                               offeredPrice: order.offeredPrice,
                               createdAt: order.createdAt,
@@ -888,62 +918,15 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-          child: Row(
-            children: [
-              Text(
-                l10n?.orderHistory ?? 'سجل الطلبات',
-                style: TextStyle(
-                  fontFamily: 'Zain',
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                ),
-              ),
-              const Spacer(),
-              TextButton(
-                // نفس سجل العميل: صفحة كاملة بتبويبات وفلترة تاريخ (مفلترة على
-                // طلبات هذا المزوّد عبر forProvider).
-                onPressed: () => context.push('/orders/provider'),
-                child: const Text(
-                  'عرض الكل',
-                  style: TextStyle(
-                    fontFamily: 'Cairo',
-                    fontSize: 13,
-                    color: AppColors.orangePrimary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: _loadProviderOrders,
-            color: AppColors.orangePrimary,
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              itemCount: _providerOrders.length,
-              itemBuilder: (context, index) {
-                final order = _providerOrders[index];
-                return InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  // فتح شاشة التتبع (وفيها «ملخّص المعاملة» للطلبات المنتهية) —
-                  // نفس سلوك بطاقات سجل العميل.
-                  onTap: () =>
-                      context.push('/request/track?orderId=${order.id}'),
-                  child: _buildProviderOrderCard(context, isDark, order),
-                );
-              },
-            ),
-          ),
-        ),
-      ],
+    return RefreshIndicator(
+      onRefresh: _loadProviderOrders,
+      color: AppColors.orangePrimary,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(20),
+        itemCount: _providerOrders.length,
+        itemBuilder: (context, index) => _buildProviderOrderCard(
+            context, isDark, _providerOrders[index]),
+      ),
     );
   }
 

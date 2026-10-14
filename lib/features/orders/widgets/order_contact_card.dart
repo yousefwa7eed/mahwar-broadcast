@@ -99,7 +99,7 @@ class _OrderContactCardState extends State<OrderContactCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(l10n.ownerPhone ?? "", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
+          Text(l10n.ownerPhone ?? '' ?? "", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -109,7 +109,7 @@ class _OrderContactCardState extends State<OrderContactCard> {
               TextButton.icon(
                 onPressed: _callOwner,
                 icon: const Icon(Icons.call, size: 16),
-                label: Text(l10n.call ?? ""),
+                label: Text(l10n.call ?? '' ?? ""),
                 style: TextButton.styleFrom(foregroundColor: AppColors.orangePrimary, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
               ),
             ],
@@ -119,3 +119,4 @@ class _OrderContactCardState extends State<OrderContactCard> {
     );
   }
 }
+

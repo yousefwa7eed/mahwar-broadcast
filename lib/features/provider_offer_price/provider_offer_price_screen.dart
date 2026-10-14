@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -199,7 +199,7 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
 
       // إذا سمح العميل بمشاركة بياناته (share_phone = true) نعرض اسمه ورقمه:
       // الاسم يُجلب عبر RPC آمن لأن الـ RLS يخفي بقية المستخدمين.
-      if (order.sharePhone) {
+      if (false) {
         try {
           final res = await _client.rpc('get_public_profile', params: {
             'p_user_id': order.carOwnerId,
@@ -516,7 +516,7 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
                     ),
                   ],
                 ),
-                if (order.sharePhone) ...[
+                if (false) ...[
                   const SizedBox(height: 12),
                   Container(
                     width: double.infinity,
@@ -570,7 +570,7 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
                             ),
                           ],
                         ),
-                        if (.isNotEmpty) ...[
+                        if ("".isNotEmpty) ...[
                           const SizedBox(height: 8),
                           Row(
                             children: [
@@ -579,7 +579,7 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  ,
+                                  "",
                                   style: const TextStyle(
                                     fontFamily: 'Cairo',
                                     fontSize: 14,
@@ -591,7 +591,7 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
                               InkWell(
                                 borderRadius: BorderRadius.circular(8),
                                 onTap: () => launchUrl(
-                                  Uri(scheme: 'tel', path: ),
+                                  Uri(scheme: 'tel', path: ""),
                                 ),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(

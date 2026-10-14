@@ -1,3 +1,4 @@
+﻿import '../../orders/widgets/order_contact_card.dart';
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/models/order.dart';
@@ -53,8 +54,8 @@ class ActiveOrderCard extends StatelessWidget {
       case OrderStatus.confirmed:
       case OrderStatus.completed:
         return AppColors.success;
-      case OrderStatus.rejected:
-      case OrderStatus.rejected:
+      case OrderStatus.rejectedByProvider:
+      case OrderStatus.rejectedByOwner:
       case OrderStatus.cancelled:
         return AppColors.error;
     }
