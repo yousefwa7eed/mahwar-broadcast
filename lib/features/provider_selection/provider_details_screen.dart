@@ -146,7 +146,6 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
         'p_notes': draft.notes,
         'p_owner_phone': ownerPhone,
         'p_auto_cancel': draft.autoCancel,
-        'p_share_phone': draft.sharePhone,
         'p_attachments': imageUrls.isEmpty ? null : imageUrls,
       }) as String;
 

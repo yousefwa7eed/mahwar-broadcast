@@ -178,10 +178,7 @@
   "cancel": "إلغاء",
   "savedSuccessfully": "تم الحفظ بنجاح",
   "autoCancelTitle": "إلغاء الطلب تلقائياً بعد 5 دقائق",
-  "autoCancelSubtitle": "إذا لم يكتمل طلبك خلال 5 دقائق سيُلغى تلقائياً (مفعّل افتراضياً)",
-  "sharePhoneTitle": "مشاركة رقم هاتفي مع المزوّد",
-  "sharePhoneSubtitle": "سيتيح للمزوّد رؤية رقمك والاتصال بك مباشرة (اختياري)",
-  "workingHours": "ساعات العمل",
+  "autoCancelSubtitle": "إذا لم يكتمل طلبك خلال 5 دقائق سيُلغى تلقائياً (مفعّل افتراضياً)","workingHours": "ساعات العمل",
   "workingHoursHint": "حدد ساعات عملك — خارج هذه الساعات لن تظهر في قائمة المزودين المتاحين",
   "closed": "مغلق",
   "openAt": "بداية العمل",
@@ -194,5 +191,6 @@
   "nationalIdValid": "الرقم القومي صحيح",
   "nationalIdRequiredToOrderTitle": "الرقم القومي مطلوب",
   "nationalIdRequiredToOrderBody": "لإرسال طلب خدمة يجب إضافة رقمك القومي الصحيح أولاً في البيانات الشخصية.",
-  "goToPersonalInfo": "الذهاب للبيانات الشخصية"
+  "goToPersonalInfo": "الذهاب للبيانات الشخصية",
+  "sharePhoneConsent": "سيتم مشاركة رقم هاتفك مع مقدم الخدمة حتى انتهاء الطلب."
 }

@@ -1082,18 +1082,6 @@ abstract class AppLocalizations {
   /// **'إذا لم يكتمل طلبك خلال 5 دقائق سيُلغى تلقائياً (مفعّل افتراضياً)'**
   String get autoCancelSubtitle;
 
-  /// No description provided for @sharePhoneTitle.
-  ///
-  /// In ar, this message translates to:
-  /// **'مشاركة رقم هاتفي مع المزوّد'**
-  String get sharePhoneTitle;
-
-  /// No description provided for @sharePhoneSubtitle.
-  ///
-  /// In ar, this message translates to:
-  /// **'سيتيح للمزوّد رؤية رقمك والاتصال بك مباشرة (اختياري)'**
-  String get sharePhoneSubtitle;
-
   /// No description provided for @workingHours.
   ///
   /// In ar, this message translates to:
@@ -1177,6 +1165,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الذهاب للبيانات الشخصية'**
   String get goToPersonalInfo;
+
+  /// No description provided for @sharePhoneConsent.
+  ///
+  /// In ar, this message translates to:
+  /// **'سيتم مشاركة رقم هاتفك مع مقدم الخدمة حتى انتهاء الطلب.'**
+  String get sharePhoneConsent;
 }
 
 class _AppLocalizationsDelegate

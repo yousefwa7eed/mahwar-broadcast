@@ -512,13 +512,6 @@ class AppLocalizationsAr extends AppLocalizations {
       'إذا لم يكتمل طلبك خلال 5 دقائق سيُلغى تلقائياً (مفعّل افتراضياً)';
 
   @override
-  String get sharePhoneTitle => 'مشاركة رقم هاتفي مع المزوّد';
-
-  @override
-  String get sharePhoneSubtitle =>
-      'سيتيح للمزوّد رؤية رقمك والاتصال بك مباشرة (اختياري)';
-
-  @override
   String get workingHours => 'ساعات العمل';
 
   @override
@@ -563,4 +556,8 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get goToPersonalInfo => 'الذهاب للبيانات الشخصية';
+
+  @override
+  String get sharePhoneConsent =>
+      'سيتم مشاركة رقم هاتفك مع مقدم الخدمة حتى انتهاء الطلب.';
 }

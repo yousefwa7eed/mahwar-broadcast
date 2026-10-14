@@ -518,13 +518,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'If your request is not completed within 5 minutes it will be cancelled automatically (enabled by default)';
 
   @override
-  String get sharePhoneTitle => 'Share my phone number with the provider';
-
-  @override
-  String get sharePhoneSubtitle =>
-      'Lets the provider see your number and call you directly (optional)';
-
-  @override
   String get workingHours => 'Working Hours';
 
   @override
@@ -568,4 +561,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get goToPersonalInfo => 'Go to personal info';
+
+  @override
+  String get sharePhoneConsent =>
+      'Your phone will be shared with the provider until the request ends.';
 }

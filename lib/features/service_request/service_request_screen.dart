@@ -61,7 +61,6 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
   /// 1) إلغاء الطلب تلقائياً بعد 5 دقائق — مفعّل افتراضياً (يستطيع العميل تعطيله).
   /// 2) مشاركة رقم الهاتف مع المزوّد — معطّل افتراضياً (اختيار العميل).
   bool _autoCancel = true;
-  bool _sharePhone = false;
 
   /// حالة الإرسال: حفظ الطلب -> ضغط الصور -> رفع الصور
   bool _isSubmitting = false;
@@ -288,7 +287,6 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
       carYear: _selectedCar?.year,
       notes: _notesController.text.trim(),
       autoCancel: _autoCancel,
-      sharePhone: _sharePhone,
       imagePaths: _pickedImages.map((img) => img.path).toList(),
       savedAt: DateTime.now(),
     );
@@ -386,7 +384,6 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
         }
         _notesController.text = draft.notes;
         _autoCancel = draft.autoCancel;
-        _sharePhone = draft.sharePhone;
         final car = _matchCar(draft);
         if (car != null) _selectedCar = car;
       });
@@ -722,33 +719,6 @@ Text(
             indent: 16,
             endIndent: 16,
             color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-          ),
-          SwitchListTile(
-            value: _sharePhone,
-            onChanged: (val) {
-              setState(() => _sharePhone = val);
-              _scheduleDraftSave();
-            },
-            activeThumbColor: AppColors.orangePrimary,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-            title: Text(
-              l10n?.sharePhoneTitle ?? 'مشاركة رقم هاتفي مع المزوّد',
-              style: TextStyle(
-                fontFamily: 'Cairo',
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-              ),
-            ),
-            subtitle: Text(
-              l10n?.sharePhoneSubtitle ??
-                  'سيتيح للمزوّد رؤية رقمك والاتصال بك مباشرة',
-              style: TextStyle(
-                fontFamily: 'Cairo',
-                fontSize: 12,
-                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-              ),
-            ),
           ),
         ],
       ),
