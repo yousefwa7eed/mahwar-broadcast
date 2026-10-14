@@ -22,6 +22,7 @@ import '../../core/widgets/profile_name_text.dart';
 import '../../core/widgets/shimmer_box.dart';
 import '../../l10n/app_localizations.dart';
 import '../notifications/notification_actions.dart';
+import 'availability_resolution.dart';
 import 'widgets/active_order_card.dart';
 import 'widgets/availability_toggle.dart';
 import 'widgets/nearby_request_card.dart';
@@ -40,28 +41,15 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
 
   bool _isOnline = false;
 
-  // هل أخفي المزوّد توفّره يدوياً في هذه الجلسة الحالية؟ إن كان كذلك فلا
-  // نعيد تفعيله تلقائياً (احتراماً لقراره الصريح: إجازة قصيرة/عدم رغبة
-  // بالتوافر اليوم رغم وجود جدول). لا يُشتق من قيمة is_online المحمّلة عند
-  // فتح الشاشة — فافتتاح الحساب مخفياً قد يكون مجرد تأخر بداية الدوام ولا
-  // ينبغي أن يحول دون توحيد الزر مع الجدول.
-  bool _manuallyOffline = false;
+  // القرار اليدوي للمزوّد مخزّن في قاعدة البيانات (providers.availability_override):
+  // 'auto' = الجدول يحكم، 'on' = مفعّل يدوياً، 'off' = مخفي يدوياً. الـ cron
+  // يعيدها 'auto' عند حدود الجدول، فيستعيد الجدول السيطرة عند أقرب معاد متغيّر.
+  String _availabilityOverride = 'auto';
 
-  // هل فعّل المزوّد توافره يدوياً في هذه الجلسة؟ يُحترم قراره فلا نرجعه
-  // إلى مخفي تلقائياً رغم خروجه عن الجدول (البقاء للعمل المتأخر أو خارج
-  // الدوام). لا يُشتق من قيمة is_online المحمّلة عند الفتح — فالافتتاح على
-  // OFF قد يكون لمجرد تآخر الجدول ولا ينبغي أن يمنع المراقب من تفعيله.
-  bool _manuallyOnline = false;
-
-  // مراقب الجدول: كل ثانيتين نتحقق من هل يستوجب الجدول تفعيلاً أم تخفياً،
-  // ونوْحّد is_online معه — فدالة cron لا تلتقط سوى حدود مستقبلية، بينما
-  // تغيير الجدول لبداية مضت (أو ليوم مغلق) يترك الحالة عالقة بدون هذا.
+  // مراقب الجدول: كل ثانيتين نتحقق هل يستوجب الجدول تفعيلاً أم تخفياً ونوحّد
+  // is_online معه، لكن فقط عندما يكون القرار 'auto' (لا نجامل قراراً يدوياً).
   Timer? _availabilityPoller;
 
-  // هل مرّ التطبيق بدورة خلفية أثناء مراقبتنا؟ يُستخدم لجعل إعادة التفعيل
-  // التلقائية متماثلة مع التخفي التلقائي: نعيد التفعيل فقط لمن خفّفناه نحن
-  // في جلسة الاستخدام الحالية، لا لمن كان مخفياً قبل فتح التطبيق.
-  bool _backgroundedWhileObserving = false;
   String _workshopName = '';
   double _providerLat = 0;
   double _providerLng = 0;
@@ -124,48 +112,19 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     super.dispose();
   }
 
-  // تتبّع دورة حياة التطبيق: عند الخلفية نُخفيه عن قائمة المزوّدين القريبين،
-  // وعند العودة للأمام نعيد تفعيله — إلا إذا كان قد أخفى نفسه يدوياً، أو كان
-  // خارج ساعات دوامه المحددة (الجدول محترم: لا نُحيي حالة أطفأها cron عند
-  // نهاية الدوام، فتستقر الحالة ولا ترجع للمزود من تلقاء نفسها).
+  // دورة حياة التطبيق: لا تؤثّر على التوفّر إطلاقاً — لا إخفاء عند الخلفية
+  // ولا إرجاع عند العودة. التوفّر يحكمه القرار اليدوي المخزّن + الجدول فقط.
+  // نكتفي بتحديث الموقع عند العودة للأمام.
   @override
-  Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
+  void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
+      case AppLifecycleState.resumed:
+        _refreshProviderLocation();
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
-        _backgroundedWhileObserving = true;
-        if (_isOnline) {
-          _setProviderOnline(false);
-        }
-      case AppLifecycleState.resumed:
-        if (_backgroundedWhileObserving) {
-          _backgroundedWhileObserving = false;
-          if (!_manuallyOffline && await _isWithinWorkingHours()) {
-            _setProviderOnline(true);
-          }
-        }
-        _refreshProviderLocation();
       case AppLifecycleState.inactive:
       case AppLifecycleState.hidden:
         break;
-    }
-  }
-
-  // هل المزوّد حالياً داخل ساعات دوامه؟ نستدعي دالة جاهزة على السيرفر
-  // (is_provider_available_now): تعيد true داخل الدوام أو إذا بلا جدول، و
-  // false إذا خارج الدوام/اليوم مغلق. عند انقطاع الشبكة نعود true لنحافظ
-  // على السلوك القديم (إعادة التفعيل) ولا نوقف عملاً قائماً.
-  Future<bool> _isWithinWorkingHours() async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) return true;
-    try {
-      final result = await _client.rpc(
-        'is_provider_available_now',
-        params: {'p_provider_id': userId},
-      );
-      return result as bool? ?? true;
-    } catch (_) {
-      return true;
     }
   }
 
@@ -177,7 +136,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
       final provider = await _client
           .from('providers')
           .select(
-            'workshop_name, latitude, longitude, location_updated_at, location_accuracy, is_online',
+            'workshop_name, latitude, longitude, location_updated_at, location_accuracy, is_online, availability_override',
           )
           .eq('id', userId)
           .maybeSingle();
@@ -193,6 +152,8 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
           )?.toUtc();
           _providerLocationAccuracy = (provider?['location_accuracy'] as num?)?.toDouble();
           _isOnline = online == true;
+          _availabilityOverride =
+              provider?['availability_override'] as String? ?? 'auto';
         });
       }
     } catch (e) {
@@ -405,15 +366,19 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
         value: userId,
       ),
       callback: (payload) {
-        // نعتمد على is_online الحالي في السجل الجديد فقط (الحقيقة في قاعدة
-        // البيانات)، ولا نقارنه بـ old_record — فالجدول كان replica identity
-        // افتراضياً ولا يرسل عبره إلّا المفتاح، فكانت مقارنة true->false تفشل
-        // ويبقى الزر مفتوحاً رغم إغلاق المزوّد على السيرفر.
+        // نعتمد على is_online وavailability_override من السجل الجديد (الحقيقة
+        // في قاعدة البيانات). أي تقليب خارجي — cron عند حدود الجدول، أو تغيير
+        // من جهاز/جلسة أخرى — ينعكس هنا فوراً.
         final online = (payload.newRecord['is_online'] ?? false) == true;
-        if (!mounted || online == _isOnline) return;
+        final override =
+            payload.newRecord['availability_override'] as String? ?? 'auto';
+        if (!mounted ||
+            (online == _isOnline && override == _availabilityOverride)) {
+          return;
+        }
         setState(() {
           _isOnline = online;
-          _manuallyOffline = !online;
+          _availabilityOverride = override;
         });
       },
     )
@@ -421,38 +386,47 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
   }
 
   Future<void> _toggleOnline(bool val) async {
-    // قرار يدوي من المستخدم: نُسجّله حتى لا نتراجع عنه عند العودة للأمام
-    // ولا يصحّحه مراقب الجدول.
-    _manuallyOffline = !val;
-    _manuallyOnline = val;
-    await _setProviderOnline(val);
+    // قرار يدوي صريح من المستخدم: نُخزّنه على الصف (on/off) حتى يُحترم رغم
+    // الخروج من الشاشة أو إعادة التشغيل، ولا يصحّحه مراقب الجدول حتى تعيده
+    // الـ cron إلى 'auto' عند أقرب حدّ للجدول.
+    await _setAvailability(val, override: val ? 'on' : 'off');
   }
 
   /// يكتب حالة التوفّر في قاعدة البيانات ويُبقي الواجهة متطابقة مع النتيجة؛
-  /// أي فشل في الحفظ يُعيد الحالة السابقة بصمت (لكل من التبديل اليدوي
-  /// وتغيّرات دورة الحياة).
-  Future<void> _setProviderOnline(bool val) async {
+  /// أي فشل في الحفظ يُعيد الحالة السابقة بصمت.
+  ///
+  /// [override] غير فارغ عند القرار اليدوي فقط؛ عند التصحيح التلقائي وفق
+  /// الجدول نتركه null فلا نلمس availability_override (تبقى 'auto').
+  Future<void> _setAvailability(bool val, {String? override}) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
 
-    setState(() => _isOnline = val);
+    final prevOnline = _isOnline;
+    final prevOverride = _availabilityOverride;
+    setState(() {
+      _isOnline = val;
+      if (override != null) _availabilityOverride = override;
+    });
 
     try {
-      await _client
-          .from('providers')
-          .update({'is_online': val})
-          .eq('id', userId);
+      await _client.from('providers').update({
+        'is_online': val,
+        'availability_override': ?override,
+      }).eq('id', userId);
     } catch (_) {
       if (mounted) {
-        setState(() => _isOnline = !val);
+        setState(() {
+          _isOnline = prevOnline;
+          _availabilityOverride = prevOverride;
+        });
       }
     }
   }
 
   // يبدأ مراقب الجدول: فحص أول فوري (بعد تحميل البيانات) ثم دورة كل 2 ثانية.
-  // لا يتشغل إلا بوجود الجدول (المزوّد بلا جدول يبقى يدوياً مطلقاً)، ويصحّح
-  // الحالة فقط حين تتعارض مع الجدول — دون التراجع عن قرار يدوي صريح
-  // (إجازة قصيرة ⇒ _manuallyOffline، عمل متأخر ⇒ _manuallyOnline).
+  // يعتمد على availability_override الراجع من السيرفر: حين يكون 'auto' يوحّد
+  // is_online مع الجدول، وحين يكون قراراً يدوياً ('on'/'off') لا يتدخّل.
+  // بلا جدول = تحكّم يدوي كامل.
   void _startAvailabilityPoller() {
     _availabilityPoller?.cancel();
     _pollAvailability();
@@ -477,20 +451,26 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
       final data = Map<String, dynamic>.from(rows.first as Map);
       final hasSchedule = data['has_schedule'] == true;
       final inHours = data['in_hours'] == true;
+      final override = data['availability_override'] as String? ?? 'auto';
 
-      // بلا جدول = تحكم يدوي كامل: لا نلمس الحالة إطلاقاً.
-      if (!hasSchedule || inHours == _isOnline) return;
+      // نُزامن القرار اليدوي من السيرفر (قد يكون cron أعاده إلى 'auto').
+      if (mounted && override != _availabilityOverride) {
+        setState(() => _availabilityOverride = override);
+      }
 
-      if (inHours) {
-        // الجدول يقتضي التفعيل: لا نتدخل إذا كان التخفي قراراً يدوياً.
-        if (_manuallyOffline) return;
-        _manuallyOnline = false;
-        await _setProviderOnline(true);
-      } else {
-        // الجدول يقتضي التخفي: لا نتدخل إذا كان التفعيل يدوياً صريحاً.
-        if (_manuallyOnline) return;
-        _manuallyOffline = false;
-        await _setProviderOnline(false);
+      final action = resolveAvailability(
+        hasSchedule: hasSchedule,
+        inHours: inHours,
+        availabilityOverride: override,
+        isOnline: _isOnline,
+      );
+      switch (action) {
+        case AvailabilityAction.goOnline:
+          await _setAvailability(true);
+        case AvailabilityAction.goOffline:
+          await _setAvailability(false);
+        case AvailabilityAction.none:
+          break;
       }
     } catch (_) {
       // مراقب ثانوي: قطع شبكة مؤقت لا يُزعج المستخدم.
