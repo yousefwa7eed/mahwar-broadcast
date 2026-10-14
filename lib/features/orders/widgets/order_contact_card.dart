@@ -21,7 +21,6 @@ class OrderContactCard extends StatefulWidget {
 class _OrderContactCardState extends State<OrderContactCard> {
   String? _contactPhone;
   bool _isLoading = false;
-  final _client = Supabase.instance.client;
 
   @override
   void initState() {
@@ -52,7 +51,8 @@ class _OrderContactCardState extends State<OrderContactCard> {
       _contactPhone = null;
     });
     try {
-      final response = await _client.rpc('get_order_contact', params: {'p_order_id': widget.orderId});
+      final client = Supabase.instance.client;
+      final response = await client.rpc('get_order_contact', params: {'p_order_id': widget.orderId});
       if (mounted) {
         setState(() {
           final s = response?.toString().trim() ?? '';
@@ -99,7 +99,7 @@ class _OrderContactCardState extends State<OrderContactCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(l10n.ownerPhone ?? '' ?? "", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
+          Text(l10n?.phoneNumber ?? 'رقم الهاتف', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -109,7 +109,7 @@ class _OrderContactCardState extends State<OrderContactCard> {
               TextButton.icon(
                 onPressed: _callOwner,
                 icon: const Icon(Icons.call, size: 16),
-                label: Text(l10n.call ?? '' ?? ""),
+                label: Text(l10n?.call ?? 'اتصال'),
                 style: TextButton.styleFrom(foregroundColor: AppColors.orangePrimary, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
               ),
             ],
@@ -119,4 +119,6 @@ class _OrderContactCardState extends State<OrderContactCard> {
     );
   }
 }
+
+
 

@@ -11,7 +11,6 @@ Order _order({
     providerId: providerId,
     serviceTypeId: 'crane',
     status: status,
-    ownerPhone: '01000000000',
     latitude: 30.0,
     longitude: 31.0,
     carMake: 'Toyota',

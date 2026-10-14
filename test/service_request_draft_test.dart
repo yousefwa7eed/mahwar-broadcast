@@ -14,7 +14,6 @@ void main() {
         carYear: 2019,
         notes: 'breakdown on the ring road',
         autoCancel: false,
-        sharePhone: true,
         imagePaths: const ['/a.jpg', '/b.jpg'],
         savedAt: DateTime.parse('2026-10-13T10:00:00.000Z'),
       );
@@ -34,7 +33,6 @@ void main() {
       expect(restored.carYear, 2019);
       expect(restored.notes, 'breakdown on the ring road');
       expect(restored.autoCancel, isFalse);
-      expect(restored.sharePhone, isTrue);
       expect(restored.imagePaths, ['/a.jpg', '/b.jpg']);
       expect(restored.savedAt, DateTime.parse('2026-10-13T10:00:00.000Z'));
     });
@@ -57,7 +55,6 @@ void main() {
       expect(restored.carMake, isNull);
       expect(restored.notes, '');
       expect(restored.autoCancel, isTrue);
-      expect(restored.sharePhone, isFalse);
       expect(restored.imagePaths, isEmpty);
     });
   });

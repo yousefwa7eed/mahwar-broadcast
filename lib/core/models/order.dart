@@ -20,7 +20,6 @@ class Order {
   final String? providerNotes;
   final int? etaMinutes;
   final String currency;
-  final String ownerPhone;
   final double latitude;
   final double longitude;
   final String? addressText;
@@ -37,9 +36,6 @@ class Order {
   /// قرار العميل: إلغاء الطلب تلقائياً بعد 5 دقائق من الإنشاء (افتراضياً true).
   final bool autoCancel;
 
-  /// قرار العميل: مشاركة رقم هاتفه مع المزوّد المرسل إليه الطلب (افتراضياً false).
-  final bool sharePhone;
-
   const Order({
     required this.id,
     required this.carOwnerId,
@@ -50,7 +46,6 @@ class Order {
     this.providerNotes,
     this.etaMinutes,
     this.currency = 'EGP',
-    required this.ownerPhone,
     required this.latitude,
     required this.longitude,
     this.addressText,
@@ -64,7 +59,6 @@ class Order {
     this.updatedAt,
     this.respondDeadline,
     this.autoCancel = true,
-    this.sharePhone = false,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
@@ -78,7 +72,6 @@ class Order {
       providerNotes: json['provider_notes'] as String?,
       etaMinutes: json['eta_minutes'] as int?,
       currency: json['currency'] as String? ?? 'EGP',
-      ownerPhone: json['owner_phone'] as String,
       latitude: (json['latitude'] as num).toDouble(),
       longitude: (json['longitude'] as num).toDouble(),
       addressText: json['address_text'] as String?,
@@ -94,7 +87,6 @@ class Order {
       updatedAt: parseSupabaseTimestamp(json['updated_at']),
       respondDeadline: parseSupabaseTimestamp(json['respond_deadline']),
       autoCancel: json['auto_cancel'] as bool? ?? true,
-      sharePhone: json['share_phone'] as bool? ?? false,
     );
   }
 

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/avatar_config.dart';
 import '../../../core/services/server_clock.dart';
@@ -8,8 +7,8 @@ import '../../../core/widgets/attachments_gallery.dart';
 
 /// بطاقة الطلب الواصل للمزوّد في لوحة التحكم.
 /// تعرض اسم العميل، السيارة، الموقع بالعربية (وليس الإحداثيات فقط)،
-/// المرفقات إن وُجدت، رقم العميل إن سمح بمشاركته، المسافة التقريبية،
-/// وتنبيه الإلغاء التلقائي (5 دقائق — قرار العميل) بعدّاد مباشر.
+/// المرفقات إن وُجدت، المسافة التقريبية، وتنبيه الإلغاء التلقائي
+/// (5 دقائق — قرار العميل) بعدّاد مباشر.
 class NearbyRequestCard extends StatelessWidget {
   final String customerName;
   final String carMake;
@@ -20,8 +19,6 @@ class NearbyRequestCard extends StatelessWidget {
   final String address;
   final List<String> attachments;
   final DateTime? deadline;
-  final String ownerPhone;
-  final bool sharePhone;
   final VoidCallback? onAccept;
   final VoidCallback? onReject;
   final VoidCallback? onLocationTap;
@@ -39,8 +36,6 @@ class NearbyRequestCard extends StatelessWidget {
     required this.address,
     this.attachments = const [],
     this.deadline,
-    this.ownerPhone = '',
-    this.sharePhone = false,
     this.onAccept,
     this.onReject,
     this.onLocationTap,
@@ -197,10 +192,6 @@ class NearbyRequestCard extends StatelessWidget {
             const SizedBox(height: 10),
             AttachmentsGallery(urls: attachments, height: 70),
           ],
-          if (sharePhone && ownerPhone.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            _buildOwnerPhone(context, isDark),
-          ],
           if (deadline != null) ...[
             const SizedBox(height: 10),
             _RequestDeadline(deadline: deadline!),
@@ -254,53 +245,6 @@ class NearbyRequestCard extends StatelessWidget {
                 ),
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-/// سطر رقم العميل — يظهر فقط إذا سمح العميل بمشاركة رقمه (share_phone).
-  Widget _buildOwnerPhone(BuildContext context, bool isDark) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.success.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: AppColors.success.withValues(alpha: 0.4),
-        ),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.phone_in_talk_rounded, size: 16, color: AppColors.success),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              ownerPhone,
-              style: const TextStyle(
-                fontFamily: 'Cairo',
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: AppColors.success,
-              ),
-            ),
-          ),
-          InkWell(
-            borderRadius: BorderRadius.circular(8),
-            onTap: () => launchUrl(Uri(scheme: 'tel', path: ownerPhone)),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              child: Text(
-                'اتصال',
-                style: TextStyle(
-                  fontFamily: 'Cairo',
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                ),
-              ),
-            ),
           ),
         ],
       ),

@@ -21,7 +21,6 @@ class ServiceRequestDraft {
     this.carYear,
     this.notes = '',
     this.autoCancel = true,
-    this.sharePhone = false,
     this.imagePaths = const [],
     required this.savedAt,
   });
@@ -56,7 +55,6 @@ class ServiceRequestDraft {
       carId != null ||
       carMake != null ||
       notes.trim().isNotEmpty ||
-      sharePhone ||
       imagePaths.isNotEmpty ||
       autoCancel != true;
 
@@ -72,7 +70,6 @@ class ServiceRequestDraft {
         'carYear': carYear,
         'notes': notes,
         'autoCancel': autoCancel,
-        'sharePhone': sharePhone,
         'imagePaths': imagePaths,
         'savedAt': savedAt.toIso8601String(),
       };
@@ -91,7 +88,6 @@ class ServiceRequestDraft {
       carYear: (json['carYear'] as num?)?.toInt(),
       notes: json['notes'] as String? ?? '',
       autoCancel: json['autoCancel'] as bool? ?? true,
-      sharePhone: json['sharePhone'] as bool? ?? false,
       imagePaths: (json['imagePaths'] is List)
           ? (json['imagePaths'] as List).whereType<String>().toList()
           : const [],
@@ -128,3 +124,4 @@ class ServiceRequestDraftStore {
     await prefs.remove(_prefsKey);
   }
 }
+

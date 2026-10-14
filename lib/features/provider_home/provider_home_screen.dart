@@ -1,5 +1,4 @@
-﻿import '../orders/widgets/order_contact_card.dart';
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -852,8 +851,6 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                               address: _orderAddresses[order.id] ?? '',
                               attachments: order.attachments ?? const [],
                               deadline: order.respondDeadline,
-                              ownerPhone: order.ownerPhone,
-                              sharePhone: order.sharePhone,
                               onAccept: () => _acceptOrder(order.id),
                               onReject: () => _rejectOrder(order.id),
                               onLocationTap: () =>
@@ -869,8 +866,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                               issueType: _serviceName(order.serviceTypeId),
                               address: _orderAddresses[order.id] ?? '',
                               attachments: order.attachments ?? const [],
-                              ownerPhone: order.ownerPhone,
-                              sharePhone: order.sharePhone,
+                              orderId: order.id,
                               status: order.status,
                               statusLabel: order.statusLabel,
                               offeredPrice: order.offeredPrice,

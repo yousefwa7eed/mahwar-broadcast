@@ -17,8 +17,7 @@ class ActiveOrderCard extends StatelessWidget {
   final String issueType;
   final String address;
   final List<String> attachments;
-  final String ownerPhone;
-  final bool sharePhone;
+  final String orderId;
   final OrderStatus status;
   final String statusLabel;
   final double? offeredPrice;
@@ -35,8 +34,7 @@ class ActiveOrderCard extends StatelessWidget {
     required this.issueType,
     required this.address,
     this.attachments = const [],
-    this.ownerPhone = '',
-    this.sharePhone = false,
+    this.orderId = '',
     required this.status,
     required this.statusLabel,
     this.offeredPrice,
@@ -230,9 +228,9 @@ class ActiveOrderCard extends StatelessWidget {
             const SizedBox(height: 10),
             AttachmentsGallery(urls: attachments, height: 70),
           ],
-          if (sharePhone && ownerPhone.isNotEmpty) ...[
+          if (orderId.isNotEmpty) ...[
             const SizedBox(height: 10),
-            _OwnerPhoneRow(ownerPhone: ownerPhone, isDark: isDark),
+            OrderContactCard(orderId: orderId, status: status.name),
           ],
 
           const SizedBox(height: 14),
@@ -313,45 +311,5 @@ class ActiveOrderCard extends StatelessWidget {
           ),
         );
     }
-  }
-}
-
-/// سطر رقم العميل — يظهر فقط إذا سمح العميل بمشاركة رقمه (share_phone).
-class _OwnerPhoneRow extends StatelessWidget {
-  final String ownerPhone;
-  final bool isDark;
-
-  const _OwnerPhoneRow({required this.ownerPhone, required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.success.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: AppColors.success.withValues(alpha: 0.4),
-        ),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.phone_in_talk_rounded, size: 16, color: AppColors.success),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              ownerPhone,
-              style: const TextStyle(
-                fontFamily: 'Cairo',
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: AppColors.success,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

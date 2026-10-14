@@ -35,10 +35,9 @@ void main() {
         DateTime.parse('2026-08-28T13:33:44.153309Z').toUtc(),
       );
       expect(order.autoCancel, isTrue);
-      expect(order.sharePhone, isFalse);
     });
 
-    test('يقرأ auto_cancel و share_phone عند إرسالهما صراحةً', () {
+    test('يقرأ auto_cancel عند إرساله صراحةً', () {
       final order = Order.fromJson({
         'id': '00000000-0000-0000-0000-000000000007',
         'car_owner_id': '00000000-0000-0000-0000-000000000002',
@@ -51,11 +50,9 @@ void main() {
         'car_model': 'Corolla',
         'car_year': 2020,
         'auto_cancel': false,
-        'share_phone': true,
       });
 
       expect(order.autoCancel, isFalse);
-      expect(order.sharePhone, isTrue);
     });
 
     test('يبقيه null عندما يكون غائباً أو فارغاً', () {
@@ -175,37 +172,6 @@ void main() {
 
       expect(notification.timeAgo(DateTime.parse('2026-09-15T10:30:12+00:00')),
           'الآن');
-    });
-  });
-
-  group('NearbyRequestCard — رقم العميل', () {
-    Widget buildCard({required bool sharePhone}) {
-      return MaterialApp(
-        home: Scaffold(
-          body: NearbyRequestCard(
-            carMake: 'Toyota',
-            carModel: 'Corolla',
-            carYear: 2020,
-            issueType: 'ونش',
-            distance: 1.5,
-            address: 'شارع التحرير',
-            ownerPhone: '01000000000',
-            sharePhone: sharePhone,
-          ),
-        ),
-      );
-    }
-
-    testWidgets('يعرض رقم العميل عند تفعيل مشاركة الرقم', (tester) async {
-      await tester.pumpWidget(buildCard(sharePhone: true));
-
-      expect(find.text('01000000000'), findsOneWidget);
-    });
-
-    testWidgets('لا يعرض رقم العميل عندما تكون المشاركة معطّلة', (tester) async {
-      await tester.pumpWidget(buildCard(sharePhone: false));
-
-      expect(find.text('01000000000'), findsNothing);
     });
   });
 
