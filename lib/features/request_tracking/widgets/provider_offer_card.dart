@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/avatar_config.dart';
+import '../../../core/utils/distance_format.dart';
 import '../../../core/widgets/attachments_gallery.dart';
 import '../../../l10n/app_localizations.dart';
 
 class ProviderOfferCard extends StatelessWidget {
   final String providerName;
   final String workshopName;
-  final double distance;
+  final double? distanceMeters;
   final double price;
   final String currency;
   final int estimatedMinutes;
@@ -24,7 +25,7 @@ class ProviderOfferCard extends StatelessWidget {
     super.key,
     required this.providerName,
     required this.workshopName,
-    required this.distance,
+    this.distanceMeters,
     required this.price,
     this.currency = 'EGP',
     required this.estimatedMinutes,
@@ -97,12 +98,18 @@ class ProviderOfferCard extends StatelessWidget {
           // Distance & Time
           Row(
             children: [
-              _buildInfoChip(
-                icon: Icons.location_on_outlined,
-                label: '${distance.toStringAsFixed(1)} ${l10n?.km ?? 'كم'}',
-                isDark: isDark,
-              ),
-              const SizedBox(width: 8),
+              if (distanceMeters != null) ...[
+                _buildInfoChip(
+                  icon: Icons.location_on_outlined,
+                  label: formatApproxDistance(
+                    distanceMeters,
+                    meterUnit: l10n?.m ?? 'م',
+                    kmUnit: l10n?.km ?? 'كم',
+                  ),
+                  isDark: isDark,
+                ),
+                const SizedBox(width: 8),
+              ],
               _buildInfoChip(
                 icon: Icons.access_time_rounded,
                 label: '$estimatedMinutes ${l10n?.min ?? 'دقيقة'}',

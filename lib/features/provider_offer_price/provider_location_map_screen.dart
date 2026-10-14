@@ -7,6 +7,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/models/order.dart';
+import '../../core/utils/distance.dart';
+import '../../core/utils/distance_format.dart';
+import '../../l10n/app_localizations.dart';
 
 /// شاشة الخريطة الكاملة التي يفتحها المزوّد من صفحة تقديم عرض السعر.
 /// تُظهر موقع العميل وموقع المزوّد (الورشة أو الموقع الحالي عبر GPS) معاً،
@@ -96,15 +99,21 @@ class _ProviderLocationMapScreenState extends State<ProviderLocationMapScreen> {
     final customer = _customerLocation;
     final provider = _providerPosition;
     if (customer == null || provider == null) return null;
-    return const Distance()(customer, provider);
+    return distanceMeters(
+      customer.latitude,
+      customer.longitude,
+      provider.latitude,
+      provider.longitude,
+    );
   }
 
   String _formatDistance(double meters) {
-    if (meters >= 1000) {
-      final km = meters / 1000;
-      return '${km.toStringAsFixed(km >= 10 ? 0 : 1)} كم';
-    }
-    return '${meters.toStringAsFixed(0)} متر';
+    final l10n = AppLocalizations.of(context);
+    return formatApproxDistance(
+      meters,
+      meterUnit: l10n?.m ?? 'م',
+      kmUnit: l10n?.km ?? 'كم',
+    );
   }
 
   Future<void> _openInMaps() async {

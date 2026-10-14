@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/avatar_config.dart';
 import '../../../core/services/server_clock.dart';
+import '../../../core/utils/distance_format.dart';
 import '../../../core/widgets/attachments_gallery.dart';
+import '../../../l10n/app_localizations.dart';
 
 /// بطاقة الطلب الواصل للمزوّد في لوحة التحكم.
 /// تعرض اسم العميل، السيارة، الموقع بالعربية (وليس الإحداثيات فقط)،
@@ -15,7 +17,7 @@ class NearbyRequestCard extends StatelessWidget {
   final String carModel;
   final int carYear;
   final String issueType;
-  final double distance;
+  final double? distanceMeters;
   final String address;
   final List<String> attachments;
   final DateTime? deadline;
@@ -32,7 +34,7 @@ class NearbyRequestCard extends StatelessWidget {
     required this.carModel,
     required this.carYear,
     required this.issueType,
-    required this.distance,
+    required this.distanceMeters,
     required this.address,
     this.attachments = const [],
     this.deadline,
@@ -46,6 +48,7 @@ class NearbyRequestCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final l10n = AppLocalizations.of(context);
 
     return Container(
       width: double.infinity,
@@ -82,7 +85,11 @@ class NearbyRequestCard extends StatelessWidget {
                     const Icon(Icons.location_on_outlined, size: 14, color: AppColors.orangePrimary),
                     const SizedBox(width: 4),
                     Text(
-                      distance > 0 ? '${distance.toStringAsFixed(1)} كم' : 'المسافة غير متاحة',
+                      formatApproxDistance(
+                        distanceMeters,
+                        meterUnit: l10n?.m ?? 'م',
+                        kmUnit: l10n?.km ?? 'كم',
+                      ),
                       style: const TextStyle(
                         fontFamily: 'Cairo',
                         fontSize: 13,

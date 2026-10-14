@@ -9,6 +9,7 @@ import '../../../core/errors/rpc_error_translator.dart';
 import '../../../core/models/order.dart';
 import '../../../core/models/provider_details.dart';
 import '../../../core/services/server_clock.dart';
+import '../../../core/utils/distance.dart';
 import '../../../l10n/app_localizations.dart';
 import 'widgets/order_status_indicator.dart';
 import 'widgets/provider_offer_card.dart';
@@ -35,6 +36,8 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
   String? _providerPhone;
   String? _providerAvatarId;
   String? _providerAvatarUrl;
+  double? _providerLat;
+  double? _providerLng;
 
   // حالة التقييم لما الطلب يخلص
   int _rating = 0;
@@ -110,6 +113,8 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
         _providerPhone = p.phoneNumber;
         _providerAvatarId = p.avatarId;
         _providerAvatarUrl = p.avatarUrl;
+        _providerLat = p.latitude;
+        _providerLng = p.longitude;
       }
     } catch (e) {
       // لو فشل جلب بيانات المزوّد، الشاشة تكمل عادي بدون توقف
@@ -416,6 +421,12 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
   Widget _buildContent(BuildContext context, bool isDark) {
     final order = _order!;
     final l10n = AppLocalizations.of(context);
+    final offerDistanceMeters = optionalDistanceMeters(
+      order.latitude,
+      order.longitude,
+      _providerLat,
+      _providerLng,
+    );
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -437,7 +448,7 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
             ProviderOfferCard(
               providerName: _providerName ?? '',
               workshopName: _workshopName ?? '',
-              distance: 0,
+              distanceMeters: offerDistanceMeters,
               price: order.offeredPrice!,
               currency: order.currency,
               estimatedMinutes: order.etaMinutes ?? 0,
@@ -455,7 +466,7 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
             ProviderOfferCard(
               providerName: _providerName ?? '',
               workshopName: _workshopName ?? '',
-              distance: 0,
+              distanceMeters: offerDistanceMeters,
               price: order.offeredPrice!,
               currency: order.currency,
               estimatedMinutes: order.etaMinutes ?? 0,

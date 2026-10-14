@@ -1,7 +1,32 @@
+import 'dart:async';
+
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 
 final Geocoding _geocoding = Geocoding();
+
+/// نتيجة تحديد موقع مُحسّن (refinePosition): إحداثيات + دقة + علم تقريبي.
+class RefinedFix {
+  const RefinedFix({
+    required this.latitude,
+    required this.longitude,
+    required this.accuracyMeters,
+    required this.isApproximate,
+  });
+
+  /// خط العرض.
+  final double latitude;
+
+  /// خط الطول.
+  final double longitude;
+
+  /// دقة التحديد بالأمتار (position.accuracy).
+  final double accuracyMeters;
+
+  /// true إذا كانت الدقة أكبر من الهدف المطلوب (افتراضياً 50 م).
+  /// في هذه الحالة الموقع «تقريبي» ويُنصح المستخدم بتحسينه.
+  final bool isApproximate;
+}
 
 /// يجيب الموقع الحالي للجهاز ويحوّله إلى عنوان نصي (عكس الجيوكودينغ)،
 /// ويزوّد النتيجة مؤقتاً حتى لا تتكرر استدعاءات GPS مع كل شاشة.
@@ -15,6 +40,110 @@ class LocationService {
 
   /// مهلة تحديد موقع مباشر قبل اعتباره فشلاً (ثوانٍ).
   static const Duration _fixTimeout = Duration(seconds: 10);
+
+  /// تحديد "مُسبَق" في الخلفية: عند استدعاء [prewarmRefinedPosition] يُبدأ تحديد
+  /// دقيقاً (refinePosition) وتُخزّن المستقبلية. لاحقاً يمكن لـ
+  /// [takePrewarmedRefinedPosition] استلامها فوراً إن اكتملت، أو null إن لم
+  /// تكن مُبدأة — فيبدأ المُستدعي تحديداً جديداً.
+  Future<RefinedFix?>? _refineWarmUp;
+
+  /// يبدأ تحديداً دقيقاً في الخلفية (يُستدعى عند فتح شاشة الطلب) حتى يكون
+  /// التحديد جاهزاً بسرعة عند الضغط على «موقعي». لا يفعل شيئاً إن كان جارياً.
+  void prewarmRefinedPosition() {
+    _refineWarmUp ??= refinePosition();
+  }
+
+  /// يُسلّم نتيجة التحديد المُسبَق (إن وُجد) ويصفّرها؛ يعيد null إن لم يكن هناك
+  /// تحديد مُسبَق جارٍ. يتيح للمُنتقي طلب تحديد جديد إن كان القديم غير متاح.
+  Future<RefinedFix?> takePrewarmedRefinedPosition() {
+    final pending = _refineWarmUp;
+    _refineWarmUp = null;
+    return pending ?? Future<RefinedFix?>.value();
+  }
+
+  /// تحديد أدق: يستمع لتيّار المواقع ويعيد أول تحديد بدقة ≤ [targetAccuracyMeters]
+  /// فوراً، وإلا يحتفظ بأفضل تحديد حتى انتهاء [maxDuration] ثم يعيده.
+  ///
+  /// يعيد null فقط لو: الخدمة مغلقة، الصلاحية مرفوضة، أو خطأ في التيّار.
+  ///
+  /// معلمات التبعية (للاختبارات الوحدوية):
+  /// - [positionStreamFactory] دالة تعيد التيّار (افتراضي: high accuracy stream).
+  /// - [isServiceEnabled] دالة تتحقق من تفعيل GPS (افتراضي: Geolocator.isLocationServiceEnabled).
+  /// - [checkPermission] دالة تفحص الصلاحية (افتراضي: Geolocator.checkPermission).
+  /// - [requestPermission] دالة تطلب الصلاحية (افتراضي: Geolocator.requestPermission).
+  Future<RefinedFix?> refinePosition({
+    double targetAccuracyMeters = 50,
+    Duration maxDuration = const Duration(seconds: 30),
+    Stream<Position> Function()? positionStreamFactory,
+    Future<bool> Function()? isServiceEnabled,
+    Future<LocationPermission> Function()? checkPermission,
+    Future<LocationPermission> Function()? requestPermission,
+  }) async {
+    final serviceCheck = isServiceEnabled ?? Geolocator.isLocationServiceEnabled;
+    final check = checkPermission ?? Geolocator.checkPermission;
+    final request = requestPermission ?? Geolocator.requestPermission;
+
+    if (!await serviceCheck()) return null;
+    var permission = await check();
+    if (permission == LocationPermission.denied) {
+      permission = await request();
+    }
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      return null;
+    }
+
+    final factory = positionStreamFactory ??
+        () => Geolocator.getPositionStream(
+              locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+            );
+
+    RefinedFix? best;
+    final completer = Completer<RefinedFix?>();
+    StreamSubscription<Position>? sub;
+    Timer? timeoutTimer;
+
+    void finish() {
+      if (completer.isCompleted) return;
+      timeoutTimer?.cancel();
+      sub?.cancel();
+      completer.complete(best);
+    }
+
+    try {
+      sub = factory().listen(
+        (position) {
+          final fix = RefinedFix(
+            latitude: position.latitude,
+            longitude: position.longitude,
+            accuracyMeters: position.accuracy,
+            isApproximate: position.accuracy > targetAccuracyMeters,
+          );
+          if (best == null || fix.accuracyMeters < best!.accuracyMeters) {
+            best = fix;
+          }
+          if (fix.accuracyMeters <= targetAccuracyMeters) {
+            finish();
+          }
+        },
+        onError: (_) {
+          finish();
+        },
+        cancelOnError: true,
+      );
+      timeoutTimer = Timer(maxDuration, finish);
+    } catch (_) {
+      return best;
+    }
+
+    return completer.future;
+  }
+
+  /// يعيد ضبط القيم المخزّنة مؤقتاً (يُستخدم لو تغيّر الموقع بشكل جوهري).
+  void resetCache() {
+    _lastPosition = null;
+    _lastAddress = null;
+  }
 
   /// يجيب الموقع الحالي بعد التأكد من تفعيل الخدمة وطلب الصلاحية.
   /// يعيد null فقط لو الخدمة مغلقة أو الصلاحية مرفوضة أو فشل التحديد كله.
@@ -183,11 +312,5 @@ class LocationService {
       // نكمل للإحداثيات كاحتياط
     }
     return '${latitude.toStringAsFixed(5)}, ${longitude.toStringAsFixed(5)}';
-  }
-
-  /// يعيد ضبط القيم المخزّنة مؤقتاً (يُستخدم لو تغيّر الموقع بشكل جوهري).
-  void resetCache() {
-    _lastPosition = null;
-    _lastAddress = null;
   }
 }

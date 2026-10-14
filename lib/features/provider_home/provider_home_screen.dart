@@ -1,5 +1,4 @@
 ﻿import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -17,6 +16,7 @@ import '../../core/services/location_service.dart';
 import '../../core/services/provider_location_write.dart';
 import '../../core/services/server_clock.dart';
 import '../../core/settings/app_settings_cubit.dart';
+import '../../core/utils/distance.dart';
 import '../../core/widgets/confirm_dialog.dart';
 import '../../core/widgets/profile_name_text.dart';
 import '../../core/widgets/shimmer_box.dart';
@@ -310,19 +310,6 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     }
   }
 
-  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
-    const R = 6371;
-    final dLat = _toRad(lat2 - lat1);
-    final dLon = _toRad(lon2 - lon1);
-    final a = sin(dLat / 2) * sin(dLat / 2) +
-        cos(_toRad(lat1)) * cos(_toRad(lat2)) *
-            sin(dLon / 2) * sin(dLon / 2);
-    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
-    return R * c;
-  }
-
-  double _toRad(double deg) => deg * pi / 180;
-
   void _subscribeToOrderChanges() {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
@@ -491,7 +478,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
       if (position == null || !mounted) return;
 
       final now = DateTime.now().toUtc();
-      final movedMeters = distanceMetersBetween(
+      final movedMeters = distanceMeters(
         _providerLat,
         _providerLng,
         position.latitude,
@@ -816,10 +803,12 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                     separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final order = _activeOrders[index];
-                      final distance = order.latitude != 0 && _providerLat != 0
-                          ? _calculateDistance(
-                              _providerLat, _providerLng, order.latitude, order.longitude)
-                          : 0.0;
+                      final distanceMeters = optionalDistanceMeters(
+                        _providerLat,
+                        _providerLng,
+                        order.latitude,
+                        order.longitude,
+                      );
                       return order.status == OrderStatus.pending
                           ? NearbyRequestCard(
                               customerName: _ownerNames[order.carOwnerId] ?? 'العميل',
@@ -827,7 +816,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                               carModel: order.carModel,
                               carYear: order.carYear,
                               issueType: _serviceName(order.serviceTypeId),
-                              distance: distance,
+                              distanceMeters: distanceMeters,
                               address: _orderAddresses[order.id] ?? '',
                               attachments: order.attachments ?? const [],
                               deadline: order.respondDeadline,

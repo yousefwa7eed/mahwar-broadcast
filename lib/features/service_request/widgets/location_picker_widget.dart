@@ -26,6 +26,8 @@ class _LocationPickerWidgetState extends State<LocationPickerWidget> {
   late final MapController _mapController;
   late LatLng _selectedLocation;
   bool _isLocating = false;
+  double? _accuracyMeters;
+  bool _isApproximate = false;
 
   @override
   void initState() {
@@ -40,10 +42,11 @@ class _LocationPickerWidgetState extends State<LocationPickerWidget> {
     }
   }
 
-  /// يطلب صلاحية الموقع من نظام التشغيل، ثم يجيب موقع الجهاز عبر LocationService
-  /// (تحديد مباشر عالي/متوسط، أو آخر موقع معروف حديث ضمن 10 دقائق)، وينقل
-  /// الخريطة والعلامة (marker) إليه مباشرة. إن تعذّر التحديد يبقى الاختيار
-  /// اليدوي بالنقر على الخريطة متاحاً.
+  /// يطلب صلاحية الموقع، ثم يستخدم التحديد الدقيق (refinePosition) الذي
+  /// يعيد أول تحديد بدقة ≤ 50 م فوراً، وإلا أفضل تحديد خلال 30 ثانية.
+  /// يعرض شارة الدقة وتحذيراً عند «الموقع تقريبي» مع زر «تحسين الدقة»
+  /// الذي يعيد المحاولة فوراً. الاختيار اليدوي بالنقر على الخريطة يبقى
+  /// متاحاً دائماً.
   Future<void> _goToCurrentLocation() async {
     setState(() => _isLocating = true);
 
@@ -68,23 +71,26 @@ class _LocationPickerWidgetState extends State<LocationPickerWidget> {
         return;
       }
 
-      // تحديد مباشر جديد عبر LocationService: دقة عالية ثم متوسطة، ولا نُسقط
-      // إلى آخر موقع معروف إلا إن كان حديثاً (ضمن 10 دقائق). إن تعذّر الكل
-      // نعرض رسالة مع زر إعادة محاولة ولا نمنع المستخدم من اختيار موقعه يدوياً
-      // بالنقر على الخريطة أو تحريك العلامة.
-      final position = await LocationService.instance.getCurrentPosition(
-        forceRefresh: true,
-        maxLastKnownAge: const Duration(minutes: 10),
-      );
+      // استهلاك التحديد المُسبَق إن وُجد، وإلا بدء تحديد جديد.
+      var fix = await LocationService.instance.takePrewarmedRefinedPosition();
+      fix ??= await LocationService.instance.refinePosition();
 
-      if (position == null) {
-        _showMessageWithRetry('تعذّر تحديد موقعك خلال 10 ثوانٍ، تأكد من توافر GPS ثم أعد المحاولة');
+      if (fix == null) {
+        _showMessageWithRetry('تعذّر تحديد موقعك خلال 30 ثانية، تأكد من توافر GPS ثم أعد المحاولة');
         return;
       }
 
-      final newLocation = LatLng(position.latitude, position.longitude);
+      // ignore: unnecessary_non_null_assertion
+      final newLocation = LatLng(fix!.latitude, fix!.longitude);
 
-      setState(() => _selectedLocation = newLocation);
+      setState(() {
+        // ignore: unnecessary_non_null_assertion
+        _selectedLocation = newLocation;
+        // ignore: unnecessary_non_null_assertion
+        _accuracyMeters = fix!.accuracyMeters;
+        // ignore: unnecessary_non_null_assertion
+        _isApproximate = fix!.isApproximate;
+      });
       _mapController.move(newLocation, 16);
       widget.onLocationChanged(newLocation);
     } catch (e) {
@@ -118,6 +124,7 @@ class _LocationPickerWidgetState extends State<LocationPickerWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: SizedBox(
@@ -155,6 +162,7 @@ class _LocationPickerWidgetState extends State<LocationPickerWidget> {
                 ),
               ],
             ),
+            // شارة "اضغط على الخريطة..."
             Positioned(
               top: 8,
               right: 8,
@@ -165,7 +173,7 @@ class _LocationPickerWidgetState extends State<LocationPickerWidget> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  AppLocalizations.of(context)?.tapMapToSetLocation ?? 'اضغط على الخريطة لتحديد الموقع',
+                  l10n?.tapMapToSetLocation ?? 'اضغط على الخريطة لتحديد الموقع',
                   style: TextStyle(
                     fontFamily: 'Cairo',
                     fontSize: 11,
@@ -174,6 +182,76 @@ class _LocationPickerWidgetState extends State<LocationPickerWidget> {
                 ),
               ),
             ),
+            // شارة دقة الموقع (عند توفرها)
+            if (_accuracyMeters != null)
+              Positioned(
+                top: 8,
+                left: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${l10n?.locationAccuracyLabel ?? 'دقة الموقع'} ≈ ${_accuracyMeters!.round()} ${l10n?.m ?? 'م'}',
+                    style: const TextStyle(
+                      fontFamily: 'Cairo',
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            // تحذير «الموقع تقريبي» مع زر «تحسين الدقة»
+            if (_isApproximate)
+              Positioned(
+                bottom: 56,
+                left: 12,
+                right: 12,
+                child: Material(
+                  elevation: 4,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.orangePrimary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.orangePrimary.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, color: AppColors.orangePrimary, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            l10n?.approximateLocationWarning ?? 'الموقع تقريبي، قد لا يكون دقيقاً',
+                            style: const TextStyle(
+                              fontFamily: 'Cairo',
+                              fontSize: 12,
+                              color: AppColors.orangePrimary,
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: _isLocating ? null : _goToCurrentLocation,
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.orangePrimary,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            minimumSize: const Size(0, 32),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: Text(
+                            l10n?.refineLocation ?? 'تحسين الدقة',
+                            style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             Positioned(
               bottom: 12,
               right: 12,

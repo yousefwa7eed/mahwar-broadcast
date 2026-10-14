@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mahwar/core/services/provider_location_write.dart';
+import 'package:mahwar/core/utils/distance.dart';
 
 void main() {
   final now = DateTime.utc(2026, 10, 9, 12, 0, 0);
@@ -156,20 +157,21 @@ void main() {
     });
   });
 
-  group('distanceMetersBetween', () {
+  group('distanceMeters (shared util)', () {
     test('same point is 0 meters', () {
-      expect(distanceMetersBetween(30.05, 31.23, 30.05, 31.23), closeTo(0, 0.001));
+      expect(distanceMeters(30.05, 31.23, 30.05, 31.23), closeTo(0, 0.001));
     });
 
-    test('1 degree of latitude is ~111.2 km', () {
-      final d = distanceMetersBetween(0, 0, 1, 0);
-      expect(d, closeTo(111195, 60));
+    test('1 degree of latitude ~ 111.3 km (R=6378168)', () {
+      final d = distanceMeters(0, 0, 1, 0);
+      expect(d, closeTo(111320.0, 60));
     });
 
     test('symmetric (order of points does not matter)', () {
-      final a = distanceMetersBetween(30.04, 31.24, 30.05, 31.23);
-      final b = distanceMetersBetween(30.05, 31.23, 30.04, 31.24);
+      final a = distanceMeters(30.04, 31.24, 30.05, 31.23);
+      final b = distanceMeters(30.05, 31.23, 30.04, 31.24);
       expect(a, closeTo(b, 0.0001));
+      expect(a, closeTo(1472.34, 0.5));
     });
   });
 }

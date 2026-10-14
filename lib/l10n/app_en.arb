@@ -192,5 +192,10 @@
   "nationalIdRequiredToOrderTitle": "National ID required",
   "nationalIdRequiredToOrderBody": "To submit a service request, add your valid national ID in your personal info first.",
   "goToPersonalInfo": "Go to personal info",
-  "sharePhoneConsent": "Your phone will be shared with the provider until the request ends."
+  "sharePhoneConsent": "Your phone will be shared with the provider until the request ends.",
+  "m": "m",
+  "locationAccuracyLabel": "Location accuracy",
+  "approximateLocationWarning": "Approximate location, may not be precise",
+  "refineLocation": "Refine location",
+  "providerListUpdateFailed": "Couldn't refresh the list"
 }

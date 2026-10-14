@@ -192,5 +192,10 @@
   "nationalIdRequiredToOrderTitle": "الرقم القومي مطلوب",
   "nationalIdRequiredToOrderBody": "لإرسال طلب خدمة يجب إضافة رقمك القومي الصحيح أولاً في البيانات الشخصية.",
   "goToPersonalInfo": "الذهاب للبيانات الشخصية",
-  "sharePhoneConsent": "سيتم مشاركة رقم هاتفك مع مقدم الخدمة حتى انتهاء الطلب."
+  "sharePhoneConsent": "سيتم مشاركة رقم هاتفك مع مقدم الخدمة حتى انتهاء الطلب.",
+  "m": "م",
+  "locationAccuracyLabel": "دقة الموقع",
+  "approximateLocationWarning": "الموقع تقريبي، قد لا يكون دقيقاً",
+  "refineLocation": "تحسين الدقة",
+  "providerListUpdateFailed": "تعذّر تحديث القائمة"
 }

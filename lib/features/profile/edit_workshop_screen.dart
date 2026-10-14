@@ -5,6 +5,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/models/provider_model.dart';
 import '../../core/services/location_service.dart';
 import '../../core/services/provider_location_write.dart';
+import '../../core/utils/distance.dart';
 import '../../l10n/app_localizations.dart';
 
 class EditWorkshopScreen extends StatefulWidget {
@@ -100,7 +101,7 @@ class _EditWorkshopScreenState extends State<EditWorkshopScreen> {
     final position = await LocationService.instance.getCurrentPosition(forceRefresh: true);
     if (position != null) {
       final now = DateTime.now().toUtc();
-      final movedMeters = distanceMetersBetween(
+      final movedMeters = distanceMeters(
         _latitude,
         _longitude,
         position.latitude,

@@ -11,6 +11,7 @@ import 'package:mahwar/core/models/order.dart';
 import 'package:mahwar/core/utils/supabase_time.dart';
 import 'package:mahwar/features/notifications/notification_detail_screen.dart';
 import 'package:mahwar/features/provider_home/widgets/nearby_request_card.dart';
+import 'package:mahwar/features/request_tracking/widgets/provider_offer_card.dart';
 
 void main() {
   group('Order.fromJson — respond_deadline', () {
@@ -82,7 +83,7 @@ void main() {
             carModel: 'Corolla',
             carYear: 2020,
             issueType: 'ونش',
-            distance: 1.5,
+            distanceMeters: 1500,
             address: 'شارع التحرير',
             deadline: deadline,
           ),
@@ -220,6 +221,72 @@ void main() {
       expect(find.text('إشعار صيانة مجدولة'), findsOneWidget);
       expect(find.textContaining('النص الكامل الطويل'), findsOneWidget);
       expect(find.textContaining('أُرسل في'), findsOneWidget);
+    });
+  });
+
+  group('NearbyRequestCard — تنسيق المسافة الموحّد', () {
+    Widget buildCard({required double? distanceMeters}) {
+      return MaterialApp(
+        home: Scaffold(
+          body: NearbyRequestCard(
+            carMake: 'Toyota',
+            carModel: 'Corolla',
+            carYear: 2020,
+            issueType: 'ونش',
+            distanceMeters: distanceMeters,
+            address: 'شارع التحرير',
+            deadline: null,
+          ),
+        ),
+      );
+    }
+
+    testWidgets('distanceMeters 3500 يعرض "≈ 3.5" ولا يعرض "3500"', (tester) async {
+      await tester.pumpWidget(buildCard(distanceMeters: 3500));
+
+      // المُنسّق يُنتج "≈ 3.5 كم" (أو "≈ 3.5 km" بالإنجليزية)
+      expect(find.textContaining('≈ 3.5'), findsOneWidget);
+      expect(find.textContaining('3500'), findsNothing);
+    });
+
+    testWidgets('distanceMeters null يعرض شرطة محايدة', (tester) async {
+      await tester.pumpWidget(buildCard(distanceMeters: null));
+
+      // لا مسافة رقمية — فقط الشرطة
+      expect(find.textContaining('—'), findsOneWidget);
+      expect(find.textContaining('≈'), findsNothing);
+    });
+  });
+
+  group('ProviderOfferCard — إخفاء شريحة المسافة عند غيابها', () {
+    Widget buildCard({required double? distanceMeters}) {
+      return MaterialApp(
+        home: Scaffold(
+          body: ProviderOfferCard(
+            providerName: 'أحمد علي',
+            workshopName: 'ورشة المحور',
+            distanceMeters: distanceMeters,
+            price: 500,
+            currency: 'EGP',
+            estimatedMinutes: 15,
+          ),
+        ),
+      );
+    }
+
+    testWidgets('عند distanceMeters null لا تظهر شريحة المسافة', (tester) async {
+      await tester.pumpWidget(buildCard(distanceMeters: null));
+
+      // شريحة الوقت تبقى، المسافة تختفي
+      expect(find.textContaining('دقيقة'), findsOneWidget);
+      expect(find.textContaining('≈'), findsNothing);
+      expect(find.textContaining('كم'), findsNothing);
+    });
+
+    testWidgets('عند distanceMeters 3500 تظهر المسافة المنسّقة', (tester) async {
+      await tester.pumpWidget(buildCard(distanceMeters: 3500));
+
+      expect(find.textContaining('≈ 3.5'), findsOneWidget);
     });
   });
 }

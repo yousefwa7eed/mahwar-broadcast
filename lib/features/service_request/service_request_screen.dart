@@ -10,6 +10,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/auth/national_id_utils.dart';
 import '../../../core/errors/rpc_error_translator.dart';
 import '../../../core/models/car_detail.dart';
+import '../../../core/services/location_service.dart';
 import '../../../l10n/app_localizations.dart';
 import 'widgets/location_picker_widget.dart';
 import 'widgets/car_selector_widget.dart';
@@ -236,6 +237,8 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
     super.initState();
     _notesController.addListener(_onNotesChanged);
     _initForm();
+    // بدء تحديد دقيق في الخلفية (pre-warm) ليكون جاهزاً عند ضغط «موقعي»
+    LocationService.instance.prewarmRefinedPosition();
   }
 
   /// تسلسل آمن: تحميل السيارات أولاً، ثم تعبئة المسودة المحفوظة محلياً

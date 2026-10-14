@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/models/provider_details.dart';
+import '../../core/utils/distance_format.dart';
 import '../../l10n/app_localizations.dart';
 
 class NearbyProvidersScreen extends StatefulWidget {
@@ -24,7 +25,7 @@ class NearbyProvidersScreen extends StatefulWidget {
 }
 
 class _NearbyProvidersScreenState extends State<NearbyProvidersScreen> with WidgetsBindingObserver {
-  static const Duration _refreshInterval = Duration(seconds: 2);
+  static const Duration _refreshInterval = Duration(seconds: 5);
 
   final SupabaseClient _client = Supabase.instance.client;
 
@@ -36,6 +37,11 @@ class _NearbyProvidersScreenState extends State<NearbyProvidersScreen> with Widg
   String? _error;
   Timer? _timer;
   String _searchQuery = '';
+
+  /// عدّاد فشل الاستطلاع المتتالي: بعد فشلين متتاليين نُظهر تلميحاً صغيراً
+  /// غير حاجب مع زر إعادة المحاولة (لا نُقاطع المستخدم ولا نُغرق الشاشة).
+  int _consecutiveFailures = 0;
+  bool _showPollHint = false;
 
   @override
   void initState() {
@@ -70,6 +76,11 @@ class _NearbyProvidersScreenState extends State<NearbyProvidersScreen> with Widg
 
   void _handlePoll() {
     if (!mounted || _backgrounded || _isFetching) return;
+    _loadProviders(showLoading: false);
+  }
+
+  /// إعادة محاولة استطلاع واحدة عند ضغط المستخدم على تلميح الفشل.
+  void _retryPoll() {
     _loadProviders(showLoading: false);
   }
 
@@ -108,20 +119,26 @@ class _NearbyProvidersScreenState extends State<NearbyProvidersScreen> with Widg
           .map((json) => ProviderDetails.fromJson(Map<String, dynamic>.from(json as Map)))
           .toList();
 
+      _consecutiveFailures = 0;
       if (mounted) {
         setState(() {
           _providers = providers;
           _isLoading = false;
+          _showPollHint = false;
         });
       }
     } catch (e) {
+      _consecutiveFailures++;
       if (mounted && showLoading) {
         setState(() {
           _error = 'تعذّر تحميل المزودين: $e';
           _isLoading = false;
         });
       } else if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+          if (_consecutiveFailures >= 2) _showPollHint = true;
+        });
       }
     } finally {
       _isFetching = false;
@@ -196,6 +213,8 @@ class _NearbyProvidersScreenState extends State<NearbyProvidersScreen> with Widg
               onChanged: (value) => setState(() => _searchQuery = value),
             ),
           ),
+          if (_showPollHint && !_isLoading && _error == null)
+            _buildPollHint(context, isDark),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator(color: AppColors.orangePrimary))
@@ -212,6 +231,48 @@ class _NearbyProvidersScreenState extends State<NearbyProvidersScreen> with Widg
                     itemBuilder: (context, index) =>
                         _buildProviderCard(context, isDark, filteredProviders[index]),
                   ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// تلميح صغير غير حاجب بعد فشل الاستطلاع مرتين متتاليتين — لا يغطّي القائمة
+  /// ولا يمنع التفاعل، مع زر إعادة محاولة فوري.
+  Widget _buildPollHint(BuildContext context, bool isDark) {
+    final l10n = AppLocalizations.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+      child: Row(
+        children: [
+          const Icon(Icons.sync_problem_rounded, size: 16, color: AppColors.error),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              l10n?.providerListUpdateFailed ?? 'تعذّر تحديث القائمة',
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontSize: 12,
+                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: _retryPoll,
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.orangePrimary,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              minimumSize: const Size(0, 32),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              l10n?.retry ?? 'إعادة المحاولة',
+              style: const TextStyle(
+                fontFamily: 'Cairo',
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -398,19 +459,15 @@ class _NearbyProvidersScreenState extends State<NearbyProvidersScreen> with Widg
                   const Icon(Icons.location_on_outlined, size: 14, color: AppColors.success),
                   const SizedBox(width: 2),
                   Text(
-                    p.distanceMeters?.toStringAsFixed(1) ?? '—',
+                    formatApproxDistance(
+                      p.distanceMeters,
+                      meterUnit: l10n?.m ?? 'م',
+                      kmUnit: l10n?.km ?? 'كم',
+                    ),
                     style: const TextStyle(
                       fontFamily: 'Cairo',
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.success,
-                    ),
-                  ),
-                  Text(
-                    l10n?.km ?? ' كم',
-                    style: const TextStyle(
-                      fontFamily: 'Cairo',
-                      fontSize: 11,
                       color: AppColors.success,
                     ),
                   ),
