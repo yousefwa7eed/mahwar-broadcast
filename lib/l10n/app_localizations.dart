@@ -1171,6 +1171,36 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'سيتم مشاركة رقم هاتفك مع مقدم الخدمة حتى انتهاء الطلب.'**
   String get sharePhoneConsent;
+
+  /// No description provided for @m.
+  ///
+  /// In ar, this message translates to:
+  /// **'م'**
+  String get m;
+
+  /// No description provided for @locationAccuracyLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'دقة الموقع'**
+  String get locationAccuracyLabel;
+
+  /// No description provided for @approximateLocationWarning.
+  ///
+  /// In ar, this message translates to:
+  /// **'الموقع تقريبي، قد لا يكون دقيقاً'**
+  String get approximateLocationWarning;
+
+  /// No description provided for @refineLocation.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحسين الدقة'**
+  String get refineLocation;
+
+  /// No description provided for @providerListUpdateFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحديث القائمة'**
+  String get providerListUpdateFailed;
 }
 
 class _AppLocalizationsDelegate

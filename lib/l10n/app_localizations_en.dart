@@ -565,4 +565,20 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get sharePhoneConsent =>
       'Your phone will be shared with the provider until the request ends.';
+
+  @override
+  String get m => 'm';
+
+  @override
+  String get locationAccuracyLabel => 'Location accuracy';
+
+  @override
+  String get approximateLocationWarning =>
+      'Approximate location, may not be precise';
+
+  @override
+  String get refineLocation => 'Refine location';
+
+  @override
+  String get providerListUpdateFailed => 'Couldn\'t refresh the list';
 }

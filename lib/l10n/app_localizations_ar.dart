@@ -560,4 +560,19 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get sharePhoneConsent =>
       'سيتم مشاركة رقم هاتفك مع مقدم الخدمة حتى انتهاء الطلب.';
+
+  @override
+  String get m => 'م';
+
+  @override
+  String get locationAccuracyLabel => 'دقة الموقع';
+
+  @override
+  String get approximateLocationWarning => 'الموقع تقريبي، قد لا يكون دقيقاً';
+
+  @override
+  String get refineLocation => 'تحسين الدقة';
+
+  @override
+  String get providerListUpdateFailed => 'تعذّر تحديث القائمة';
 }
