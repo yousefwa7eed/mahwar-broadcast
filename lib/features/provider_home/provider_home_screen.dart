@@ -13,7 +13,6 @@ import '../../core/errors/rpc_error_translator.dart';
 import '../../core/models/order.dart';
 import '../../core/notifications/notification_cubit.dart';
 import '../../core/services/location_service.dart';
-import '../../core/services/provider_location_write.dart';
 import '../../core/services/server_clock.dart';
 import '../../core/settings/app_settings_cubit.dart';
 import '../../core/utils/distance.dart';
@@ -23,6 +22,8 @@ import '../../core/widgets/shimmer_box.dart';
 import '../../l10n/app_localizations.dart';
 import '../notifications/notification_actions.dart';
 import 'availability_resolution.dart';
+import 'provider_heartbeat.dart';
+import 'provider_heartbeat_params.dart';
 import 'widgets/active_order_card.dart';
 import 'widgets/availability_toggle.dart';
 import 'widgets/nearby_request_card.dart';
@@ -50,14 +51,14 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
   // is_online معه، لكن فقط عندما يكون القرار 'auto' (لا نجامل قراراً يدوياً).
   Timer? _availabilityPoller;
 
+  // نبضة موقع المزوّد: المسار الوحيد لكتابة الموقع الحيّ. تُرسل فوراً عند
+  // فتح الشاشة/التفعيل/العودة للمقدمة ثم كل 60 ثانية، أثناء التوفّر وفي
+  // المقدمة فقط. لا نكتب إحداثيات المزوّد مباشرة بعد الآن.
+  late final ProviderHeartbeat _heartbeat;
+
   String _workshopName = '';
   double _providerLat = 0;
   double _providerLng = 0;
-
-  // بيانات حداثة موقع المزوّد المخزّن (تُحمّل مع بيانات المزوّد) — تُستخدم
-  // لاتخاذ قرار الكتابة: هل التحديد الجديد يستحق أن يحل محل المخزّن؟
-  DateTime? _providerLocationUpdatedAt;
-  double? _providerLocationAccuracy;
 
   // طلبات المزوّد النشطة (لوحة التحكم): إسناد أو عرض سعر أو تأكيد —
   // تبقى ظاهرة طوال دورة حياتها النشطة ولا تختفي إلّا عند الإتمام أو الإلغاء/الرفض.
@@ -88,7 +89,8 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _loadProviderData().then((_) => _refreshProviderLocation());
+    _heartbeat = ProviderHeartbeat(sendBeat: _sendHeartbeat);
+    _loadProviderData();
     _loadCurrentAddress();
     _loadServiceNames();
     _loadActiveOrders();
@@ -107,6 +109,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _availabilityPoller?.cancel();
+    _heartbeat.dispose();
     _channel?.unsubscribe();
     _providerChannel?.unsubscribe();
     super.dispose();
@@ -114,17 +117,18 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
 
   // دورة حياة التطبيق: لا تؤثّر على التوفّر إطلاقاً — لا إخفاء عند الخلفية
   // ولا إرجاع عند العودة. التوفّر يحكمه القرار اليدوي المخزّن + الجدول فقط.
-  // نكتفي بتحديث الموقع عند العودة للأمام.
+  // نبضة الموقع وحدها تتبع دورة الحياة: تتوقّف في الخلفية وتُستأنف بنبضة
+  // فورية عند العودة للمقدمة (فلا نستهلك GPS بلا داعٍ في الخلفية).
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
-        _refreshProviderLocation();
+        _heartbeat.setForeground(true);
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
       case AppLifecycleState.inactive:
       case AppLifecycleState.hidden:
-        break;
+        _heartbeat.setForeground(false);
     }
   }
 
@@ -136,25 +140,24 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
       final provider = await _client
           .from('providers')
           .select(
-            'workshop_name, latitude, longitude, location_updated_at, location_accuracy, is_online, availability_override',
+            'workshop_name, latitude, longitude, is_online, availability_override',
           )
           .eq('id', userId)
           .maybeSingle();
 
       if (mounted) {
-        final online = provider?['is_online'] ?? false;
+        final online = provider?['is_online'] == true;
         setState(() {
           _workshopName = provider?['workshop_name'] ?? '';
           _providerLat = (provider?['latitude'] as num?)?.toDouble() ?? 0;
           _providerLng = (provider?['longitude'] as num?)?.toDouble() ?? 0;
-          _providerLocationUpdatedAt = DateTime.tryParse(
-            provider?['location_updated_at'] as String? ?? '',
-          )?.toUtc();
-          _providerLocationAccuracy = (provider?['location_accuracy'] as num?)?.toDouble();
-          _isOnline = online == true;
+          _isOnline = online;
           _availabilityOverride =
               provider?['availability_override'] as String? ?? 'auto';
         });
+        // يُزامن جدولة النبضة مع حالة التوفّر الفعلية: إن كان متاحاً نُرسل
+        // نبضة فورية عند الفتح، وإن كان غير متاح لا نُرسل شيئاً.
+        _heartbeat.setOnline(online);
       }
     } catch (e) {
       // silent
@@ -367,6 +370,8 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
           _isOnline = online;
           _availabilityOverride = override;
         });
+        // تقليب خارجي للتوفّر => نواكب جدولة النبضة (بدء/إيقاف) فوراً.
+        _heartbeat.setOnline(online);
       },
     )
         .subscribe();
@@ -407,6 +412,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
           _availabilityOverride = prevOverride;
         });
       }
+    } finally {
+      // بعد استقرار الحالة (نجاح أو تراجع): نُزامن جدولة النبضة مع is_online.
+      _heartbeat.setOnline(_isOnline);
     }
   }
 
@@ -464,53 +472,34 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     }
   }
 
-  /// عند فتح الشاشة أو عودة التطبيق للأمام: نحاول تحديداً مباشراً جديداً
-  /// ونكتبه فقط إذا استحق ذلك وفق قاعدة قرار الكتابة (لا نستبدل تحديداً
-  /// طازجاً أدق بتحديد أردأ). عند الفشل أو المنع نبقي آخر إحداثيات معروفة
-  /// بصمت دون إزعاج المستخدم، ونُسجّل دائماً وقت الكتابة ودقتها عند الكتابة.
-  Future<void> _refreshProviderLocation() async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) return;
-
+  /// نبضة واحدة: نجيب أحدث موقع من [LocationService] (منطق آخر موقع معروف/
+  /// تحديد مباشر نفسه، بلا أي مكدّس موقع جديد) ونرسله عبر RPC
+  /// `provider_heartbeat`. الخادم يقرّر هل يستحق التحديد تحريك الإحداثيات
+  /// (دقة ≤ 200م) ويختم وقت الحداثة دائماً. لا نرسل أي مُعرّف مزوّد — الهوية
+  /// تُستخرج من التوثيق في الخادم. فشل الشبكة/الصلاحية صامت تماماً.
+  Future<void> _sendHeartbeat() async {
     try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return;
+
       final position = await LocationService.instance
           .getCurrentPosition(forceRefresh: true);
-      if (position == null || !mounted) return;
+      if (position == null) return;
 
-      final now = DateTime.now().toUtc();
-      final movedMeters = distanceMeters(
-        _providerLat,
-        _providerLng,
-        position.latitude,
-        position.longitude,
+      await _client.rpc(
+        'provider_heartbeat',
+        params: buildProviderHeartbeatParams(
+          latitude: position.latitude,
+          longitude: position.longitude,
+          accuracy: position.accuracy,
+        ),
       );
-
-      final decision = decideLocationWrite(
-        storedUpdatedAt: _providerLocationUpdatedAt,
-        storedAccuracy: _providerLocationAccuracy,
-        newAccuracy: position.accuracy,
-        movedMeters: movedMeters,
-        now: now,
-      );
-      if (!decision.shouldWrite) return;
-
-      await _client.from('providers').update({
-        'latitude': position.latitude,
-        'longitude': position.longitude,
-        'location_updated_at': now.toIso8601String(),
-        'location_accuracy': position.accuracy,
-      }).eq('id', userId);
-
-      if (mounted) {
-        setState(() {
-          _providerLat = position.latitude;
-          _providerLng = position.longitude;
-          _providerLocationUpdatedAt = now;
-          _providerLocationAccuracy = position.accuracy;
-        });
-      }
     } catch (_) {
-      // صمت: نبقي آخر إحداثيات معروفة.
+      // صمت تام: لا نُسقِط الواجهة ولا نُسجّل أي إحداثيات (رسالة عامة debug فقط).
+      assert(() {
+        debugPrint('provider_heartbeat: skipped (network/permission)');
+        return true;
+      }());
     }
   }
 

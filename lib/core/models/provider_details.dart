@@ -17,6 +17,7 @@ class ProviderDetails {
   final double? distanceMeters;
   final String? avatarId;
   final String? avatarUrl;
+  final DateTime? locationUpdatedAt;
 
   const ProviderDetails({
     required this.providerId,
@@ -37,6 +38,7 @@ class ProviderDetails {
     this.distanceMeters,
     this.avatarId,
     this.avatarUrl,
+    this.locationUpdatedAt,
   });
 
   factory ProviderDetails.fromJson(Map<String, dynamic> json) {
@@ -61,6 +63,9 @@ class ProviderDetails {
       distanceMeters: (json['distance_meters'] as num?)?.toDouble(),
       avatarId: json['avatar_id'] as String?,
       avatarUrl: json['avatar_url'] as String?,
+      locationUpdatedAt: DateTime.tryParse(
+        json['location_updated_at'] as String? ?? '',
+      )?.toUtc(),
     );
   }
 
