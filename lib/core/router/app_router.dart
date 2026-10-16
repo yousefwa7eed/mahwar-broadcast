@@ -231,6 +231,12 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const OrdersHistoryScreen(),
     ),
     GoRoute(
+      path: '/orders/provider',
+      name: 'orders-provider',
+      builder: (context, state) =>
+          const OrdersHistoryScreen(forProvider: true),
+    ),
+    GoRoute(
       path: '/notifications',
       name: 'notifications',
       builder: (context, state) => const NotificationsScreen(),

@@ -13,7 +13,13 @@ bool orderMatchesDay(Order order, DateTime day) {
 }
 
 class OrdersHistoryScreen extends StatefulWidget {
-  const OrdersHistoryScreen({super.key});
+  const OrdersHistoryScreen({super.key, this.forProvider = false});
+
+  /// عرض سجل طلبات المزوّد (فلترة على provider_id) بدل سجل العميل
+  /// (فلترة على car_owner_id) — مع بقاء الشكل والتبويبات وفلترة التاريخ
+  /// نفسها، لأن بطاقة الطلب (الحالة/التاريخ/السيارة/الخدمة/السعر) صالحة
+  /// للطرفين. النقر على أي طلب يفتح شاشة التتبع (وفيها «ملخّص المعاملة»).
+  final bool forProvider;
 
   @override
   State<OrdersHistoryScreen> createState() => _OrdersHistoryScreenState();
@@ -47,7 +53,7 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
       final response = await _client
           .from('orders')
           .select()
-          .eq('car_owner_id', userId)
+          .eq(widget.forProvider ? 'provider_id' : 'car_owner_id', userId)
           .order('created_at', ascending: false)
           .limit(50);
 
