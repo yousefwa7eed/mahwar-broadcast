@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import 'core/router/app_router.dart';
+import 'core/config/app_config.dart';
 import 'core/auth/auth_cubit.dart';
 import 'core/auth/profile_cubit.dart';
 import 'core/auth/secure_local_storage.dart';
@@ -15,19 +16,6 @@ import 'core/settings/app_settings_cubit.dart';
 import 'core/settings/app_settings_state.dart';
 import 'core/theme/app_theme.dart';
 import 'l10n/app_localizations.dart';
-
-/// إعدادات Supabase تُقرأ من --dart-define (متغيرات البناء) مع قيم افتراضية
-/// حالية، لتجنّب تثبيت المفتاح/الرابط في الكود بصورة دائمة:
-/// flutter run --dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=...
-const String kSupabaseUrl = String.fromEnvironment(
-  'SUPABASE_URL',
-  defaultValue: 'https://trgesfzojaoirutkkfcs.supabase.co',
-);
-const String kSupabaseAnonKey = String.fromEnvironment(
-  'SUPABASE_ANON_KEY',
-  defaultValue:
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZ2VzZnpvamFvaXJ1dGtrZmNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwNTIwMTMsImV4cCI6MjEwMTYyODAxM30.FtFVE8KilYJqU9hATPT1ylrVTjkmVx6UbQMIb_QvcXI',
-);
 
 /// Once-only migration: Supabase used to persist the session plaintext under
 /// this key in SharedPreferences. Now the session lives in secure storage, so
@@ -53,8 +41,8 @@ void main() async {
   await Firebase.initializeApp();
 
   await Supabase.initialize(
-    url: kSupabaseUrl,
-    publishableKey: kSupabaseAnonKey,
+    url: AppConfig.supabaseUrl,
+    publishableKey: AppConfig.supabaseAnonKey,
     authOptions: const FlutterAuthClientOptions(
       localStorage: SecureLocalStorage(),
     ),

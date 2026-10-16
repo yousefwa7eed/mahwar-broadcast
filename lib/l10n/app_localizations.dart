@@ -1207,6 +1207,120 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تعذّر تحديث القائمة'**
   String get providerListUpdateFailed;
+
+  /// No description provided for @changePassword.
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير كلمة المرور'**
+  String get changePassword;
+
+  /// No description provided for @changePasswordSubtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل كلمة المرور الحالية ثم اختر كلمة مرور جديدة (٦ أحرف على الأقل).'**
+  String get changePasswordSubtitle;
+
+  /// No description provided for @currentPasswordLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمة المرور الحالية'**
+  String get currentPasswordLabel;
+
+  /// No description provided for @newPasswordLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمة المرور الجديدة'**
+  String get newPasswordLabel;
+
+  /// No description provided for @confirmNewPasswordLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد كلمة المرور الجديدة'**
+  String get confirmNewPasswordLabel;
+
+  /// No description provided for @passwordChangedSuccess.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تغيير كلمة المرور بنجاح'**
+  String get passwordChangedSuccess;
+
+  /// No description provided for @passwordTooShort.
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمة المرور يجب أن لا تقل عن 6 أحرف'**
+  String get passwordTooShort;
+
+  /// No description provided for @passwordsDoNotMatch.
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمتا المرور غير متطابقتين'**
+  String get passwordsDoNotMatch;
+
+  /// No description provided for @enterCurrentPassword.
+  ///
+  /// In ar, this message translates to:
+  /// **'يرجى إدخال كلمة المرور الحالية'**
+  String get enterCurrentPassword;
+
+  /// No description provided for @enterNewPassword.
+  ///
+  /// In ar, this message translates to:
+  /// **'يرجى إدخال كلمة المرور الجديدة'**
+  String get enterNewPassword;
+
+  /// No description provided for @enterConfirmPassword.
+  ///
+  /// In ar, this message translates to:
+  /// **'يرجى تأكيد كلمة المرور الجديدة'**
+  String get enterConfirmPassword;
+
+  /// No description provided for @currentPasswordIncorrect.
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمة المرور الحالية غير صحيحة'**
+  String get currentPasswordIncorrect;
+
+  /// No description provided for @newPasswordSameAsCurrent.
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمة المرور الجديدة يجب أن تختلف عن الحالية'**
+  String get newPasswordSameAsCurrent;
+
+  /// No description provided for @reauthenticationRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'لأمان حسابك، يرجى تسجيل الدخول من جديد قبل تغيير كلمة المرور'**
+  String get reauthenticationRequired;
+
+  /// No description provided for @changePasswordNoEmail.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن تغيير كلمة المرور لعدم وجود بريد إلكتروني مرتبط بالحساب'**
+  String get changePasswordNoEmail;
+
+  /// No description provided for @changePasswordFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تغيير كلمة المرور. حاول مرة أخرى.'**
+  String get changePasswordFailed;
+
+  /// No description provided for @deleteAccountPasswordPrompt.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل كلمة المرور الحالية لتأكيد حذف الحساب'**
+  String get deleteAccountPasswordPrompt;
+
+  /// No description provided for @changePasswordRateLimited.
+  ///
+  /// In ar, this message translates to:
+  /// **'محاولات كثيرة، حاول بعد قليل'**
+  String get changePasswordRateLimited;
+
+  /// No description provided for @delete.
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف'**
+  String get delete;
 }
 
 class _AppLocalizationsDelegate

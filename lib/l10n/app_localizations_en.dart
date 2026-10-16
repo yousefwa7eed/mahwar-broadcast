@@ -585,4 +585,68 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get providerListUpdateFailed => 'Couldn\'t refresh the list';
+
+  @override
+  String get changePassword => 'Change Password';
+
+  @override
+  String get changePasswordSubtitle =>
+      'Enter your current password then choose a new one (at least 6 characters).';
+
+  @override
+  String get currentPasswordLabel => 'Current Password';
+
+  @override
+  String get newPasswordLabel => 'New Password';
+
+  @override
+  String get confirmNewPasswordLabel => 'Confirm New Password';
+
+  @override
+  String get passwordChangedSuccess => 'Password changed successfully';
+
+  @override
+  String get passwordTooShort => 'Password must be at least 6 characters';
+
+  @override
+  String get passwordsDoNotMatch => 'Passwords do not match';
+
+  @override
+  String get enterCurrentPassword => 'Please enter your current password';
+
+  @override
+  String get enterNewPassword => 'Please enter a new password';
+
+  @override
+  String get enterConfirmPassword => 'Please confirm your new password';
+
+  @override
+  String get currentPasswordIncorrect => 'Current password is incorrect';
+
+  @override
+  String get newPasswordSameAsCurrent =>
+      'New password must be different from the current one';
+
+  @override
+  String get reauthenticationRequired =>
+      'For your security, please sign in again before changing your password';
+
+  @override
+  String get changePasswordNoEmail =>
+      'Cannot change the password because no email is linked to this account';
+
+  @override
+  String get changePasswordFailed =>
+      'Could not change your password. Please try again.';
+
+  @override
+  String get deleteAccountPasswordPrompt =>
+      'Enter your current password to confirm account deletion';
+
+  @override
+  String get changePasswordRateLimited =>
+      'Too many attempts, try again shortly';
+
+  @override
+  String get delete => 'Delete';
 }

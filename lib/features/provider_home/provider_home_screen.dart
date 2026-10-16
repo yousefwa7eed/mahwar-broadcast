@@ -17,6 +17,7 @@ import '../../core/services/server_clock.dart';
 import '../../core/settings/app_settings_cubit.dart';
 import '../../core/utils/distance.dart';
 import '../../core/widgets/confirm_dialog.dart';
+import '../../core/widgets/delete_account_dialog.dart';
 import '../../core/widgets/profile_name_text.dart';
 import '../../core/widgets/shimmer_box.dart';
 import '../../l10n/app_localizations.dart';
@@ -1269,6 +1270,13 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
           ),
           _buildProfileOption(
             context,
+            icon: Icons.lock_outline_rounded,
+            title: l10n?.changePassword ?? 'تغيير كلمة المرور',
+            isDark: isDark,
+            onTap: () => context.push('/profile/change-password'),
+          ),
+          _buildProfileOption(
+            context,
             icon: Icons.language_rounded,
             title: '${l10n?.languageLabel ?? 'اللغة'}: ${l10n?.currentLanguage ?? (isArabic ? 'العربية' : 'English')}',
             isDark: isDark,
@@ -1324,7 +1332,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
           ),
           const SizedBox(height: 12),
           TextButton(
-            onPressed: () => _showDeleteAccountDialog(context, l10n),
+            onPressed: () => _showDeleteAccountDialog(context),
             child: Text(
               l10n?.deleteAccount ?? 'حذف الحساب',
               style: const TextStyle(
@@ -1370,63 +1378,14 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     );
   }
 
-  void _showDeleteAccountDialog(BuildContext context, AppLocalizations? l10n) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: isDark ? AppColors.darkCard : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          l10n?.deleteAccount ?? 'حذف الحساب',
-          style: TextStyle(
-            fontFamily: 'Zain',
-            fontSize: 20,
-            color: AppColors.error,
-          ),
-        ),
-        content: Text(
-          l10n?.deleteAccountConfirm ?? 'هل أنت متأكد من حذف حسابك نهائياً؟ لن تتمكن من استعادته.',
-          style: TextStyle(
-            fontFamily: 'Cairo',
-            fontSize: 14,
-            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              l10n?.cancel ?? 'إلغاء',
-              style: const TextStyle(fontFamily: 'Cairo', color: AppColors.lightTextSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              try {
-                await SupabaseAuthService().deleteAccount();
-                if (context.mounted) context.go('/select-user-type');
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('حدث خطأ: $e'),
-                      backgroundColor: AppColors.error,
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text(
-              'حذف',
-              style: TextStyle(fontFamily: 'Cairo', color: AppColors.error, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
+  Future<void> _showDeleteAccountDialog(BuildContext context) async {
+    final deleted = await showDeleteAccountDialog(
+      context,
+      authService: SupabaseAuthService(),
     );
+    if (deleted == true && context.mounted) {
+      context.go('/select-user-type');
+    }
   }
 
   Widget _buildBottomNav(BuildContext context, bool isDark, AppLocalizations? l10n) {

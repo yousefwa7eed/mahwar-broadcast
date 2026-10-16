@@ -98,6 +98,12 @@ class FakeAuthService extends AuthService {
   Object? forgotResendError;
   Object? setPasswordError;
 
+  /// إن كان مضبوطًا فإن `changePassword` يرميه.
+  Object? changePasswordError;
+
+  /// إن كان مضبوطًا فإن `deleteAccount` يرميه.
+  Object? deleteAccountError;
+
   int attachCount = 0;
   int verifyCount = 0;
   int resendCount = 0;
@@ -106,6 +112,12 @@ class FakeAuthService extends AuthService {
   int forgotVerifyCount = 0;
   int forgotResendCount = 0;
   int setPasswordCount = 0;
+  int changePasswordCount = 0;
+  int deleteAccountCount = 0;
+
+  String? lastChangeCurrentPassword;
+  String? lastChangeNewPassword;
+  String? lastDeletePassword;
 
   String? attachedPhone;
   String? lastVerifiedPhone;
@@ -297,7 +309,22 @@ class FakeAuthService extends AuthService {
       user?.userMetadata?['full_name'] as String?;
 
   @override
-  Future<void> deleteAccount() async {}
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    changePasswordCount++;
+    lastChangeCurrentPassword = currentPassword;
+    lastChangeNewPassword = newPassword;
+    if (changePasswordError != null) throw changePasswordError!;
+  }
+
+  @override
+  Future<void> deleteAccount({required String currentPassword}) async {
+    deleteAccountCount++;
+    lastDeletePassword = currentPassword;
+    if (deleteAccountError != null) throw deleteAccountError!;
+  }
 
   @override
   Future<void> attachPhone(String localPhone) async {

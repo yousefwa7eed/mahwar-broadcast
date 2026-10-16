@@ -579,4 +579,66 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get providerListUpdateFailed => 'تعذّر تحديث القائمة';
+
+  @override
+  String get changePassword => 'تغيير كلمة المرور';
+
+  @override
+  String get changePasswordSubtitle =>
+      'أدخل كلمة المرور الحالية ثم اختر كلمة مرور جديدة (٦ أحرف على الأقل).';
+
+  @override
+  String get currentPasswordLabel => 'كلمة المرور الحالية';
+
+  @override
+  String get newPasswordLabel => 'كلمة المرور الجديدة';
+
+  @override
+  String get confirmNewPasswordLabel => 'تأكيد كلمة المرور الجديدة';
+
+  @override
+  String get passwordChangedSuccess => 'تم تغيير كلمة المرور بنجاح';
+
+  @override
+  String get passwordTooShort => 'كلمة المرور يجب أن لا تقل عن 6 أحرف';
+
+  @override
+  String get passwordsDoNotMatch => 'كلمتا المرور غير متطابقتين';
+
+  @override
+  String get enterCurrentPassword => 'يرجى إدخال كلمة المرور الحالية';
+
+  @override
+  String get enterNewPassword => 'يرجى إدخال كلمة المرور الجديدة';
+
+  @override
+  String get enterConfirmPassword => 'يرجى تأكيد كلمة المرور الجديدة';
+
+  @override
+  String get currentPasswordIncorrect => 'كلمة المرور الحالية غير صحيحة';
+
+  @override
+  String get newPasswordSameAsCurrent =>
+      'كلمة المرور الجديدة يجب أن تختلف عن الحالية';
+
+  @override
+  String get reauthenticationRequired =>
+      'لأمان حسابك، يرجى تسجيل الدخول من جديد قبل تغيير كلمة المرور';
+
+  @override
+  String get changePasswordNoEmail =>
+      'لا يمكن تغيير كلمة المرور لعدم وجود بريد إلكتروني مرتبط بالحساب';
+
+  @override
+  String get changePasswordFailed => 'تعذّر تغيير كلمة المرور. حاول مرة أخرى.';
+
+  @override
+  String get deleteAccountPasswordPrompt =>
+      'أدخل كلمة المرور الحالية لتأكيد حذف الحساب';
+
+  @override
+  String get changePasswordRateLimited => 'محاولات كثيرة، حاول بعد قليل';
+
+  @override
+  String get delete => 'حذف';
 }

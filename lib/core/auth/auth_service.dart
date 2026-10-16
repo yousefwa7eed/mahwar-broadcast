@@ -4,6 +4,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/app_config.dart';
+import 'change_password_error.dart';
 import 'phone_utils.dart';
 
 abstract class AuthService {
@@ -102,7 +104,26 @@ abstract class AuthService {
   Future<void> resendForgotPasswordOtp(String localPhone);
 
   Future<String?> getUserName();
-  Future<void> deleteAccount();
+
+  /// يحذف حساب المستخدم الحالي بعد التحقق من كلمة المرور الحالية. ترسل
+  /// [currentPassword] في جسم الطلب إلى دالة `delete-account` الخادمية التي
+  /// تتحقق منها قبل أي تنظيف/حذف. ترمي [DeleteAccountException] برمز الخطأ
+  /// (PASSWORD_REQUIRED / INVALID_PASSWORD) عند رفض التحقق.
+  Future<void> deleteAccount({required String currentPassword});
+
+  /// يغيّر كلمة مرور المستخدم الحالي بعد التحقق من كلمة المرور الحالية.
+  ///
+  /// يتحقق أولًا من صحة [currentPassword] عبر تسجيل دخول على عميل Supabase
+  /// معزول مؤقت (بلا تفعيل التحديث التلقائي، وبلا أي تخزين دائم) فلا تُلمس
+  /// الجلسة الرئيسية إطلاقًا، ثم يضبط كلمة المرور الجديدة عبر `updateUser`
+  /// على العميل الرئيسي. ترمي [ChangePasswordNoEmailException] إن لم يكن
+  /// للحساب بريد إلكتروني، و[AuthException] برمز `invalid_credentials` عند خطأ
+  /// كلمة المرور الحالية، وأكواد `same_password` / `weak_password` /
+  /// `reauthentication_needed` من الخادم عند تحديث كلمة المرور.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
 
   /// يربط رقم هاتف محلي (01xxxxxxxxx) بحساب المستخدم الحالي ويفعّل إرسال
   /// كود التحقق (phoneChange OTP) إليه.
@@ -456,23 +477,67 @@ class SupabaseAuthService extends AuthService {
   }
 
   @override
-  Future<void> deleteAccount() async {
+  Future<void> deleteAccount({required String currentPassword}) async {
     final session = _client.auth.currentSession;
-    if (session == null) throw Exception('No active session');
+    if (session == null) throw const DeleteAccountException('NO_SESSION');
 
-    final response = await _client.functions.invoke(
-      'delete-account',
-      headers: {
-        'Authorization': 'Bearer ${session.accessToken}',
-      },
-    );
-
-    if (response.status != 200) {
-      final body = response.data;
-      throw Exception(body?['error'] ?? 'Failed to delete account');
+    // `functions.invoke` يرمي FunctionsHttpException — وهي تمتدّ
+    // [FunctionException] — عند أي رد غير 2xx، حاملةً جسم الاستجابة في
+    // `details`. نستخرج منه رمز الخطأ (PASSWORD_REQUIRED / INVALID_PASSWORD)
+    // للتمييز في الواجهة بدل انتظار رد ناجح بجسم خطأ.
+    try {
+      await _client.functions.invoke(
+        'delete-account',
+        headers: {
+          'Authorization': 'Bearer ${session.accessToken}',
+        },
+        body: {'password': currentPassword},
+      );
+    } on FunctionException catch (e) {
+      throw DeleteAccountException(deleteAccountErrorCode(e));
     }
 
     await _client.auth.signOut();
+  }
+
+  @override
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final email = _client.auth.currentUser?.email;
+    if (email == null || email.isEmpty) {
+      throw const ChangePasswordNoEmailException();
+    }
+
+    // عميل معزول مؤقت للتحقق من كلمة المرور الحالية: بلا تفعيل التحديث
+    // التلقائي وبلا تمرير مخزن (لا كتابة على القرص)، فلا تُلمس الجلسة
+    // الرئيسية. يُسحب دخوله محليًا ويُغلق في finally على كل المسارات.
+    final verifier = SupabaseClient(
+      AppConfig.supabaseUrl,
+      AppConfig.supabaseAnonKey,
+      authOptions: const AuthClientOptions(autoRefreshToken: false),
+    );
+    try {
+      // نترك الاستثناء يمرّ كما هو (بلا توحيد): كلمة المرور الخاطئة تعود
+      // `invalid_credentials`، وتجاوز الحد `over_request_rate_limit` (429)،
+      // وفشل الشبكة AuthRetryableFetchException — ويميّزها
+      // mapChangePasswordError في الواجهة، فلا نُقحم كل 4xx في «كلمة المرور
+      // غير صحيحة».
+      await verifier.auth.signInWithPassword(
+        email: email,
+        password: currentPassword,
+      );
+
+      await _client.auth.updateUser(UserAttributes(password: newPassword));
+    } finally {
+      try {
+        await verifier.auth.signOut(scope: SignOutScope.local);
+      } catch (_) {
+        // تنظيف أفضل جهد — لا يُخفي نتيجة العملية الحقيقية.
+      }
+      verifier.dispose();
+    }
   }
 }
 

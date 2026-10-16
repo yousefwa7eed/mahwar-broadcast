@@ -136,6 +136,55 @@ void main() {
     expect(fake.user, isNotNull);
   });
 
+  test('حدث userUpdated (بعد تغيير كلمة المرور) لا يبثّ حالة جديدة ولا يغيّر التوثيق',
+      () async {
+    final user = User(
+      id: 'fake-user-id',
+      appMetadata: const {},
+      userMetadata: const {'role': 'car_owner'},
+      aud: 'authenticated',
+      createdAt: 'now',
+      email: 'owner@example.com',
+    );
+    final fake = FakeAuthService()
+      ..user = user
+      ..phoneVerified = false;
+    final cubit = AuthCubit(service: fake);
+    addTearDown(cubit.close);
+
+    // نلتقط كل حالة تُبثّ بعد الاشتراك للتأكد من عدم بثّ أي حالة جديدة استجابةً
+    // لحدث userUpdated.
+    final emitted = <Object?>[];
+    final sub = cubit.stream.listen(emitted.add);
+    addTearDown(sub.cancel);
+
+    // جلسة مصادَقة موثّقتها غير مكتملة، ثم نُصدر حدث userUpdated كما يفعل
+    // GoTrue بعد `updateUser(password: …)` على العميل الرئيسي.
+    expect(cubit.state, isA<AuthAuthenticated>());
+    expect(await cubit.ensurePhoneVerified(), isFalse);
+    expect(cubit.knownPhoneVerified, isFalse);
+
+    fake.authStateController.add(
+      AuthState(
+        AuthChangeEvent.userUpdated,
+        Session(
+          accessToken: 'token',
+          tokenType: 'bearer',
+          user: user,
+        ),
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    // لا حالة جديدة تُبثّ (AuthAuthenticated/AuthUnauthenticated) ولا تغيير في
+    // التوثيق — لذا phoneVerificationRedirect، المعتمد على هذين فقط، لا يتغيّر
+    // ولا يُستثار بحدث userUpdated.
+    expect(emitted, isEmpty);
+    expect(cubit.state, isA<AuthAuthenticated>());
+    expect(cubit.knownPhoneVerified, isFalse);
+    expect(fake.signOutFromRejectionCount, 0);
+  });
+
   test('close يلغي الاشتراك في تدفق المصادقة (لا مستمعين معلّقين)', () async {
     final fake = FakeAuthService();
     final cubit = AuthCubit(service: fake);

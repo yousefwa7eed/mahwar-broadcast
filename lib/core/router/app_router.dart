@@ -31,6 +31,7 @@ import '../../features/profile/edit_workshop_screen.dart';
 import '../../features/profile/edit_specializations_screen.dart';
 import '../../features/profile/working_hours_screen.dart';
 import '../../features/profile/manage_cars_screen.dart';
+import '../../features/profile/change_password_screen.dart';
 import '../../features/profile/avatar_picker_screen.dart';
 import '../../features/legal/screens.dart';
 
@@ -268,6 +269,11 @@ final GoRouter appRouter = GoRouter(
       path: '/profile/cars',
       name: 'profile-cars',
       builder: (context, state) => const ManageCarsScreen(),
+    ),
+    GoRoute(
+      path: '/profile/change-password',
+      name: 'change-password',
+      builder: (context, state) => const ChangePasswordScreen(),
     ),
     GoRoute(
       path: '/provider/workshop',
