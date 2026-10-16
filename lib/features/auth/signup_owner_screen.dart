@@ -7,6 +7,7 @@ import '../../core/auth/phone_utils.dart';
 import '../../core/auth/signup_error_mapper.dart';
 import '../../core/settings/app_settings_cubit.dart';
 import '../../core/settings/app_settings_state.dart';
+import '../../l10n/app_localizations.dart';
 import 'widgets/owner_signup_form_widget.dart';
 import 'widgets/error_dialog.dart';
 import 'otp_navigation.dart';
@@ -28,13 +29,14 @@ class SignupOwnerScreen extends StatelessWidget {
             state.user.userMetadata?['phone_number'] as String?,
           );
         } else if (state is AuthError) {
-          showErrorDialog(context, mapSignupError(state.message));
+          showErrorDialog(context, mapSignupError(state.message, AppLocalizations.of(context)));
         }
       },
       child: BlocBuilder<AppSettingsCubit, AppSettingsState>(
         builder: (context, settings) {
           final isArabic = settings.locale.languageCode == 'ar';
           final isDarkMode = settings.themeMode == ThemeMode.dark;
+          final l10n = AppLocalizations.of(context);
 
           return Scaffold(
             backgroundColor: isDarkMode ? const Color(0xFF121212) : Colors.white,
@@ -49,7 +51,7 @@ class SignupOwnerScreen extends StatelessWidget {
                 onPressed: () => context.pop(),
               ),
               title: Text(
-                isArabic ? 'حساب مالك سيارة جديد' : 'New Car Owner Account',
+                l10n?.signupOwnerTitle ?? 'حساب مالك سيارة جديد',
                 style: TextStyle(
                   fontFamily: isArabic ? 'Cairo' : 'Poppins',
                   fontWeight: FontWeight.bold,
@@ -64,7 +66,7 @@ class SignupOwnerScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isArabic ? 'إنشاء حساب جديد' : 'Create New Account',
+                      l10n?.signup ?? 'إنشاء حساب جديد',
                       style: TextStyle(
                         fontFamily: isArabic ? 'Zain' : 'Poppins',
                         fontSize: 32,
@@ -74,9 +76,8 @@ class SignupOwnerScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      isArabic
-                          ? 'سجل بياناتك وسيارتك لتتمكن من طلب خدمات الطوارئ'
-                          : 'Register your details and car to request emergency services',
+                      l10n?.signupOwnerSubtitle ??
+                          'سجل بياناتك وسيارتك لتتمكن من طلب خدمات الطوارئ',
                       style: TextStyle(
                         fontFamily: isArabic ? 'Cairo' : 'Poppins',
                         fontSize: 14,

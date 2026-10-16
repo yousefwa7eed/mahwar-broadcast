@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../services/app_messenger.dart';
+import '../../l10n/app_localizations.dart';
 import 'auth_cubit.dart';
 import 'auth_service.dart';
 import 'role_hint_cache.dart';
@@ -52,6 +53,7 @@ class LogoutCoordinator {
     if (_loggingOut) return;
     _loggingOut = true;
     isRunning.value = true;
+    final l10n = AppLocalizations.of(context);
     try {
       // نلتقط هوية الجلسة القديمة قبل أي تنظيف — يذهب إلى الخلفية ويبقى
       // صالحًا لتنظيف FCM حتى بعد سحب الجلسة محليًا.
@@ -64,7 +66,9 @@ class LogoutCoordinator {
       unawaited(
         _authService
             .signOutInBackground(oldUserId)
-            .then((_) => AppMessenger.showText('تم تسجيل الخروج'))
+            .then((_) => AppMessenger.showText(
+                  l10n?.signOutSuccess ?? 'تم تسجيل الخروج',
+                ))
             .catchError((Object _) {}),
       );
 

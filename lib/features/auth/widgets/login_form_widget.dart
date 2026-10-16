@@ -5,6 +5,7 @@ import '../../../core/auth/auth_cubit.dart';
 import '../../../core/auth/phone_utils.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/settings/app_settings_cubit.dart';
+import '../../../l10n/app_localizations.dart';
 
 class LoginFormWidget extends StatefulWidget {
   final String role;
@@ -65,6 +66,7 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
   Widget build(BuildContext context) {
     final bool isProvider = widget.role == 'provider';
     final isArabic = context.watch<AppSettingsCubit>().state.locale.languageCode == 'ar';
+    final l10n = AppLocalizations.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -88,7 +90,7 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
                 children: [
                   Expanded(
                     child: Text(
-                      isArabic ? 'طريقة الدخول' : 'Login Method',
+                      l10n?.loginMethod ?? 'طريقة الدخول',
                       style: TextStyle(
                         fontFamily: isArabic ? 'Cairo' : 'Poppins',
                         fontSize: 13,
@@ -106,11 +108,11 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
                     constraints: const BoxConstraints(minHeight: 36, minWidth: 90),
                     children: [
                       Text(
-                        isArabic ? 'هاتف' : 'Phone',
+                        l10n?.phoneTab ?? 'هاتف',
                         style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.w600),
                       ),
                       Text(
-                        isArabic ? 'بريد' : 'Email',
+                        l10n?.emailTab ?? 'بريد',
                         style: const TextStyle(fontFamily: 'Cairo', fontSize: 13, fontWeight: FontWeight.w600),
                       ),
                     ],
@@ -125,8 +127,8 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
                 textDirection: TextDirection.ltr,
                 decoration: InputDecoration(
                   labelText: _isPhoneMode
-                      ? (isArabic ? 'رقم الهاتف' : 'Phone Number')
-                      : (isArabic ? 'البريد الإلكتروني' : 'Email'),
+                      ? (l10n?.phoneNumber ?? 'رقم الهاتف')
+                      : (l10n?.emailLabel ?? 'البريد الإلكتروني'),
                   hintText: _isPhoneMode
                       ? (isArabic ? '01xxxxxxxxx' : '01xxxxxxxxx')
                       : (isArabic ? 'example@domain.com' : 'example@domain.com'),
@@ -143,17 +145,16 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return isArabic
-                        ? (_isPhoneMode ? 'يرجى إدخال رقم الهاتف' : 'يرجى إدخال البريد الإلكتروني')
-                        : (_isPhoneMode ? 'Please enter your phone number' : 'Please enter your email');
+                    return _isPhoneMode
+                        ? (l10n?.enterPhonePrompt ?? 'يرجى إدخال رقم الهاتف')
+                        : (l10n?.enterEmailPrompt ?? 'يرجى إدخال البريد الإلكتروني');
                   }
                   if (_isPhoneMode && !PhoneUtils.isValidEgyptianMobile(value.trim())) {
-                    return isArabic
-                        ? 'رقم هاتف مصري غير صحيح (مثال: 01012345678)'
-                        : 'Invalid Egyptian phone number (e.g. 01012345678)';
+                    return l10n?.invalidPhoneShort ??
+                        'رقم هاتف مصري غير صحيح (مثال: 01012345678)';
                   }
                   if (!_isPhoneMode && !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value.trim())) {
-                    return isArabic ? 'صيغة البريد الإلكتروني غير صحيحة' : 'Invalid email format';
+                    return l10n?.invalidEmailFormat ?? 'صيغة البريد الإلكتروني غير صحيحة';
                   }
                   return null;
                 },
@@ -167,7 +168,7 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
             controller: _passwordController,
             obscureText: _obscurePassword,
             decoration: InputDecoration(
-              labelText: isArabic ? 'كلمة المرور' : 'Password',
+              labelText: l10n?.password ?? 'كلمة المرور',
               prefixIcon: Icon(Icons.lock_rounded, color: primaryColor),
               suffixIcon: IconButton(
                 icon: Icon(
@@ -188,7 +189,7 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return isArabic ? 'يرجى إدخال كلمة المرور' : 'Please enter your password';
+                return l10n?.enterPasswordPrompt ?? 'يرجى إدخال كلمة المرور';
               }
               return null;
             },
@@ -201,7 +202,7 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
             child: GestureDetector(
               onTap: widget.onForgotPasswordTap,
               child: Text(
-                isArabic ? 'نسيت كلمة المرور؟' : 'Forgot password?',
+                l10n?.forgotPassword ?? 'نسيت كلمة المرور؟',
                 style: TextStyle(
                   fontFamily: isArabic ? 'Cairo' : 'Poppins',
                   fontSize: 13,
@@ -235,7 +236,7 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
                       ),
                     )
                   : Text(
-                      isArabic ? 'تسجيل الدخول' : 'Login',
+                      l10n?.login ?? 'تسجيل الدخول',
                       style: TextStyle(
                         fontFamily: isArabic ? 'Cairo' : 'Poppins',
                         fontSize: 16,
@@ -252,7 +253,7 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                isArabic ? 'ليس لديك حساب؟ ' : "Don't have an account? ",
+                l10n?.dontHaveAccount ?? 'ليس لديك حساب؟ ',
                 style: TextStyle(
                   fontFamily: isArabic ? 'Cairo' : 'Poppins',
                   fontSize: 14,
@@ -262,7 +263,7 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
               GestureDetector(
                 onTap: widget.onSignupTap,
                 child: Text(
-                  isArabic ? 'إنشاء حساب جديد' : 'Create Account',
+                  l10n?.signup ?? 'إنشاء حساب جديد',
                   style: TextStyle(
                     fontFamily: isArabic ? 'Cairo' : 'Poppins',
                     fontSize: 14,

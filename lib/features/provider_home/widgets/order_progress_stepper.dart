@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/models/order.dart';
+import '../../../l10n/app_localizations.dart';
 
 /// شريط تقدّم لمراحل الطلب النشط (أفقي أو عمودي):
 /// الاسناد ← عرض السعر ← التأكيد ← الإتمام.
@@ -20,12 +21,6 @@ class OrderProgressStepper extends StatelessWidget {
     this.labels,
   });
 
-  static const List<String> _providerLabels = [
-    'الاسناد',
-    'عرض السعر',
-    'التأكيد',
-    'الإتمام',
-  ];
   static const double _nodeSize = 26;
   static const double _verticalConnectorHeight = 24;
 
@@ -49,7 +44,14 @@ class OrderProgressStepper extends StatelessWidget {
     final active = _activeIndex;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final muted = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-    final stepLabels = labels ?? _providerLabels;
+    final l10n = AppLocalizations.of(context);
+    final stepLabels = labels ??
+        [
+          l10n?.stepAssigned ?? 'الاسناد',
+          l10n?.stepPriceOffer ?? 'عرض السعر',
+          l10n?.stepConfirmation ?? 'التأكيد',
+          l10n?.stepCompletion ?? 'الإتمام',
+        ];
 
     return direction == Axis.vertical
         ? _buildVertical(active, stepLabels, muted)

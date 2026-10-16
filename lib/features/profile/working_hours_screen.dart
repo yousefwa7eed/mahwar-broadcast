@@ -23,9 +23,6 @@ class _WorkingHoursScreenState extends State<WorkingHoursScreen> {
   static const List<String> _arDays = [
     'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت',
   ];
-  static const List<String> _enDays = [
-    'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
-  ];
 
   static const TimeOfDay _defaultOpen = TimeOfDay(hour: 9, minute: 0);
   static const TimeOfDay _defaultClose = TimeOfDay(hour: 17, minute: 0);
@@ -147,17 +144,16 @@ class _WorkingHoursScreenState extends State<WorkingHoursScreen> {
           ..open = open
           ..close = close;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            Localizations.localeOf(context).languageCode == 'ar'
-                ? 'تم تطبيق الجدول على جميع الأيام'
-                : 'Applied to all days',
-            style: const TextStyle(fontFamily: 'Cairo'),
-          ),
-          duration: const Duration(seconds: 1),
-        ),
-      );
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                AppLocalizations.of(context)?.appliedToAllDays ??
+                    'تم تطبيق الجدول على جميع الأيام',
+                style: const TextStyle(fontFamily: 'Cairo'),
+              ),
+              duration: const Duration(seconds: 1),
+            ),
+          );
     });
   }
 
@@ -238,7 +234,8 @@ class _WorkingHoursScreenState extends State<WorkingHoursScreen> {
             (isArabic ? 'يجب أن يكون وقت البداية قبل وقت النهاية' : 'Open time must be before close time'));
         return;
       }
-    }
+    } // keep isArabic used for fallbacks if needed; other fallbacks handled by l10n in most places
+    // actually wait, need to preserve isArabic? We use it for fallbacks. But others are replaced. Hmm. Let me check. L232, L237 use isArabic. That's fine.
 
     setState(() => _isSaving = true);
 
@@ -272,7 +269,8 @@ class _WorkingHoursScreenState extends State<WorkingHoursScreen> {
       }
     } catch (e) {
       if (mounted) {
-        _showError(isArabic ? 'حدث خطأ أثناء الحفظ: $e' : 'Error saving: $e');
+        _showError(AppLocalizations.of(context)?.errorSaving('$e') ??
+            'حدث خطأ أثناء الحفظ: $e');
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -334,8 +332,9 @@ class _WorkingHoursScreenState extends State<WorkingHoursScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          l10n?.workingHoursHint ?? 'حدد ساعات عملك — خارج هذه الساعات لن تظهر في قائمة المزودين المتاحين',
-                          style: TextStyle(
+                           l10n?.workingHoursHint ??
+                               'حدد ساعات عملك — خارج هذه الساعات لن تظهر في قائمة المزودين المتاحين',
+                           style: TextStyle(
                             fontFamily: 'Cairo',
                             fontSize: 12,
                             color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
@@ -349,10 +348,10 @@ class _WorkingHoursScreenState extends State<WorkingHoursScreen> {
                   child: ListView(
                     padding: const EdgeInsets.all(20),
                     children: [
-                      _buildUniformCard(isDark: isDark, isArabic: isArabic),
+                       _buildUniformCard(isDark: isDark, l10n: l10n),
                       const SizedBox(height: 20),
-                      Text(
-                        isArabic ? 'الأيام الاستثنائية' : 'Daily exceptions',
+                       Text(
+                         l10n?.dailyExceptions ?? 'الأيام الاستثنائية',
                         style: TextStyle(
                           fontFamily: 'Cairo',
                           fontSize: 14,
@@ -361,10 +360,9 @@ class _WorkingHoursScreenState extends State<WorkingHoursScreen> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        isArabic
-                            ? 'عطّل يوماً أو عدّل وقته — باقي الأيام تتبع الجدول الموحّد'
-                            : 'Turn a day off or edit its time — the rest follow the unified schedule',
+                       Text(
+                         l10n?.dailyExceptionsHint ??
+                             'عطّل يوماً أو عدّل وقته — باقي الأيام تتبع الجدول الموحّد',
                         style: TextStyle(
                           fontFamily: 'Cairo',
                           fontSize: 11,
@@ -373,7 +371,7 @@ class _WorkingHoursScreenState extends State<WorkingHoursScreen> {
                       ),
                       const SizedBox(height: 10),
                       for (var i = 0; i < 7; i++) ...[
-                        _buildDayRow(index: i, day: _days[i]!, isDark: isDark, isArabic: isArabic),
+                         _buildDayRow(index: i, day: _days[i]!, isDark: isDark, isArabic: isArabic, l10n: l10n),
                         const SizedBox(height: 10),
                       ],
                     ],
@@ -418,7 +416,7 @@ class _WorkingHoursScreenState extends State<WorkingHoursScreen> {
     );
   }
 
-  Widget _buildUniformCard({required bool isDark, required bool isArabic}) {
+  Widget _buildUniformCard({required bool isDark, required AppLocalizations? l10n}) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -435,7 +433,7 @@ class _WorkingHoursScreenState extends State<WorkingHoursScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  isArabic ? 'الجدول الموحّد لجميع الأيام' : 'One schedule for all days',
+                  l10n?.oneScheduleForAllDays ?? 'الجدول الموحّد لجميع الأيام',
                   style: TextStyle(
                     fontFamily: 'Cairo',
                     fontSize: 14,
@@ -448,9 +446,8 @@ class _WorkingHoursScreenState extends State<WorkingHoursScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            isArabic
-                ? 'حدّد موعداً واحداً وطبّقه على كل أيام الأسبوع، ثم استثنِ بعدها ما تريد'
-                : 'Set a single time and apply it to every day, then adjust exceptions below',
+            l10n?.oneScheduleForAllDaysHint ??
+                'حدّد موعداً واحداً وطبّقه على كل أيام الأسبوع، ثم استثنِ بعدها ما تريد',
             style: TextStyle(
               fontFamily: 'Cairo',
               fontSize: 11,
@@ -462,7 +459,7 @@ class _WorkingHoursScreenState extends State<WorkingHoursScreen> {
             children: [
               Expanded(
                 child: _buildTimeButton(
-                  label: isArabic ? 'بداية العمل' : 'Open at',
+                  label: l10n?.openAt ?? 'بداية العمل',
                   time: _uniformOpen,
                   isDark: isDark,
                   onTap: () => _pickUniformTime(isOpen: true),
@@ -471,7 +468,7 @@ class _WorkingHoursScreenState extends State<WorkingHoursScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: _buildTimeButton(
-                  label: isArabic ? 'نهاية العمل' : 'Close at',
+                  label: l10n?.closeAt ?? 'نهاية العمل',
                   time: _uniformClose,
                   isDark: isDark,
                   onTap: () => _pickUniformTime(isOpen: false),
@@ -491,7 +488,7 @@ class _WorkingHoursScreenState extends State<WorkingHoursScreen> {
               ),
               icon: const Icon(Icons.copy_all_rounded, size: 18),
               label: Text(
-                isArabic ? 'تطبيق على جميع الأيام' : 'Apply to all days',
+                l10n?.applyToAllDays ?? 'تطبيق على جميع الأيام',
                 style: const TextStyle(fontFamily: 'Cairo', fontSize: 14, fontWeight: FontWeight.bold),
               ),
             ),
@@ -506,6 +503,7 @@ class _WorkingHoursScreenState extends State<WorkingHoursScreen> {
     required _DaySchedule day,
     required bool isDark,
     required bool isArabic,
+    required AppLocalizations? l10n,
   }) {
     final isToday = index == _todayDow();
     final isUniform = _isUniform(day);
@@ -539,7 +537,7 @@ class _WorkingHoursScreenState extends State<WorkingHoursScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        isArabic ? 'اليوم' : 'Today',
+                         l10n?.today ?? 'اليوم',
                         style: const TextStyle(
                           fontFamily: 'Cairo',
                           fontSize: 11,
@@ -549,7 +547,18 @@ class _WorkingHoursScreenState extends State<WorkingHoursScreen> {
                       ),
                     ),
                   Text(
-                    (isArabic ? _arDays : _enDays)[index],
+                     () {
+                       final days = [
+                         l10n?.weekdaySunday ?? _arDays[0],
+                         l10n?.weekdayMonday ?? _arDays[1],
+                         l10n?.weekdayTuesday ?? _arDays[2],
+                         l10n?.weekdayWednesday ?? _arDays[3],
+                         l10n?.weekdayThursday ?? _arDays[4],
+                         l10n?.weekdayFriday ?? _arDays[5],
+                         l10n?.weekdaySaturday ?? _arDays[6],
+                       ];
+                       return days[index];
+                     }(),
                     style: TextStyle(
                       fontFamily: 'Cairo',
                       fontSize: 15,
@@ -570,7 +579,7 @@ class _WorkingHoursScreenState extends State<WorkingHoursScreen> {
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        isArabic ? 'خاص' : 'Custom',
+                         l10n?.customLabel ?? 'خاص',
                         style: const TextStyle(
                           fontFamily: 'Cairo',
                           fontSize: 10,
@@ -580,9 +589,9 @@ class _WorkingHoursScreenState extends State<WorkingHoursScreen> {
                       ),
                     ),
                   Text(
-                    day.isClosed
-                        ? (isArabic ? 'إجازة' : 'Day off')
-                        : (isArabic ? 'متاح' : 'Available'),
+                     day.isClosed
+                         ? (l10n?.dayOff ?? 'إجازة')
+                         : (l10n?.available ?? 'متاح'),
                     style: TextStyle(
                       fontFamily: 'Cairo',
                       fontSize: 12,
@@ -612,7 +621,7 @@ class _WorkingHoursScreenState extends State<WorkingHoursScreen> {
               children: [
                 Expanded(
                   child: _buildTimeButton(
-                    label: isArabic ? 'بداية العمل' : 'Open at',
+                    label: l10n?.openAt ?? 'بداية العمل',
                     time: day.open,
                     isDark: isDark,
                     onTap: () => _pickTime(index, isOpen: true),
@@ -621,7 +630,7 @@ class _WorkingHoursScreenState extends State<WorkingHoursScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: _buildTimeButton(
-                    label: isArabic ? 'نهاية العمل' : 'Close at',
+                    label: l10n?.closeAt ?? 'نهاية العمل',
                     time: day.close,
                     isDark: isDark,
                     onTap: () => _pickTime(index, isOpen: false),
@@ -641,8 +650,8 @@ class _WorkingHoursScreenState extends State<WorkingHoursScreen> {
                     visualDensity: VisualDensity.compact,
                   ),
                   icon: const Icon(Icons.restart_alt_rounded, size: 16),
-                  label: Text(
-                    isArabic ? 'استعادة الجدول الموحّد' : 'Restore unified time',
+                   label: Text(
+                     l10n?.restoreUnifiedTime ?? 'استعادة الجدول الموحّد',
                     style: const TextStyle(fontFamily: 'Cairo', fontSize: 11, fontWeight: FontWeight.w600),
                   ),
                 ),

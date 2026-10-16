@@ -89,7 +89,7 @@ class HomeHeader extends StatelessWidget {
                       Expanded(
                         child: Text(
                           isLocatingLocation
-                              ? 'جاري تحديد الموقع...'
+                              ? (l10n?.locatingLocation ?? 'جاري تحديد الموقع...')
                               : (locationText ?? (l10n?.setLocation ?? 'تحديد الموقع...')),
                           style: TextStyle(
                             fontFamily: 'Cairo',

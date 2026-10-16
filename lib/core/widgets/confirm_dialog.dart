@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
+import '../../l10n/app_localizations.dart';
 
 /// نافذة تأكيد عامة قبل أي إجراء مصيري (إتمام طلب، رفض عرض/طلب، إلغاء...).
 /// تُرجع `true` عند موافقة المستخدم. النمط مطابق لـ dialogs التأكيد المستخدمة
@@ -9,10 +10,13 @@ Future<bool> showConfirmDialog(
   BuildContext context, {
   required String title,
   required String message,
-  String confirmLabel = 'تأكيد',
-  String cancelLabel = 'تراجع',
+  String? confirmLabel,
+  String? cancelLabel,
   Color confirmColor = AppColors.error,
 }) async {
+  final l10n = AppLocalizations.of(context);
+  final resolvedConfirmLabel = confirmLabel ?? l10n?.confirmAction ?? 'تأكيد';
+  final resolvedCancelLabel = cancelLabel ?? l10n?.cancelAction ?? 'تراجع';
   final result = await showDialog<bool>(
     context: context,
     builder: (ctx) {
@@ -37,14 +41,14 @@ Future<bool> showConfirmDialog(
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(
-              cancelLabel,
+              resolvedCancelLabel,
               style: TextStyle(fontFamily: 'Cairo', color: cancelColor),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(
-              confirmLabel,
+              resolvedConfirmLabel,
               style: TextStyle(
                 fontFamily: 'Cairo',
                 fontWeight: FontWeight.bold,

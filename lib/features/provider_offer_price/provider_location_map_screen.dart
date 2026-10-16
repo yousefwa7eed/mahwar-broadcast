@@ -87,8 +87,10 @@ class _ProviderLocationMapScreenState extends State<ProviderLocationMapScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final l10n = AppLocalizations.of(context);
         setState(() {
-          _error = 'تعذّر تحميل بيانات الخريطة: $e';
+          _error = l10n?.mapLoadFailed(e.toString()) ??
+              'تعذّر تحميل بيانات الخريطة: $e';
           _isLoading = false;
         });
       }
@@ -117,6 +119,7 @@ class _ProviderLocationMapScreenState extends State<ProviderLocationMapScreen> {
   }
 
   Future<void> _openInMaps() async {
+    final l10n = AppLocalizations.of(context);
     final provider = _providerPosition;
     final customer = _customerLocation;
     if (provider == null || customer == null) return;
@@ -130,17 +133,20 @@ class _ProviderLocationMapScreenState extends State<ProviderLocationMapScreen> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
-      _showMessage('لا توجد تطبيقات خرائط متاحة على جهازك');
+      _showMessage(l10n?.noMapAppsAvailable ??
+          'لا توجد تطبيقات خرائط متاحة على جهازك');
     }
   }
 
   Future<void> _locateCurrentPosition() async {
+    final l10n = AppLocalizations.of(context);
     setState(() => _isLocating = true);
 
     try {
       final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        _showMessage('يرجى تفعيل خدمة الموقع (GPS) من إعدادات جهازك');
+        _showMessage(l10n?.enableLocationService ??
+            'يرجى تفعيل خدمة الموقع (GPS) من إعدادات جهازك');
         return;
       }
 
@@ -148,15 +154,15 @@ class _ProviderLocationMapScreenState extends State<ProviderLocationMapScreen> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          _showMessage('تم رفض إذن الوصول للموقع');
+          _showMessage(l10n?.locationPermissionDenied ??
+              'تم رفض إذن الوصول للموقع');
           return;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        _showMessage(
-          'إذن الموقع مرفوض بشكل دائم، يرجى تفعيله من إعدادات التطبيق',
-        );
+        _showMessage(l10n?.locationPermissionDeniedForever ??
+            'إذن الموقع مرفوض بشكل دائم، يرجى تفعيله من إعدادات التطبيق');
         return;
       }
 
@@ -170,7 +176,7 @@ class _ProviderLocationMapScreenState extends State<ProviderLocationMapScreen> {
         });
       }
     } catch (_) {
-      _showMessage('تعذّر تحديد الموقع الحالي');
+      _showMessage(l10n?.locationDetectFailed ?? 'تعذّر تحديد الموقع الحالي');
     } finally {
       if (mounted) {
         setState(() => _isLocating = false);
@@ -186,6 +192,7 @@ class _ProviderLocationMapScreenState extends State<ProviderLocationMapScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
@@ -200,7 +207,7 @@ class _ProviderLocationMapScreenState extends State<ProviderLocationMapScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          'خريطة الوصول',
+          l10n?.accessMapTitle ?? 'خريطة الوصول',
           style: TextStyle(
             fontFamily: 'Zain',
             fontSize: 22,
@@ -245,6 +252,7 @@ class _ProviderLocationMapScreenState extends State<ProviderLocationMapScreen> {
   }
 
   Widget _buildMap(bool isDark) {
+    final l10n = AppLocalizations.of(context);
     final customer = _customerLocation;
     if (customer == null) {
       return _buildError(isDark);
@@ -294,7 +302,10 @@ class _ProviderLocationMapScreenState extends State<ProviderLocationMapScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _buildMarkerLabel('موقع العميل', AppColors.error, isDark),
+                        _buildMarkerLabel(
+                            l10n?.customerLocationLabel ?? 'موقع العميل',
+                            AppColors.error,
+                            isDark),
                         const Icon(
                           Icons.location_on_rounded,
                           color: AppColors.error,
@@ -311,7 +322,10 @@ class _ProviderLocationMapScreenState extends State<ProviderLocationMapScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          _buildMarkerLabel('موقعك', AppColors.success, isDark),
+                          _buildMarkerLabel(
+                              l10n?.yourLocationLabel ?? 'موقعك',
+                              AppColors.success,
+                              isDark),
                           const Icon(
                             Icons.location_on_rounded,
                             color: AppColors.success,
@@ -343,8 +357,10 @@ class _ProviderLocationMapScreenState extends State<ProviderLocationMapScreen> {
                 Flexible(
                   child: Text(
                     distance != null
-                        ? 'المسافة التقريبية عن العميل: ${_formatDistance(distance)}'
-                        : 'موقع العميل',
+                        ? (l10n?.approxDistanceToCustomer(
+                                _formatDistance(distance)) ??
+                            'المسافة التقريبية عن العميل: ${_formatDistance(distance)}')
+                        : (l10n?.customerLocationLabel ?? 'موقع العميل'),
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontFamily: 'Cairo',
@@ -388,6 +404,7 @@ class _ProviderLocationMapScreenState extends State<ProviderLocationMapScreen> {
   }
 
   Widget _buildBottomPanel(bool isDark, bool hasProvider) {
+    final l10n = AppLocalizations.of(context);
     final distance = _distanceMeters();
 
     return Container(
@@ -405,8 +422,11 @@ class _ProviderLocationMapScreenState extends State<ProviderLocationMapScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildLegendItem(AppColors.error, 'موقع العميل'),
-              if (hasProvider) _buildLegendItem(AppColors.success, 'موقعك'),
+              _buildLegendItem(AppColors.error,
+                  l10n?.customerLocationLabel ?? 'موقع العميل'),
+              if (hasProvider)
+                _buildLegendItem(
+                    AppColors.success, l10n?.yourLocationLabel ?? 'موقعك'),
             ],
           ),
           if (distance != null && hasProvider) ...[
@@ -417,7 +437,8 @@ class _ProviderLocationMapScreenState extends State<ProviderLocationMapScreen> {
                 const Icon(Icons.straighten_rounded, size: 16, color: AppColors.orangePrimary),
                 const SizedBox(width: 6),
                 Text(
-                  'المسافة التقريبية: ${_formatDistance(distance)}',
+                  l10n?.approxDistance(_formatDistance(distance)) ??
+                      'المسافة التقريبية: ${_formatDistance(distance)}',
                   style: TextStyle(
                     fontFamily: 'Cairo',
                     fontSize: 13,
@@ -443,9 +464,9 @@ class _ProviderLocationMapScreenState extends State<ProviderLocationMapScreen> {
                       ),
                     ),
                     icon: const Icon(Icons.navigation_rounded, size: 18, color: Colors.white),
-                    label: const Text(
-                      'فتح مسار في الخرائط',
-                      style: TextStyle(
+                    label: Text(
+                      l10n?.openRouteInMaps ?? 'فتح مسار في الخرائط',
+                      style: const TextStyle(
                         fontFamily: 'Zain',
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
@@ -463,7 +484,8 @@ class _ProviderLocationMapScreenState extends State<ProviderLocationMapScreen> {
                 ),
                 child: IconButton(
                   onPressed: _isLocating ? null : _locateCurrentPosition,
-                  tooltip: 'تحديد موقعي الحالي',
+                  tooltip: l10n?.locateCurrentPositionTooltip ??
+                      'تحديد موقعي الحالي',
                   icon: _isLocating
                       ? const SizedBox(
                           width: 18,

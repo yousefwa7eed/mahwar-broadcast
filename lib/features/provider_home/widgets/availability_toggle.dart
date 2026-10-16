@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../l10n/app_localizations.dart';
 
 class AvailabilityToggle extends StatelessWidget {
   final bool isOnline;
@@ -14,6 +15,7 @@ class AvailabilityToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final l10n = AppLocalizations.of(context);
 
     return Container(
       width: double.infinity,
@@ -49,7 +51,9 @@ class AvailabilityToggle extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isOnline ? 'أنا متاح للخدمة الآن' : 'غير متاح حالياً',
+                  isOnline
+                      ? (l10n?.availabilityOnlineTitle ?? 'أنا متاح للخدمة الآن')
+                      : (l10n?.availabilityOfflineTitle ?? 'غير متاح حالياً'),
                   style: TextStyle(
                     fontFamily: 'Zain',
                     fontSize: 18,
@@ -59,8 +63,10 @@ class AvailabilityToggle extends StatelessWidget {
                 ),
                 Text(
                   isOnline
-                      ? 'ستتلقى الطلبات القريبة من موقعك'
-                      : 'لن تتلقى أي طلبات حالياً',
+                      ? (l10n?.availabilityOnlineHint ??
+                          'ستتلقى الطلبات القريبة من موقعك')
+                      : (l10n?.availabilityOfflineHint ??
+                          'لن تتلقى أي طلبات حالياً'),
                   style: TextStyle(
                     fontFamily: 'Cairo',
                     fontSize: 12,

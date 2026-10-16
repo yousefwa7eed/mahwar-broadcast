@@ -144,8 +144,6 @@ class _EditWorkshopScreenState extends State<EditWorkshopScreen> {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
 
-    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
-
     setState(() => _isSaving = true);
 
     final scopeValue = switch (_supportScope) {
@@ -188,7 +186,7 @@ class _EditWorkshopScreenState extends State<EditWorkshopScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              isArabic ? 'حدث خطأ أثناء الحفظ: $e' : 'Error saving: $e',
+              AppLocalizations.of(context)?.errorSaving('$e') ?? 'حدث خطأ أثناء الحفظ: $e',
               style: const TextStyle(fontFamily: 'Cairo'),
             ),
             backgroundColor: AppColors.error,
@@ -245,7 +243,7 @@ class _EditWorkshopScreenState extends State<EditWorkshopScreen> {
                       isDark: isDark,
                       validator: (v) {
                         if (v == null || v.trim().isEmpty) {
-                          return isArabic ? 'اسم الورشة مطلوب' : 'Workshop name is required';
+                          return l10n?.workshopNameRequired ?? 'اسم الورشة مطلوب';
                         }
                         return null;
                       },
@@ -259,7 +257,7 @@ class _EditWorkshopScreenState extends State<EditWorkshopScreen> {
                       isDark: isDark,
                       maxLines: 2,
                       keyboardType: TextInputType.streetAddress,
-                      hintText: isArabic ? 'حدد موقعك تلقائيًا أو اكتب العنوان يدويًا' : 'Use auto-location or type your address',
+                      hintText: l10n?.providerAddressHint ?? 'حدد موقعك تلقائيًا أو اكتب العنوان يدويًا',
                       suffixIcon: _isLocating
                           ? const Padding(
                               padding: EdgeInsets.all(12),
@@ -270,12 +268,12 @@ class _EditWorkshopScreenState extends State<EditWorkshopScreen> {
                             )
                           : IconButton(
                               icon: const Icon(Icons.my_location_rounded, color: AppColors.orangePrimary),
-                              tooltip: isArabic ? 'تحديد موقعي وكتابة العنوان تلقائيًا' : 'Use my current location',
+                              tooltip: l10n?.providerLocateTooltip ?? 'تحديد موقعي وكتابة العنوان تلقائيًا',
                               onPressed: _pickCurrentLocation,
                             ),
                       validator: (v) {
                         if (v == null || v.trim().isEmpty) {
-                          return isArabic ? 'يرجى إدخال عنوان الورشة' : 'Please enter workshop address';
+                          return l10n?.workshopAddressRequired ?? 'يرجى إدخال عنوان الورشة';
                         }
                         return null;
                       },
@@ -302,19 +300,19 @@ class _EditWorkshopScreenState extends State<EditWorkshopScreen> {
                       child: Row(
                         children: [
                           _buildScopeChip(
-                            label: isArabic ? 'طوارئ الطريق' : 'Roadside',
+                            label: l10n?.providerScopeRoadside ?? 'طوارئ الطريق',
                             selected: _supportScope == SupportScope.emergency,
                             onSelected: () => setState(() => _supportScope = SupportScope.emergency),
                             isDark: isDark,
                           ),
                           _buildScopeChip(
-                            label: isArabic ? 'في الورشة' : 'On-site',
+                            label: l10n?.providerScopeOnSite ?? 'في الورشة',
                             selected: _supportScope == SupportScope.onSite,
                             onSelected: () => setState(() => _supportScope = SupportScope.onSite),
                             isDark: isDark,
                           ),
                           _buildScopeChip(
-                            label: isArabic ? 'كلاهما' : 'Both',
+                            label: l10n?.supportScopeBoth ?? 'كلاهما',
                             selected: _supportScope == SupportScope.both,
                             onSelected: () => setState(() => _supportScope = SupportScope.both),
                             isDark: isDark,
@@ -368,7 +366,8 @@ class _EditWorkshopScreenState extends State<EditWorkshopScreen> {
                         label: l10n?.vehicleSpecs ?? (isArabic ? 'مواصفات السيارة' : 'Vehicle Specs'),
                         icon: Icons.minor_crash_outlined,
                         isDark: isDark,
-                        hintText: isArabic ? 'مثال: ونش هيدروليك، سيارة مجهزة' : 'e.g. Hydraulic crane',
+                        hintText:
+                            l10n?.vehicleSpecsHintEquipped ?? 'مثال: ونش هيدروليك، سيارة مجهزة',
                       ),
                     ],
 

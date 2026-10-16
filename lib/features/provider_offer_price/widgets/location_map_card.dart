@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../l10n/app_localizations.dart';
 
 /// نافذة خريطة مصغّرة تُظهر موقع العميل في صفحة تقديم عرض السعر.
 /// بالضغط عليها تُفتح شاشة الخريطة الكاملة التي تعرض موقع المزوّد والعميل معاً.
@@ -24,6 +25,7 @@ class LocationMapCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final l10n = AppLocalizations.of(context);
 
     return GestureDetector(
       onTap: () => _openFullMap(context),
@@ -77,14 +79,14 @@ class LocationMapCard extends StatelessWidget {
                   color: Colors.black.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.fullscreen_rounded, size: 14, color: Colors.white),
-                    SizedBox(width: 4),
+                    const Icon(Icons.fullscreen_rounded, size: 14, color: Colors.white),
+                    const SizedBox(width: 4),
                     Text(
-                      'اضغط لعرض الخريطة الكاملة',
-                      style: TextStyle(
+                      l10n?.tapToViewFullMap ?? 'اضغط لعرض الخريطة الكاملة',
+                      style: const TextStyle(
                         fontFamily: 'Cairo',
                         fontSize: 11,
                         fontWeight: FontWeight.bold,

@@ -73,7 +73,12 @@ class _ManageCarsScreenState extends State<ManageCarsScreen> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: AppColors.error),
+            SnackBar(
+              content: Text(
+                AppLocalizations.of(context)?.errorWithDetail('$e') ?? 'حدث خطأ: $e',
+              ),
+              backgroundColor: AppColors.error,
+            ),
           );
         }
       }
@@ -82,7 +87,6 @@ class _ManageCarsScreenState extends State<ManageCarsScreen> {
 
   Future<void> _deleteCar(String carId) async {
     final l10n = AppLocalizations.of(context);
-    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -93,7 +97,7 @@ class _ManageCarsScreenState extends State<ManageCarsScreen> {
           style: const TextStyle(fontFamily: 'Zain', color: AppColors.error),
         ),
         content: Text(
-          isArabic ? 'هل أنت متأكد من حذف هذه السيارة؟' : 'Are you sure you want to delete this car?',
+          l10n?.deleteCarConfirm ?? 'هل أنت متأكد من حذف هذه السيارة؟',
           style: const TextStyle(fontFamily: 'Cairo', fontSize: 14),
         ),
         actions: [
@@ -103,7 +107,7 @@ class _ManageCarsScreenState extends State<ManageCarsScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('حذف', style: TextStyle(fontFamily: 'Cairo', color: AppColors.error, fontWeight: FontWeight.bold)),
+            child: Text(l10n?.delete ?? 'حذف', style: const TextStyle(fontFamily: 'Cairo', color: AppColors.error, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -116,7 +120,12 @@ class _ManageCarsScreenState extends State<ManageCarsScreen> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: AppColors.error),
+            SnackBar(
+              content: Text(
+                AppLocalizations.of(context)?.errorWithDetail('$e') ?? 'حدث خطأ: $e',
+              ),
+              backgroundColor: AppColors.error,
+            ),
           );
         }
       }
@@ -127,7 +136,6 @@ class _ManageCarsScreenState extends State<ManageCarsScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final l10n = AppLocalizations.of(context);
-    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
@@ -171,7 +179,7 @@ class _ManageCarsScreenState extends State<ManageCarsScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        isArabic ? 'لا توجد سيارات مسجلة' : 'No cars registered',
+                        l10n?.noCarsRegistered ?? 'لا توجد سيارات مسجلة',
                         style: TextStyle(
                           fontFamily: 'Cairo',
                           fontSize: 16,
@@ -180,7 +188,7 @@ class _ManageCarsScreenState extends State<ManageCarsScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        isArabic ? 'اضغط + لإضافة سيارة' : 'Tap + to add a car',
+                        l10n?.tapToAddCar ?? 'اضغط + لإضافة سيارة',
                         style: TextStyle(
                           fontFamily: 'Cairo',
                           fontSize: 13,
@@ -277,7 +285,7 @@ class _AddCarSheetState extends State<_AddCarSheet> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+    final l10n = AppLocalizations.of(context);
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
 
     return Padding(
@@ -298,7 +306,7 @@ class _AddCarSheetState extends State<_AddCarSheet> {
           ),
           const SizedBox(height: 16),
           Text(
-            isArabic ? 'إضافة سيارة جديدة' : 'Add New Car',
+            l10n?.addNewCar ?? 'إضافة سيارة جديدة',
             style: TextStyle(
               fontFamily: 'Zain',
               fontSize: 20,
@@ -330,7 +338,7 @@ class _AddCarSheetState extends State<_AddCarSheet> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        isArabic ? 'يرجى اختيار ماركة وموديل وسنة السيارة' : 'Please select car make, model, and year',
+                        l10n?.selectCarMakeModelYear ?? 'يرجى اختيار ماركة وموديل وسنة السيارة',
                         style: const TextStyle(fontFamily: 'Cairo'),
                       ),
                       backgroundColor: AppColors.orangePrimary,
@@ -343,7 +351,7 @@ class _AddCarSheetState extends State<_AddCarSheet> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
               child: Text(
-                isArabic ? 'إضافة' : 'Add',
+                l10n?.add ?? 'إضافة',
                 style: const TextStyle(
                   fontFamily: 'Cairo',
                   fontSize: 16,

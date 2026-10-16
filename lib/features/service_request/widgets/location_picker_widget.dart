@@ -48,12 +48,14 @@ class _LocationPickerWidgetState extends State<LocationPickerWidget> {
   /// الذي يعيد المحاولة فوراً. الاختيار اليدوي بالنقر على الخريطة يبقى
   /// متاحاً دائماً.
   Future<void> _goToCurrentLocation() async {
+    final l10n = AppLocalizations.of(context);
     setState(() => _isLocating = true);
 
     try {
       final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        _showMessage('يرجى تفعيل خدمة الموقع (GPS) من إعدادات جهازك');
+        _showMessage(l10n?.locationServiceDisabled ??
+            'يرجى تفعيل خدمة الموقع (GPS) من إعدادات جهازك');
         return;
       }
 
@@ -61,13 +63,14 @@ class _LocationPickerWidgetState extends State<LocationPickerWidget> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          _showMessage('تم رفض إذن الوصول للموقع');
+          _showMessage(l10n?.locationPermissionDenied ?? 'تم رفض إذن الوصول للموقع');
           return;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        _showMessage('إذن الموقع مرفوض بشكل دائم، يرجى تفعيله من إعدادات التطبيق');
+        _showMessage(l10n?.locationPermissionPermanentlyDenied ??
+            'إذن الموقع مرفوض بشكل دائم، يرجى تفعيله من إعدادات التطبيق');
         return;
       }
 
@@ -76,7 +79,8 @@ class _LocationPickerWidgetState extends State<LocationPickerWidget> {
       fix ??= await LocationService.instance.refinePosition();
 
       if (fix == null) {
-        _showMessageWithRetry('تعذّر تحديد موقعك خلال 30 ثانية، تأكد من توافر GPS ثم أعد المحاولة');
+        _showMessageWithRetry(l10n?.locationTimeoutDelayed ??
+            'تعذّر تحديد موقعك خلال 30 ثانية، تأكد من توافر GPS ثم أعد المحاولة');
         return;
       }
 
@@ -94,7 +98,7 @@ class _LocationPickerWidgetState extends State<LocationPickerWidget> {
       _mapController.move(newLocation, 16);
       widget.onLocationChanged(newLocation);
     } catch (e) {
-      _showMessage('تعذّر تحديد الموقع الحالي');
+      _showMessage(l10n?.locationUnavailable ?? 'تعذّر تحديد الموقع الحالي');
     } finally {
       if (mounted) {
         setState(() => _isLocating = false);
@@ -111,11 +115,12 @@ class _LocationPickerWidgetState extends State<LocationPickerWidget> {
   /// دون إجبار المستخدم على أي مسار آخر (يبقى قادراً على النقر على الخريطة).
   void _showMessageWithRetry(String message) {
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         action: SnackBarAction(
-          label: 'إعادة المحاولة',
+          label: l10n?.retry ?? 'إعادة المحاولة',
           onPressed: _goToCurrentLocation,
         ),
       ),

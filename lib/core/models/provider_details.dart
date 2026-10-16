@@ -1,3 +1,5 @@
+import '../../l10n/app_localizations.dart';
+
 class ProviderDetails {
   final String providerId;
   final String fullName;
@@ -69,21 +71,22 @@ class ProviderDetails {
     );
   }
 
-  String get ratingLabel {
-    if (ratingCount <= 0) return 'لا توجد تقييمات بعد';
+  String ratingLabel(AppLocalizations? l10n) {
+    if (ratingCount <= 0) return l10n?.noRatingsYet ?? 'لا توجد تقييمات بعد';
     final avg = avgRating.toStringAsFixed(1);
-    return '$avgم ($ratingCount تقييم)';
+    return l10n?.ratingSummary(avg, ratingCount) ??
+        '$avgم ($ratingCount تقييم)';
   }
 
-  String get supportScopeLabel {
+  String supportScopeLabel(AppLocalizations? l10n) {
     switch (supportScope) {
       case 'emergency':
-        return 'طوارئ الطريق';
+        return l10n?.supportScopeEmergency ?? 'طوارئ الطريق';
       case 'on_site':
-        return 'في الورشة';
+        return l10n?.supportScopeOnSite ?? 'في الورشة';
       case 'both':
       default:
-        return 'بداخل الورشة وعلى الطريق';
+        return l10n?.supportScopeBothDetailed ?? 'بداخل الورشة وعلى الطريق';
     }
   }
 }

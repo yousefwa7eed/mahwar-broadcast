@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mahwar/l10n/app_localizations.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/settings/app_settings_cubit.dart';
 import '../../core/settings/app_settings_state.dart';
@@ -10,19 +11,15 @@ import '../../core/settings/app_settings_state.dart';
 // ──────────────────────────────────────────
 
 class _LegalScreen extends StatelessWidget {
-  final String titleAr;
-  final String titleEn;
-  final String introAr;
-  final String introEn;
+  final String title;
+  final String intro;
   final List<_LegalSection> sections;
   final Color accentColor;
   final IconData headerIcon;
 
   const _LegalScreen({
-    required this.titleAr,
-    required this.titleEn,
-    required this.introAr,
-    required this.introEn,
+    required this.title,
+    required this.intro,
     required this.sections,
     required this.accentColor,
     required this.headerIcon,
@@ -30,6 +27,7 @@ class _LegalScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return BlocBuilder<AppSettingsCubit, AppSettingsState>(
       builder: (context, settings) {
         final isArabic = settings.locale.languageCode == 'ar';
@@ -40,9 +38,6 @@ class _LegalScreen extends StatelessWidget {
         final primary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
         final secondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
         final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
-
-        final title = isArabic ? titleAr : titleEn;
-        final intro = isArabic ? introAr : introEn;
 
         return Scaffold(
           backgroundColor: bg,
@@ -134,7 +129,7 @@ class _LegalScreen extends StatelessWidget {
                             Icon(Icons.calendar_today_rounded, size: 14, color: accentColor),
                             const SizedBox(width: 6),
                             Text(
-                              isArabic ? 'آخر تحديث: أغسطس 2025' : 'Last Updated: August 2025',
+                              l10n?.legalLastUpdated ?? 'آخر تحديث: أغسطس 2025',
                               style: TextStyle(
                                 fontFamily: isArabic ? 'Cairo' : 'Poppins',
                                 fontSize: 12,
@@ -210,7 +205,7 @@ class _LegalScreen extends StatelessWidget {
                                 Icon(Icons.contact_support_rounded, color: accentColor, size: 20),
                                 const SizedBox(width: 8),
                                 Text(
-                                  isArabic ? 'للتواصل معنا' : 'Contact Us',
+                                  l10n?.legalContactTitle ?? 'للتواصل معنا',
                                   style: TextStyle(
                                     fontFamily: isArabic ? 'Zain' : 'Poppins',
                                     fontSize: 18,
@@ -222,9 +217,8 @@ class _LegalScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 10),
                             Text(
-                              isArabic
-                                  ? 'إذا كان لديك أي استفسارات حول هذه السياسة، يرجى التواصل معنا على:\nsupport@mahwar.app\nأو الاتصال بخط الدعم: 19000'
-                                  : 'If you have any questions about this policy, please contact us at:\nsupport@mahwar.app\nOr call our support line: 19000',
+                              l10n?.legalContactBody ??
+                                  'إذا كان لديك أي استفسارات حول هذه السياسة، يرجى التواصل معنا على:\nsupport@mahwar.app\nأو الاتصال بخط الدعم: 19000',
                               style: TextStyle(
                                 fontFamily: isArabic ? 'Cairo' : 'Poppins',
                                 fontSize: 13,
@@ -257,8 +251,8 @@ class _LegalScreen extends StatelessWidget {
     required Color border,
     required Color accentColor,
   }) {
-    final title = isArabic ? section.titleAr : section.titleEn;
-    final content = isArabic ? section.contentAr : section.contentEn;
+    final title = section.title;
+    final content = section.content;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -346,17 +340,13 @@ class _LegalScreen extends StatelessWidget {
 
 class _LegalSection {
   final String number;
-  final String titleAr;
-  final String titleEn;
-  final String contentAr;
-  final String contentEn;
+  final String title;
+  final String content;
 
   const _LegalSection({
     required this.number,
-    required this.titleAr,
-    required this.titleEn,
-    required this.contentAr,
-    required this.contentEn,
+    required this.title,
+    required this.content,
   });
 }
 
@@ -367,91 +357,63 @@ class _LegalSection {
 class TermsScreen extends StatelessWidget {
   const TermsScreen({super.key});
 
-  static const List<_LegalSection> _sections = [
-    _LegalSection(
-      number: '1',
-      titleAr: 'قبول الشروط',
-      titleEn: 'Acceptance of Terms',
-      contentAr:
-          'باستخدامك لتطبيق مِحْوَر، أنت تُقر بأنك قرأت هذه الشروط وفهمتها وتوافق على الالتزام بها. إذا كنت لا توافق على أي من هذه الشروط، يرجى عدم استخدام التطبيق.',
-      contentEn:
-          'By using the Mahwar app, you acknowledge that you have read, understood, and agree to be bound by these terms. If you do not agree to any of these terms, please do not use the application.',
-    ),
-    _LegalSection(
-      number: '2',
-      titleAr: 'الاستخدام المقبول',
-      titleEn: 'Acceptable Use',
-      contentAr:
-          'يُسمح باستخدام التطبيق فقط للأغراض القانونية ووفقاً للقوانين المعمول بها في جمهورية مصر العربية. يُحظر استخدام التطبيق لأي غرض احتيالي أو ضار أو مخالف للآداب العامة.',
-      contentEn:
-          'The application may only be used for lawful purposes and in accordance with applicable laws in Egypt. Use of the application for any fraudulent, harmful, or inappropriate purpose is strictly prohibited.',
-    ),
-    _LegalSection(
-      number: '3',
-      titleAr: 'الحسابات والمسؤولية',
-      titleEn: 'Accounts & Responsibility',
-      contentAr:
-          'أنت مسؤول عن الحفاظ على سرية بيانات حسابك وكلمة مرورك. كما أنت مسؤول عن جميع الأنشطة التي تحدث تحت حسابك. يجب إبلاغنا فوراً عن أي استخدام غير مصرح به لحسابك.',
-      contentEn:
-          'You are responsible for maintaining the confidentiality of your account credentials and password, as well as all activities occurring under your account. You must notify us immediately of any unauthorized use of your account.',
-    ),
-    _LegalSection(
-      number: '4',
-      titleAr: 'طبيعة خدمات التطبيق',
-      titleEn: 'Nature of App Services',
-      contentAr:
-          'يوفر تطبيق مِحْوَر منصة رقمية لربط مالكي السيارات بمقدمي خدمات الطوارئ. نحن لسنا طرفاً في الاتفاق بين العميل ومقدم الخدمة، ولا نتحمل المسؤولية عن جودة الخدمات المقدمة.',
-      contentEn:
-          'Mahwar provides a digital platform connecting car owners with emergency service providers. We are not a party to the agreement between the client and the provider, and we are not responsible for the quality of services rendered.',
-    ),
-    _LegalSection(
-      number: '5',
-      titleAr: 'التسعير والمدفوعات',
-      titleEn: 'Pricing & Payments',
-      contentAr:
-          'جميع المدفوعات تتم مباشرةً بين مالك السيارة ومقدم الخدمة. يتيح التطبيق عملية التفاوض على السعر والموافقة عليه. التطبيق لا يتحصل على عمولة أو رسوم مالية من المعاملات.',
-      contentEn:
-          'All payments are made directly between the car owner and the service provider. The app facilitates the price negotiation and acceptance process. The application does not collect any commission or fees from transactions.',
-    ),
-    _LegalSection(
-      number: '6',
-      titleAr: 'الإلغاء والرفض',
-      titleEn: 'Cancellation & Rejection',
-      contentAr:
-          'يمكن لمالك السيارة إلغاء الطلب في أي وقت قبل قبول السعر. يمكن لمقدم الخدمة رفض الطلب قبل تقديم عرض السعر. بعد قبول السعر من قبل العميل، يُعتبر الطلب مُلزِماً.',
-      contentEn:
-          'Car owners may cancel requests at any time before accepting the price. Service providers may reject requests before submitting a quote. Once the price is accepted by the client, the order is considered binding.',
-    ),
-    _LegalSection(
-      number: '7',
-      titleAr: 'الملكية الفكرية',
-      titleEn: 'Intellectual Property',
-      contentAr:
-          'جميع حقوق الملكية الفكرية للتطبيق بما في ذلك التصاميم والشعارات والمحتوى محفوظة لشركة مِحْوَر. لا يُسمح بإعادة إنتاج أي جزء من التطبيق أو استخدامه تجارياً دون إذن مسبق.',
-      contentEn:
-          'All intellectual property rights in the app, including designs, logos, and content, are reserved to Mahwar. No part of the application may be reproduced or used commercially without prior permission.',
-    ),
-    _LegalSection(
-      number: '8',
-      titleAr: 'التعديلات على الشروط',
-      titleEn: 'Amendments to Terms',
-      contentAr:
-          'نحتفظ بحقنا في تعديل هذه الشروط والأحكام في أي وقت. سيتم إشعار المستخدمين بأي تغييرات جوهرية من خلال التطبيق. استمرارك في استخدام التطبيق بعد التعديلات يُعدّ قبولاً لها.',
-      contentEn:
-          'We reserve the right to modify these terms and conditions at any time. Users will be notified of any material changes through the application. Continued use of the app after modifications constitutes acceptance of the changes.',
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return _LegalScreen(
-      titleAr: 'شروط الاستخدام',
-      titleEn: 'Terms of Use',
-      introAr:
+      title: l10n?.termsOfUse ?? 'شروط الاستخدام',
+      intro: l10n?.legalTermsIntro ??
           'مرحباً بك في تطبيق مِحْوَر لخدمات طوارئ السيارات. باستخدامك لهذا التطبيق، أنت توافق على الشروط والأحكام التالية التي تنظم العلاقة بينك وبين منصة مِحْوَر.',
-      introEn:
-          'Welcome to Mahwar, the roadside emergency services app. By using this application, you agree to the following terms and conditions that govern the relationship between you and the Mahwar platform.',
-      sections: _sections,
+      sections: [
+        _LegalSection(
+          number: '1',
+          title: l10n?.legalTermsSection1Title ?? 'قبول الشروط',
+          content: l10n?.legalTermsSection1Body ??
+              'باستخدامك لتطبيق مِحْوَر، أنت تُقر بأنك قرأت هذه الشروط وفهمتها وتوافق على الالتزام بها. إذا كنت لا توافق على أي من هذه الشروط، يرجى عدم استخدام التطبيق.',
+        ),
+        _LegalSection(
+          number: '2',
+          title: l10n?.legalTermsSection2Title ?? 'الاستخدام المقبول',
+          content: l10n?.legalTermsSection2Body ??
+              'يُسمح باستخدام التطبيق فقط للأغراض القانونية ووفقاً للقوانين المعمول بها في جمهورية مصر العربية. يُحظر استخدام التطبيق لأي غرض احتيالي أو ضار أو مخالف للآداب العامة.',
+        ),
+        _LegalSection(
+          number: '3',
+          title: l10n?.legalTermsSection3Title ?? 'الحسابات والمسؤولية',
+          content: l10n?.legalTermsSection3Body ??
+              'أنت مسؤول عن الحفاظ على سرية بيانات حسابك وكلمة مرورك. كما أنت مسؤول عن جميع الأنشطة التي تحدث تحت حسابك. يجب إبلاغنا فوراً عن أي استخدام غير مصرح به لحسابك.',
+        ),
+        _LegalSection(
+          number: '4',
+          title: l10n?.legalTermsSection4Title ?? 'طبيعة خدمات التطبيق',
+          content: l10n?.legalTermsSection4Body ??
+              'يوفر تطبيق مِحْوَر منصة رقمية لربط مالكي السيارات بمقدمي خدمات الطوارئ. نحن لسنا طرفاً في الاتفاق بين العميل ومقدم الخدمة، ولا نتحمل المسؤولية عن جودة الخدمات المقدمة.',
+        ),
+        _LegalSection(
+          number: '5',
+          title: l10n?.legalTermsSection5Title ?? 'التسعير والمدفوعات',
+          content: l10n?.legalTermsSection5Body ??
+              'جميع المدفوعات تتم مباشرةً بين مالك السيارة ومقدم الخدمة. يتيح التطبيق عملية التفاوض على السعر والموافقة عليه. التطبيق لا يتحصل على عمولة أو رسوم مالية من المعاملات.',
+        ),
+        _LegalSection(
+          number: '6',
+          title: l10n?.legalTermsSection6Title ?? 'الإلغاء والرفض',
+          content: l10n?.legalTermsSection6Body ??
+              'يمكن لمالك السيارة إلغاء الطلب في أي وقت قبل قبول السعر. يمكن لمقدم الخدمة رفض الطلب قبل تقديم عرض السعر. بعد قبول السعر من قبل العميل، يُعتبر الطلب مُلزِماً.',
+        ),
+        _LegalSection(
+          number: '7',
+          title: l10n?.legalTermsSection7Title ?? 'الملكية الفكرية',
+          content: l10n?.legalTermsSection7Body ??
+              'جميع حقوق الملكية الفكرية للتطبيق بما في ذلك التصاميم والشعارات والمحتوى محفوظة لشركة مِحْوَر. لا يُسمح بإعادة إنتاج أي جزء من التطبيق أو استخدامه تجارياً دون إذن مسبق.',
+        ),
+        _LegalSection(
+          number: '8',
+          title: l10n?.legalTermsSection8Title ?? 'التعديلات على الشروط',
+          content: l10n?.legalTermsSection8Body ??
+              'نحتفظ بحقنا في تعديل هذه الشروط والأحكام في أي وقت. سيتم إشعار المستخدمين بأي تغييرات جوهرية من خلال التطبيق. استمرارك في استخدام التطبيق بعد التعديلات يُعدّ قبولاً لها.',
+        ),
+      ],
       accentColor: const Color(0xFFFF6B00),
       headerIcon: Icons.gavel_rounded,
     );
@@ -465,91 +427,63 @@ class TermsScreen extends StatelessWidget {
 class PrivacyScreen extends StatelessWidget {
   const PrivacyScreen({super.key});
 
-  static const List<_LegalSection> _sections = [
-    _LegalSection(
-      number: '1',
-      titleAr: 'البيانات التي نجمعها',
-      titleEn: 'Data We Collect',
-      contentAr:
-          'نجمع البيانات الضرورية لتقديم خدماتنا، وتشمل: الاسم الكامل، رقم الهاتف، البريد الإلكتروني، الموقع الجغرافي الحي، الرقم القومي (لمقدمي الخدمة)، وبيانات السيارة (الماركة، الموديل، السنة). لا نجمع أي بيانات غير ضرورية.',
-      contentEn:
-          'We collect data necessary for providing our services, including: full name, phone number, email address, live GPS location, national ID (for service providers), and vehicle details (make, model, year). We do not collect any unnecessary data.',
-    ),
-    _LegalSection(
-      number: '2',
-      titleAr: 'كيفية استخدام بياناتك',
-      titleEn: 'How We Use Your Data',
-      contentAr:
-          'نستخدم بياناتك للأغراض التالية: تقديم خدمات الطوارئ، ربطك بأقرب مقدمي الخدمة جغرافياً، إرسال الإشعارات ذات الصلة بطلباتك، تحسين جودة التطبيق وتجربة المستخدم، وضمان أمان المنصة.',
-      contentEn:
-          'We use your data for the following purposes: providing emergency services, connecting you to the nearest service providers geographically, sending notifications related to your requests, improving app quality and user experience, and ensuring platform security.',
-    ),
-    _LegalSection(
-      number: '3',
-      titleAr: 'مشاركة البيانات',
-      titleEn: 'Data Sharing',
-      contentAr:
-          'لا نشارك بياناتك مع أطراف ثالثة إلا في الحالات التالية: عند ضرورة تقديم الخدمة (مشاركة موقعك مع مقدم الخدمة المختار)، أو عند الإلزام القانوني من الجهات الحكومية المختصة، أو بموافقتك الصريحة.',
-      contentEn:
-          'We do not share your data with third parties except in the following cases: when necessary to provide the service (sharing your location with the selected service provider), legal obligation by competent government authorities, or with your explicit consent.',
-    ),
-    _LegalSection(
-      number: '4',
-      titleAr: 'أمان البيانات',
-      titleEn: 'Data Security',
-      contentAr:
-          'نستخدم أحدث تقنيات التشفير والأمان لحماية بياناتك. نعتمد على Supabase كبنية تحتية آمنة مع تشفير SSL/TLS لجميع الاتصالات. يتم تطبيق سياسات Row Level Security (RLS) لضمان عدم الوصول غير المصرح به لبياناتك.',
-      contentEn:
-          'We use the latest encryption and security technologies to protect your data. We rely on Supabase as a secure infrastructure with SSL/TLS encryption for all communications. Row Level Security (RLS) policies are applied to ensure no unauthorized access to your data.',
-    ),
-    _LegalSection(
-      number: '5',
-      titleAr: 'حقوقك على بياناتك',
-      titleEn: 'Your Data Rights',
-      contentAr:
-          'لديك الحقوق التالية بشأن بياناتك: حق الوصول والاطلاع على بياناتك المخزنة، حق التصحيح والتعديل، حق حذف حسابك وبياناتك كاملاً، وحق الاعتراض على معالجة بياناتك في حالات معينة.',
-      contentEn:
-          'You have the following rights regarding your data: right to access and view your stored data, right to correction and modification, right to delete your account and all data, and right to object to data processing in certain cases.',
-    ),
-    _LegalSection(
-      number: '6',
-      titleAr: 'بيانات الموقع الجغرافي',
-      titleEn: 'Location Data',
-      contentAr:
-          'نستخدم الموقع الجغرافي فقط خلال جلسة الطلب النشطة لإيجاد أقرب مقدمي الخدمة. لا نتتبع موقعك في الخلفية خارج طلبات الخدمة. يمكنك التحكم في صلاحيات الموقع من إعدادات هاتفك في أي وقت.',
-      contentEn:
-          'We use location data only during active service request sessions to find the nearest providers. We do not track your location in the background outside of service requests. You can control location permissions from your phone settings at any time.',
-    ),
-    _LegalSection(
-      number: '7',
-      titleAr: 'الاحتفاظ بالبيانات',
-      titleEn: 'Data Retention',
-      contentAr:
-          'نحتفظ ببيانات حسابك طالما كان حسابك نشطاً. عند حذف حسابك، يتم حذف جميع بياناتك الشخصية خلال 30 يوماً. قد نحتفظ ببعض البيانات المجهولة للتحليل الإحصائي.',
-      contentEn:
-          'We retain your account data as long as your account is active. Upon account deletion, all your personal data is deleted within 30 days. We may retain some anonymized data for statistical analysis.',
-    ),
-    _LegalSection(
-      number: '8',
-      titleAr: 'التحديثات على السياسة',
-      titleEn: 'Policy Updates',
-      contentAr:
-          'قد نقوم بتحديث سياسة الخصوصية هذه من وقت لآخر لتعكس التغييرات في ممارساتنا أو لأسباب تشغيلية أو قانونية. سنُشعرك بأي تغييرات جوهرية عبر إشعار داخل التطبيق قبل دخول التغييرات حيز التنفيذ.',
-      contentEn:
-          'We may update this Privacy Policy from time to time to reflect changes in our practices or for operational or legal reasons. We will notify you of any material changes via an in-app notification before the changes take effect.',
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return _LegalScreen(
-      titleAr: 'سياسة الخصوصية',
-      titleEn: 'Privacy Policy',
-      introAr:
+      title: l10n?.privacyPolicy ?? 'سياسة الخصوصية',
+      intro: l10n?.legalPrivacyIntro ??
           'نحن في تطبيق مِحْوَر نُقدّر ثقتك ونلتزم التزاماً تاماً بحماية بياناتك الشخصية. توضح هذه السياسة كيفية جمع البيانات واستخدامها وحمايتها.',
-      introEn:
-          'At Mahwar, we value your trust and are fully committed to protecting your personal data. This policy explains how we collect, use, and protect your information.',
-      sections: _sections,
+      sections: [
+        _LegalSection(
+          number: '1',
+          title: l10n?.legalPrivacySection1Title ?? 'البيانات التي نجمعها',
+          content: l10n?.legalPrivacySection1Body ??
+              'نجمع البيانات الضرورية لتقديم خدماتنا، وتشمل: الاسم الكامل، رقم الهاتف، البريد الإلكتروني، الموقع الجغرافي الحي، الرقم القومي (لمقدمي الخدمة)، وبيانات السيارة (الماركة، الموديل، السنة). لا نجمع أي بيانات غير ضرورية.',
+        ),
+        _LegalSection(
+          number: '2',
+          title: l10n?.legalPrivacySection2Title ?? 'كيفية استخدام بياناتك',
+          content: l10n?.legalPrivacySection2Body ??
+              'نستخدم بياناتك للأغراض التالية: تقديم خدمات الطوارئ، ربطك بأقرب مقدمي الخدمة جغرافياً، إرسال الإشعارات ذات الصلة بطلباتك، تحسين جودة التطبيق وتجربة المستخدم، وضمان أمان المنصة.',
+        ),
+        _LegalSection(
+          number: '3',
+          title: l10n?.legalPrivacySection3Title ?? 'مشاركة البيانات',
+          content: l10n?.legalPrivacySection3Body ??
+              'لا نشارك بياناتك مع أطراف ثالثة إلا في الحالات التالية: عند ضرورة تقديم الخدمة (مشاركة موقعك مع مقدم الخدمة المختار)، أو عند الإلزام القانوني من الجهات الحكومية المختصة، أو بموافقتك الصريحة.',
+        ),
+        _LegalSection(
+          number: '4',
+          title: l10n?.legalPrivacySection4Title ?? 'أمان البيانات',
+          content: l10n?.legalPrivacySection4Body ??
+              'نستخدم أحدث تقنيات التشفير والأمان لحماية بياناتك. نعتمد على Supabase كبنية تحتية آمنة مع تشفير SSL/TLS لجميع الاتصالات. يتم تطبيق سياسات Row Level Security (RLS) لضمان عدم الوصول غير المصرح به لبياناتك.',
+        ),
+        _LegalSection(
+          number: '5',
+          title: l10n?.legalPrivacySection5Title ?? 'حقوقك على بياناتك',
+          content: l10n?.legalPrivacySection5Body ??
+              'لديك الحقوق التالية بشأن بياناتك: حق الوصول والاطلاع على بياناتك المخزنة، حق التصحيح والتعديل، حق حذف حسابك وبياناتك كاملاً، وحق الاعتراض على معالجة بياناتك في حالات معينة.',
+        ),
+        _LegalSection(
+          number: '6',
+          title: l10n?.legalPrivacySection6Title ?? 'بيانات الموقع الجغرافي',
+          content: l10n?.legalPrivacySection6Body ??
+              'نستخدم الموقع الجغرافي فقط خلال جلسة الطلب النشطة لإيجاد أقرب مقدمي الخدمة. لا نتتبع موقعك في الخلفية خارج طلبات الخدمة. يمكنك التحكم في صلاحيات الموقع من إعدادات هاتفك في أي وقت.',
+        ),
+        _LegalSection(
+          number: '7',
+          title: l10n?.legalPrivacySection7Title ?? 'الاحتفاظ بالبيانات',
+          content: l10n?.legalPrivacySection7Body ??
+              'نحتفظ ببيانات حسابك طالما كان حسابك نشطاً. عند حذف حسابك، يتم حذف جميع بياناتك الشخصية خلال 30 يوماً. قد نحتفظ ببعض البيانات المجهولة للتحليل الإحصائي.',
+        ),
+        _LegalSection(
+          number: '8',
+          title: l10n?.legalPrivacySection8Title ?? 'التحديثات على السياسة',
+          content: l10n?.legalPrivacySection8Body ??
+              'قد نقوم بتحديث سياسة الخصوصية هذه من وقت لآخر لتعكس التغييرات في ممارساتنا أو لأسباب تشغيلية أو قانونية. سنُشعرك بأي تغييرات جوهرية عبر إشعار داخل التطبيق قبل دخول التغييرات حيز التنفيذ.',
+        ),
+      ],
       accentColor: const Color(0xFF1E1E1E),
       headerIcon: Icons.shield_rounded,
     );

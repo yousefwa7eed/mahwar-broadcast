@@ -36,6 +36,7 @@ void main() {
       final events = buildTransactionPath(
         _order(OrderStatus.completed,
             createdAt: created, updatedAt: closed, price: 500, providerId: 'p1'),
+        null,
       );
 
       expect(events.first.label, 'تم إرسال الطلب');
@@ -57,17 +58,19 @@ void main() {
       final events = buildTransactionPath(
         _order(OrderStatus.rejectedByOwner,
             price: 500, providerId: 'p1', updatedAt: DateTime.utc(2026, 9, 10, 11)),
+        null,
       );
 
       expect(events.last.label, 'رفض العميل عرض السعر');
       expect(events.last.kind, TransactionEventKind.failure);
-      expect(transactionFailureReason(_order(OrderStatus.rejectedByOwner)),
+      expect(transactionFailureReason(_order(OrderStatus.rejectedByOwner), null),
           'رفض من جهة العميل');
     });
 
     test('رفض من المزوّد بلا عرض سعر سابق: مسار قصير وسبب واضح', () {
       final events = buildTransactionPath(
         _order(OrderStatus.rejectedByProvider, providerId: 'p1'),
+        null,
       );
 
       expect(events.last.label, 'رفض المزوّد المعاملة');
@@ -75,20 +78,22 @@ void main() {
         events.map((e) => e.label),
         isNot(contains('قدّم المزوّد عرض السعر')),
       );
-      expect(transactionFailureReason(_order(OrderStatus.rejectedByProvider)),
+      expect(
+          transactionFailureReason(
+              _order(OrderStatus.rejectedByProvider), null),
           'رفض من جهة المزوّد');
     });
 
     test('الإلغاء: إلغاء تلقائي (مهلة الاستجابة)', () {
-      final events = buildTransactionPath(_order(OrderStatus.cancelled));
+      final events = buildTransactionPath(_order(OrderStatus.cancelled), null);
       expect(events.last.label, 'أُلغي الطلب (انتهت مهلة الاستجابة)');
-      expect(transactionFailureReason(_order(OrderStatus.cancelled)),
+      expect(transactionFailureReason(_order(OrderStatus.cancelled), null),
           'إلغاء تلقائي (انتهت مهلة الاستجابة)');
     });
 
     test('الطلبات غير المنتهية لا تحمل حدث ختامي', () {
       for (final s in [OrderStatus.pending, OrderStatus.priced, OrderStatus.confirmed]) {
-        final events = buildTransactionPath(_order(s));
+        final events = buildTransactionPath(_order(s), null);
         expect(
           events.last.kind,
           isNot(anyOf(TransactionEventKind.success, TransactionEventKind.failure)),

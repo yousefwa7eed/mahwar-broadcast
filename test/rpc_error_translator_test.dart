@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mahwar/core/errors/rpc_error_translator.dart';
+import 'package:mahwar/l10n/app_localizations_en.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 PostgrestException _pg(String message, {String? code}) =>
@@ -10,11 +11,11 @@ void main() {
     test('maps a known custom code from the message', () {
       final error = _pg('PROVIDER_UNAVAILABLE', code: 'P0001');
       expect(
-        RpcErrorTranslator.translate(error),
+        RpcErrorTranslator.translate(error, null),
         contains('لم يعد هذا المزوّد متاحاً'),
       );
       expect(
-        RpcErrorTranslator.translate(error, arabic: false),
+        RpcErrorTranslator.translate(error, AppLocalizationsEn()),
         contains('no longer available'),
       );
     });
@@ -22,11 +23,11 @@ void main() {
     test('maps PHONE_NOT_VERIFIED in both languages', () {
       final error = _pg('PHONE_NOT_VERIFIED', code: 'P0001');
       expect(
-        RpcErrorTranslator.translate(error),
+        RpcErrorTranslator.translate(error, null),
         contains('تأكيد رقم هاتفك'),
       );
       expect(
-        RpcErrorTranslator.translate(error, arabic: false),
+        RpcErrorTranslator.translate(error, AppLocalizationsEn()),
         contains('verify your phone number'),
       );
     });
@@ -34,11 +35,11 @@ void main() {
     test('maps PHONE_CHANGE_REQUIRES_OTP in both languages', () {
       final error = _pg('PHONE_CHANGE_REQUIRES_OTP', code: 'P0001');
       expect(
-        RpcErrorTranslator.translate(error),
+        RpcErrorTranslator.translate(error, null),
         contains('لتغيير رقم الهاتف'),
       );
       expect(
-        RpcErrorTranslator.translate(error, arabic: false),
+        RpcErrorTranslator.translate(error, AppLocalizationsEn()),
         contains('Changing your phone number'),
       );
     });
@@ -46,11 +47,11 @@ void main() {
     test('maps OWNER_NATIONAL_ID_MISSING in both languages', () {
       final error = _pg('OWNER_NATIONAL_ID_MISSING', code: 'P0001');
       expect(
-        RpcErrorTranslator.translate(error),
+        RpcErrorTranslator.translate(error, null),
         contains('رقم قومي صحيح'),
       );
       expect(
-        RpcErrorTranslator.translate(error, arabic: false),
+        RpcErrorTranslator.translate(error, AppLocalizationsEn()),
         contains('national ID is required'),
       );
     });
@@ -63,11 +64,11 @@ void main() {
         code: '23505',
       );
       expect(
-        RpcErrorTranslator.translate(error),
+        RpcErrorTranslator.translate(error, null),
         contains('طلب قيد الانتظار بالفعل'),
       );
       expect(
-        RpcErrorTranslator.translate(error, arabic: false),
+        RpcErrorTranslator.translate(error, AppLocalizationsEn()),
         contains('already have a pending request'),
       );
     });
@@ -76,7 +77,7 @@ void main() {
       // P0001 is not in our table, but the message is a known custom code.
       final error = _pg('NOT_AUTHENTICATED', code: 'P0001');
       expect(
-        RpcErrorTranslator.translate(error),
+        RpcErrorTranslator.translate(error, null),
         contains('انتهت الجلسة'),
       );
     });
@@ -85,18 +86,21 @@ void main() {
   group('RpcErrorTranslator — unknown errors', () {
     test('returns a generic message per language', () {
       expect(
-        RpcErrorTranslator.translate(Exception('boom')),
+        RpcErrorTranslator.translate(Exception('boom'), null),
         'حدث خطأ في الاتصال، حاول مرة أخرى.',
       );
       expect(
-        RpcErrorTranslator.translate(Exception('boom'), arabic: false),
+        RpcErrorTranslator.translate(Exception('boom'), AppLocalizationsEn()),
         'Something went wrong. Please try again.',
       );
     });
 
     test('extracts a custom code from a plain string error', () {
       expect(
-        RpcErrorTranslator.translate('PostgrestException: TOO_MANY_ATTACHMENTS'),
+        RpcErrorTranslator.translate(
+          'PostgrestException: TOO_MANY_ATTACHMENTS',
+          null,
+        ),
         contains('الحد الأقصى 10 صور'),
       );
     });

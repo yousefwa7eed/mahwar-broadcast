@@ -131,7 +131,9 @@ class _NearbyProvidersScreenState extends State<NearbyProvidersScreen> with Widg
       _consecutiveFailures++;
       if (mounted && showLoading) {
         setState(() {
-          _error = 'تعذّر تحميل المزودين: $e';
+          _error = AppLocalizations.of(context)?.providersLoadFailed(
+                  e.toString()) ??
+              'تعذّر تحميل المزودين: $e';
           _isLoading = false;
         });
       } else if (mounted) {
@@ -171,7 +173,7 @@ class _NearbyProvidersScreenState extends State<NearbyProvidersScreen> with Widg
           onPressed: () => context.pop(),
         ),
         title: Text(
-          'اختر المزوّد',
+          l10n?.selectProvider ?? 'اختر المزوّد',
           style: TextStyle(
             fontFamily: 'Zain',
             fontSize: 22,
@@ -280,6 +282,7 @@ class _NearbyProvidersScreenState extends State<NearbyProvidersScreen> with Widg
   }
 
   Widget _buildError(BuildContext context, bool isDark) {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -301,9 +304,9 @@ class _NearbyProvidersScreenState extends State<NearbyProvidersScreen> with Widg
             ElevatedButton(
               onPressed: _loadProviders,
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.orangePrimary),
-              child: const Text(
-                'إعادة المحاولة',
-                style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+              child: Text(
+                l10n?.retry ?? 'إعادة المحاولة',
+                style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -313,6 +316,7 @@ class _NearbyProvidersScreenState extends State<NearbyProvidersScreen> with Widg
   }
 
   Widget _buildEmpty(BuildContext context, bool isDark) {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -320,7 +324,7 @@ class _NearbyProvidersScreenState extends State<NearbyProvidersScreen> with Widg
           const Icon(Icons.location_off_rounded, size: 64, color: AppColors.orangePrimary),
           const SizedBox(height: 16),
           Text(
-            'لا يوجد مزودون متاحون قريباً',
+            l10n?.noNearbyProviders ?? 'لا يوجد مزودون متاحون قريباً',
             style: TextStyle(
               fontFamily: 'Zain',
               fontSize: 20,
@@ -434,7 +438,7 @@ class _NearbyProvidersScreenState extends State<NearbyProvidersScreen> with Widg
                       const Icon(Icons.star_rounded, size: 16, color: Colors.amber),
                       const SizedBox(width: 2),
                       Text(
-                        p.ratingLabel,
+                          p.ratingLabel(l10n),
                         style: TextStyle(
                           fontFamily: 'Cairo',
                           fontSize: 12,

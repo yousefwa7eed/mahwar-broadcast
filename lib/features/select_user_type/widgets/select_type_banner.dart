@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../l10n/app_localizations.dart';
 
 class SelectTypeBanner extends StatelessWidget {
   final bool isDarkMode;
@@ -13,6 +14,7 @@ class SelectTypeBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AspectRatio(
       aspectRatio: 700 / 300,
       child: Container(
@@ -74,7 +76,7 @@ class SelectTypeBanner extends StatelessWidget {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        isArabic ? 'شبكة طوارئ السيارات الأولى' : 'Top Roadside Assistance',
+                                        l10n?.topRoadsideAssistance ?? 'شبكة طوارئ السيارات الأولى',
                                         style: TextStyle(
                                           fontFamily: isArabic ? 'Zain' : 'Poppins',
                                           fontSize: isArabic ? 24 : 18,
@@ -84,9 +86,8 @@ class SelectTypeBanner extends StatelessWidget {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        isArabic
-                                            ? 'خدمة سريعة وآمنة على كافة الطرق 24/7'
-                                            : 'Fast & safe roadside assistance 24/7',
+                                        l10n?.fastSafeRoadside24_7 ??
+                                            'خدمة سريعة وآمنة على كافة الطرق 24/7',
                                         style: TextStyle(
                                           fontFamily: isArabic ? 'Cairo' : 'Poppins',
                                           fontSize: 12,

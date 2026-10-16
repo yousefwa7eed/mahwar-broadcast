@@ -5,6 +5,7 @@ import '../../core/auth/home_route.dart';
 import '../../core/auth/signup_error_mapper.dart';
 import '../../core/settings/app_settings_cubit.dart';
 import '../../core/settings/app_settings_state.dart';
+import '../../l10n/app_localizations.dart';
 import 'widgets/login_header_widget.dart';
 import 'widgets/provider_signup_form_widget.dart';
 import 'widgets/error_dialog.dart';
@@ -27,13 +28,14 @@ class SignupProviderScreen extends StatelessWidget {
             state.user.userMetadata?['phone_number'] as String?,
           );
         } else if (state is AuthError) {
-          showErrorDialog(context, mapSignupError(state.message));
+          showErrorDialog(context, mapSignupError(state.message, AppLocalizations.of(context)));
         }
       },
       child: BlocBuilder<AppSettingsCubit, AppSettingsState>(
         builder: (context, settings) {
           final isDarkMode = settings.themeMode == ThemeMode.dark;
           final isArabic = settings.locale.languageCode == 'ar';
+          final l10n = AppLocalizations.of(context);
 
           return Scaffold(
             backgroundColor: isDarkMode ? const Color(0xFF121212) : const Color(0xFFF9F9FB),
@@ -46,7 +48,8 @@ class SignupProviderScreen extends StatelessWidget {
                     const LoginHeaderWidget(role: 'provider'),
                     const SizedBox(height: 28),
                     Text(
-                      isArabic ? 'انضم لشبكة مزودي خدمة محور' : 'Join Mahwar Provider Network',
+                      l10n?.signupProviderTitle ??
+                          'انضم لشبكة مزودي خدمة محور',
                       style: TextStyle(
                         fontFamily: isArabic ? 'Zain' : 'Poppins',
                         fontSize: 32,
@@ -56,9 +59,8 @@ class SignupProviderScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      isArabic
-                          ? 'سجل بيانات ورشتك أو خدماتك لتلقي طلبات طوارئ الطرق في نطاقك المباشر'
-                          : 'Register your workshop or service details to receive roadside emergency requests in your area',
+                      l10n?.signupProviderSubtitle ??
+                          'سجل بيانات ورشتك أو خدماتك لتلقي طلبات طوارئ الطرق في نطاقك المباشر',
                       style: TextStyle(
                         fontFamily: isArabic ? 'Cairo' : 'Poppins',
                         fontSize: 14,

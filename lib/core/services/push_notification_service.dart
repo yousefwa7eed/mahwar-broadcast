@@ -6,6 +6,7 @@ import '../auth/home_route.dart';
 import '../auth/role_gate.dart';
 import '../models/notification_model.dart';
 import '../notifications/notification_cubit.dart';
+import '../../l10n/app_localizations.dart';
 import '../router/app_router.dart';
 import 'app_messenger.dart';
 import 'device_identity.dart';
@@ -102,8 +103,12 @@ class PushNotificationService {
   // ---------------------------------------------------------------------------
   void _onForegroundMessage(RemoteMessage message) {
     _syncAfterPush();
+    final ctx = AppMessenger.messengerKey.currentContext;
+    final l10n = ctx == null ? null : AppLocalizations.of(ctx);
     AppMessenger.showBanner(
-      title: message.notification?.title ?? 'إشعار جديد',
+      title: message.notification?.title ??
+          l10n?.notificationTitleDefault ??
+          'إشعار جديد',
       body: message.notification?.body,
     );
   }

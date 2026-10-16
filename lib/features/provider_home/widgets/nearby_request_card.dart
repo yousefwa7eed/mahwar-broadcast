@@ -29,7 +29,7 @@ class NearbyRequestCard extends StatelessWidget {
 
   const NearbyRequestCard({
     super.key,
-    this.customerName = 'العميل',
+    this.customerName = '',
     required this.carMake,
     required this.carModel,
     required this.carYear,
@@ -49,6 +49,9 @@ class NearbyRequestCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final l10n = AppLocalizations.of(context);
+    final customerDisplayName = customerName.isEmpty
+        ? (l10n?.notificationCustomerFallback ?? 'العميل')
+        : customerName;
 
     return Container(
       width: double.infinity,
@@ -133,7 +136,7 @@ class NearbyRequestCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  customerName,
+                  customerDisplayName,
                   style: TextStyle(
                     fontFamily: 'Cairo',
                     fontSize: 16,
@@ -176,7 +179,7 @@ class NearbyRequestCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    address.isEmpty ? 'الموقع غير متاح' : address,
+                    address.isEmpty ? (l10n?.locationUnavailable ?? 'الموقع غير متاح') : address,
                     style: TextStyle(
                       fontFamily: 'Cairo',
                       fontSize: 13,
@@ -218,9 +221,9 @@ class NearbyRequestCard extends StatelessWidget {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
-                  child: const Text(
-                    'قبول الطلب',
-                    style: TextStyle(
+                  child: Text(
+                    l10n?.acceptOrder ?? 'قبول الطلب',
+                    style: const TextStyle(
                       fontFamily: 'Cairo',
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
@@ -240,9 +243,9 @@ class NearbyRequestCard extends StatelessWidget {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
-                  child: const Text(
-                    'رفض',
-                    style: TextStyle(
+                  child: Text(
+                    l10n?.reject ?? 'رفض',
+                    style: const TextStyle(
                       fontFamily: 'Cairo',
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
@@ -320,6 +323,7 @@ class _RequestDeadlineState extends State<_RequestDeadline> {
   @override
   Widget build(BuildContext context) {
     final expired = _remaining.inSeconds <= 0;
+    final l10n = AppLocalizations.of(context);
 
     // عند انتهاء المهلة تختفي الرسالة فوراً؛ هذه الحالة هي مجرد احتياط أمان.
     if (expired) return const SizedBox.shrink();
@@ -340,7 +344,8 @@ class _RequestDeadlineState extends State<_RequestDeadline> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'سيُلغى الطلب تلقائياً خلال 5 دقائق — متبقي ${_fmt(_remaining)}',
+              l10n?.autoCancelCountdown(_fmt(_remaining)) ??
+                  'سيُلغى الطلب تلقائياً خلال 5 دقائق — متبقي ${_fmt(_remaining)}',
               style: const TextStyle(
                 fontFamily: 'Cairo',
                 fontSize: 12,

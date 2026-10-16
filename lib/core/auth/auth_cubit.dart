@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -304,7 +305,8 @@ class AuthCubit extends Cubit<AuthState> {
     } on AuthException catch (e) {
       emit(AuthError(e.message));
     } catch (e) {
-      emit(AuthError('حدث خطأ غير متوقع: ${e.toString()}'));
+      debugPrint('[AuthCubit] signUp unexpected error: $e');
+      emit(AuthError('UNEXPECTED_ERROR'));
     }
   }
 
@@ -319,7 +321,7 @@ class AuthCubit extends Cubit<AuthState> {
       try {
         final resolved = await _resolveEmail(identifier.trim());
         if (resolved == null) {
-          emit(const AuthError('لا يوجد حساب مرتبط بهذا الرقم أو البريد الإلكتروني'));
+          emit(AuthError('NO_ACCOUNT_FOUND'));
           return;
         }
         email = resolved;
@@ -327,7 +329,7 @@ class AuthCubit extends Cubit<AuthState> {
         emit(AuthError(e.message));
         return;
       } on Exception {
-        emit(const AuthError('لا يوجد اتصال بالإنترنت، تحقق من اتصالك وحاول مجددًا'));
+        emit(AuthError('NETWORK_ERROR'));
         return;
       }
 
@@ -340,7 +342,8 @@ class AuthCubit extends Cubit<AuthState> {
     } on AuthException catch (e) {
       emit(AuthError(e.message));
     } catch (e) {
-      emit(AuthError('حدث خطأ غير متوقع: ${e.toString()}'));
+      debugPrint('[AuthCubit] signIn unexpected error: $e');
+      emit(AuthError('UNEXPECTED_ERROR'));
     }
   }
 
@@ -350,7 +353,8 @@ class AuthCubit extends Cubit<AuthState> {
       _phoneVerified = null;
       emit(const AuthUnauthenticated());
     } catch (e) {
-      emit(AuthError('حدث خطأ أثناء تسجيل الخروج'));
+      debugPrint('[AuthCubit] signOut failed: $e');
+      emit(AuthError('SIGN_OUT_FAILED'));
     }
   }
 

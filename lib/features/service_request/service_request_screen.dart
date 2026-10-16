@@ -89,6 +89,7 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
   Future<void> _draftWrites = Future<void>.value();
 
   Future<void> _pickImage(ImageSource source) async {
+    final l10n = AppLocalizations.of(context);
     try {
       if (source == ImageSource.camera) {
         final status = await Permission.camera.request();
@@ -131,7 +132,7 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
       debugPrint('Error picking image: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('حدث خطأ: $e')),
+          SnackBar(content: Text(l10n?.errorWithDetail('$e') ?? 'حدث خطأ: $e')),
         );
       }
     }
@@ -445,8 +446,8 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
         debugPrint('national id gate fetch failed: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('حدث خطأ في الاتصال، حاول مرة أخرى.'),
+            SnackBar(
+              content: Text(l10n?.connectionError ?? 'حدث خطأ في الاتصال، حاول مرة أخرى.'),
               backgroundColor: AppColors.error,
             ),
           );
@@ -466,7 +467,7 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
                 (isArabic ? 'الرقم القومي مطلوب' : 'National ID required'),
           ),
           content: Text(
-            l10n?.nationalIdRequiredToOrderBody ??
+            l10n?.needNationalIdFirst ??
                 (isArabic
                     ? 'لإرسال طلب خدمة يجب إضافة رقمك القومي الصحيح أولاً في بياناتك الشخصية.'
                     : 'To submit a service request, add your valid national ID in your personal info first.'),
@@ -523,8 +524,8 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
     if (realServiceTypeId == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('نوع الخدمة غير معروف، يرجى تحديث التطبيق'),
+          SnackBar(
+            content: Text(l10n?.unknownServiceType ?? 'نوع الخدمة غير معروف، يرجى تحديث التطبيق'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -543,7 +544,7 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
     // يوجد أي طلب معلّق يتيم في قاعدة البيانات.
     setState(() {
       _isSubmitting = true;
-      _submitStatusText = 'جاري تجهيز طلبك...';
+      _submitStatusText = l10n?.preparingYourRequest ?? 'جاري تجهيز طلبك...';
     });
 
     try {
@@ -564,12 +565,10 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isSubmitting = false);
-        final isArabic =
-            AppLocalizations.of(context)?.localeName.startsWith('ar') ?? true;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              RpcErrorTranslator.translate(e, arabic: isArabic),
+              RpcErrorTranslator.translate(e, AppLocalizations.of(context)),
             ),
             backgroundColor: AppColors.error,
           ),
@@ -613,6 +612,7 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
 
   /// مؤشر تقدم واضح أثناء حفظ الطلب / ضغط الصور / الرفع.
   Widget _buildSubmittingOverlay(BuildContext context, bool isDark) {
+    final l10n = AppLocalizations.of(context);
     return Positioned.fill(
       child: AbsorbPointer(
         child: Container(
@@ -648,8 +648,8 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-Text(
-                    'يرجى الانتظار، لا تغلق التطبيق',
+                  Text(
+                    l10n?.pleaseWaitDontClose ?? 'يرجى الانتظار، لا تغلق التطبيق',
                     style: TextStyle(
                       fontFamily: 'Cairo',
                       fontSize: 12,
@@ -681,7 +681,7 @@ Text(
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: Text(
-              'خيارات إضافية',
+              l10n?.additionalOptions ?? 'خيارات إضافية',
               style: TextStyle(
                 fontFamily: 'Zain',
                 fontSize: 18,

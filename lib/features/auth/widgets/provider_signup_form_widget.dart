@@ -75,7 +75,6 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
     setState(() => _isLocating = true);
 
     final l10n = AppLocalizations.of(context);
-    final isArabic = l10n?.localeName.startsWith('ar') ?? true;
 
     void showMessage(String message, {Color background = Colors.red}) {
       if (!mounted) return;
@@ -88,7 +87,8 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
       final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         setState(() => _isLocating = false);
-        showMessage(isArabic ? 'يرجى تفعيل خدمة الموقع (GPS) من إعدادات جهازك' : 'Please enable location services (GPS)');
+        showMessage(l10n?.providerEnableLocationService ??
+            'يرجى تفعيل خدمة الموقع (GPS) من إعدادات جهازك');
         return;
       }
 
@@ -97,7 +97,7 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           setState(() => _isLocating = false);
-          showMessage(isArabic ? 'تم رفض إذن الوصول للموقع' : 'Location permission denied');
+          showMessage(l10n?.providerLocationDenied ?? 'تم رفض إذن الوصول للموقع');
           return;
         }
       }
@@ -105,9 +105,8 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
       if (permission == LocationPermission.deniedForever) {
         setState(() => _isLocating = false);
         showMessage(
-          isArabic
-              ? 'إذن الموقع مرفوض بشكل دائم، يرجى تفعيله من إعدادات التطبيق'
-              : 'Location permission permanently denied, please enable it in app settings',
+          l10n?.providerLocationDeniedForever ??
+              'إذن الموقع مرفوض بشكل دائم، يرجى تفعيله من إعدادات التطبيق',
         );
         return;
       }
@@ -152,23 +151,28 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
             ? '${_latitude!.toStringAsFixed(6)}, ${_longitude!.toStringAsFixed(6)}'
             : addressText;
         showMessage(
-          isArabic ? 'تم تحديد موقعك وكتابة العنوان، يمكنك تعديله يدويًا' : 'Location pinned and address filled, you can edit it',
+          l10n?.providerLocationFilled ??
+              'تم تحديد موقعك وكتابة العنوان، يمكنك تعديله يدويًا',
           background: const Color(0xFFFF6B00),
         );
       }
     } catch (e) {
       setState(() => _isLocating = false);
-      showMessage(isArabic ? 'تعذّر تحديد الموقع الحالي' : 'Could not determine current location');
+      showMessage(l10n?.providerLocationDetectFailed ??
+          'تعذّر تحديد الموقع الحالي');
     }
   }
 
   void _submitForm() {
     if (!_formKey.currentState!.validate()) return;
 
+    final l10n = AppLocalizations.of(context);
+
     if (_selectedSpecializations.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('يرجى اختيار تخصص واحد على الأقل'),
+        SnackBar(
+          content: Text(l10n?.providerSelectSpecPrompt ??
+              'يرجى اختيار تخصص واحد على الأقل'),
           backgroundColor: Colors.red,
         ),
       );
@@ -177,8 +181,9 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
 
     if (!_agreedToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('يجب الموافقة على الشروط والأحكام وميثاق الخدمة'),
+        SnackBar(
+          content: Text(l10n?.providerAgreeTermsPrompt ??
+              'يجب الموافقة على الشروط والأحكام وميثاق الخدمة'),
           backgroundColor: Colors.red,
         ),
       );
@@ -235,10 +240,11 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
             ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return isArabic ? 'يرجى إدخال الاسم رباعي' : 'Please enter full name';
+                return l10n?.providerFullNameRequired ?? 'يرجى إدخال الاسم رباعي';
               }
               if (value.trim().split(' ').length < 3) {
-                return isArabic ? 'يرجى كتابة الاسم الثلاثي على الأقل' : 'Please enter at least 3 names';
+                return l10n?.providerNameAtLeast3 ??
+                    'يرجى كتابة الاسم الثلاثي على الأقل';
               }
               return null;
             },
@@ -257,13 +263,12 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
             ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return isArabic ? 'يرجى إدخال رقم الهاتف' : 'Please enter phone number';
+                return l10n?.providerEnterPhone ?? 'يرجى إدخال رقم الهاتف';
               }
               final clean = value.trim();
               if (!RegExp(r'^01[0125][0-9]{8}$').hasMatch(clean)) {
-                return isArabic
-                    ? 'رقم هاتف مصري غير صحيح (11 رقم)'
-                    : 'Invalid Egyptian phone number (11 digits)';
+                return l10n?.providerInvalidPhone ??
+                    'رقم هاتف مصري غير صحيح (11 رقم)';
               }
               return null;
             },
@@ -281,7 +286,7 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
             validator: (value) {
               if (value != null && value.trim().isNotEmpty) {
                 if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value.trim())) {
-                  return isArabic ? 'صيغة البريد الإلكتروني غير صحيحة' : 'Invalid email format';
+                  return l10n?.invalidEmailFormat ?? 'صيغة البريد الإلكتروني غير صحيحة';
                 }
               }
               return null;
@@ -297,17 +302,17 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
             maxLength: 14,
             decoration: InputDecoration(
               labelText: '${l10n?.nationalId ?? (isArabic ? 'الرقم القومي' : 'National ID')} *',
-              hintText: '14 رقم قومي مدون في البطاقة',
+              hintText: l10n?.providerNationalIdHint ?? '14 رقم قومي مدون في البطاقة',
               prefixIcon: const Icon(Icons.badge_outlined),
               counterText: '',
-              helperText: isArabic
-                  ? 'إجباري لمزودي الخدمة لتوثيق الحساب والأمان'
-                  : 'Mandatory for service providers for security verification',
+              helperText: l10n?.providerNationalIdHelper ??
+                  'إجباري لمزودي الخدمة لتوثيق الحساب والأمان',
               helperStyle: const TextStyle(color: Color(0xFFFF6B00), fontSize: 11),
             ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return isArabic ? 'الرقم القومي إجباري لمزودي الخدمة' : 'National ID is mandatory';
+                return l10n?.providerNationalIdRequired ??
+                    'الرقم القومي إجباري لمزودي الخدمة';
               }
               if (!NationalIdUtils.isValid(value)) {
                 return l10n?.nationalIdInvalid ??
@@ -324,7 +329,7 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
 
           // Section Title: Business Details
           Text(
-            isArabic ? 'بيانات الورشة والخدمة' : 'Workshop & Service Details',
+            l10n?.providerWorkshopSectionTitle ?? 'بيانات الورشة والخدمة',
             style: TextStyle(
               fontFamily: isArabic ? 'Zain' : 'Poppins',
               fontSize: 22,
@@ -343,7 +348,7 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
             ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return isArabic ? 'يرجى إدخال اسم الورشة أو التوكيل' : 'Please enter workshop name';
+                return l10n?.providerWorkshopRequired ?? 'يرجى إدخال اسم الورشة أو التوكيل';
               }
               return null;
             },
@@ -358,7 +363,8 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
             decoration: InputDecoration(
               labelText: l10n?.address ?? (isArabic ? 'العنوان التفصيلي' : 'Address'),
               prefixIcon: const Icon(Icons.location_on_outlined),
-              hintText: isArabic ? 'حدد موقعك تلقائيًا أو اكتب العنوان يدويًا' : 'Use auto-location or type your address',
+              hintText: l10n?.providerAddressHint ??
+                  'حدد موقعك تلقائيًا أو اكتب العنوان يدويًا',
               suffixIcon: _isLocating
                   ? const Padding(
                       padding: EdgeInsets.all(12),
@@ -366,13 +372,13 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
                     )
                   : IconButton(
                       icon: const Icon(Icons.my_location_rounded, color: Color(0xFFFF6B00)),
-                      tooltip: isArabic ? 'تحديد موقعي وكتابة العنوان تلقائيًا' : 'Use my current location',
+                      tooltip: l10n?.providerLocateTooltip ?? 'تحديد موقعي وكتابة العنوان تلقائيًا',
                       onPressed: _pickCurrentLocation,
                     ),
             ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return isArabic ? 'يرجى إدخال عنوان الورشة/المقر' : 'Please enter detailed address';
+                return l10n?.providerAddressRequired ?? 'يرجى إدخال عنوان الورشة/المقر';
               }
               return null;
             },
@@ -384,9 +390,8 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  isArabic
-                      ? 'اضغط على أيقونة الموقع لملء العنوان تلقائيًا، ويمكنك تعديله بعد ذلك'
-                      : 'Tap the location icon to auto-fill the address, then edit if needed',
+                  l10n?.providerAutoFillHint ??
+                      'اضغط على أيقونة الموقع لملء العنوان تلقائيًا، ويمكنك تعديله بعد ذلك',
                   style: TextStyle(
                     fontFamily: isArabic ? 'Cairo' : 'Poppins',
                     fontSize: 12,
@@ -441,7 +446,7 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
                   child: ChoiceChip(
                     label: Center(
                       child: Text(
-                        isArabic ? 'طوارئ الطريق' : 'Roadside',
+                        l10n?.providerScopeRoadside ?? 'طوارئ الطريق',
                         style: const TextStyle(fontSize: 12),
                       ),
                     ),
@@ -460,7 +465,7 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
                   child: ChoiceChip(
                     label: Center(
                       child: Text(
-                        isArabic ? 'في الورشة' : 'On-site',
+                        l10n?.providerScopeOnSite ?? 'في الورشة',
                         style: const TextStyle(fontSize: 12),
                       ),
                     ),
@@ -479,7 +484,7 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
                   child: ChoiceChip(
                     label: Center(
                       child: Text(
-                        isArabic ? 'كلاهما' : 'Both',
+                        l10n?.supportScopeBoth ?? 'كلاهما',
                         style: const TextStyle(fontSize: 12),
                       ),
                     ),
@@ -542,13 +547,13 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
             TextFormField(
               controller: _vehicleMakeController,
               decoration: InputDecoration(
-                labelText: isArabic ? 'ماركة السيارة' : 'Vehicle Make',
-                hintText: isArabic ? 'مثال: تويوتا' : 'e.g. Toyota',
+                labelText: l10n?.providerVehicleMakeLabel ?? 'ماركة السيارة',
+                hintText: l10n?.providerVehicleMakeHint ?? 'مثال: تويوتا',
                 prefixIcon: const Icon(Icons.directions_car),
               ),
               validator: (value) {
                 if (_hasServiceVehicle && (value == null || value.trim().isEmpty)) {
-                  return isArabic ? 'يرجى إدخال ماركة السيارة' : 'Please enter vehicle make';
+                  return l10n?.providerVehicleMakeRequired ?? 'يرجى إدخال ماركة السيارة';
                 }
                 return null;
               },
@@ -557,13 +562,13 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
             TextFormField(
               controller: _vehicleModelController,
               decoration: InputDecoration(
-                labelText: isArabic ? 'موديل السيارة' : 'Vehicle Model',
-                hintText: isArabic ? 'مثال: كورولا' : 'e.g. Corolla',
+                labelText: l10n?.providerVehicleModelLabel ?? 'موديل السيارة',
+                hintText: l10n?.providerVehicleModelHint ?? 'مثال: كورولا',
                 prefixIcon: const Icon(Icons.directions_car),
               ),
               validator: (value) {
                 if (_hasServiceVehicle && (value == null || value.trim().isEmpty)) {
-                  return isArabic ? 'يرجى إدخال موديل السيارة' : 'Please enter vehicle model';
+                  return l10n?.providerVehicleModelRequired ?? 'يرجى إدخال موديل السيارة';
                 }
                 return null;
               },
@@ -578,13 +583,13 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     maxLength: 4,
                     decoration: InputDecoration(
-                      labelText: isArabic ? 'السنة' : 'Year',
+                      labelText: l10n?.providerVehicleYearLabel ?? 'السنة',
                       hintText: '2024',
                       prefixIcon: const Icon(Icons.calendar_today),
                     ),
                     validator: (value) {
                       if (_hasServiceVehicle && (value == null || value.trim().isEmpty)) {
-                        return isArabic ? 'مطلوب' : 'Required';
+                        return l10n?.providerVehicleYearRequired ?? 'مطلوب';
                       }
                       return null;
                     },
@@ -595,8 +600,8 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
                   child: TextFormField(
                     controller: _vehicleColorController,
                     decoration: InputDecoration(
-                      labelText: isArabic ? 'اللون' : 'Color',
-                      hintText: isArabic ? 'أبيض' : 'White',
+                      labelText: l10n?.providerVehicleColorLabel ?? 'اللون',
+                      hintText: l10n?.providerVehicleColorHint ?? 'أبيض',
                       prefixIcon: const Icon(Icons.color_lens),
                     ),
                   ),
@@ -607,13 +612,13 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
             TextFormField(
               controller: _vehiclePlateController,
               decoration: InputDecoration(
-                labelText: isArabic ? 'رقم اللوحة' : 'Plate Number',
-                hintText: 'أ ب ج 1234',
+                labelText: l10n?.providerVehiclePlateLabel ?? 'رقم اللوحة',
+                hintText: l10n?.providerVehiclePlateHint ?? 'أ ب ج 1234',
                 prefixIcon: const Icon(Icons.pin),
               ),
               validator: (value) {
                 if (_hasServiceVehicle && (value == null || value.trim().isEmpty)) {
-                  return isArabic ? 'يرجى إدخال رقم اللوحة' : 'Please enter plate number';
+                  return l10n?.providerVehiclePlateRequired ?? 'يرجى إدخال رقم اللوحة';
                 }
                 return null;
               },
@@ -624,7 +629,7 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
               keyboardType: TextInputType.text,
               decoration: InputDecoration(
                 labelText: l10n?.vehicleSpecs ?? (isArabic ? 'مواصفات إضافية' : 'Additional Specs'),
-                hintText: isArabic ? 'مثال: ونش هيدروليك' : 'e.g. Hydraulic crane',
+                hintText: l10n?.providerVehicleSpecsHint ?? 'مثال: ونش هيدروليك',
                 prefixIcon: const Icon(Icons.minor_crash_outlined),
               ),
             ),
@@ -652,10 +657,11 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return isArabic ? 'يرجى إدخال كلمة المرور' : 'Please enter password';
+                return l10n?.providerEnterPassword ?? 'يرجى إدخال كلمة المرور';
               }
               if (value.length < 6) {
-                return isArabic ? 'كلمة المرور يجب أن لا تقل عن 6 خانات' : 'Password must be at least 6 characters';
+                return l10n?.providerPasswordTooShort ??
+                    'كلمة المرور يجب أن لا تقل عن 6 خانات';
               }
               return null;
             },
@@ -680,7 +686,7 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
             ),
             validator: (value) {
               if (value != _passwordController.text) {
-                return isArabic ? 'كلمتا المرور غير متطابقتين' : 'Passwords do not match';
+                return l10n?.passwordsDoNotMatch ?? 'كلمتا المرور غير متطابقتين';
               }
               return null;
             },
@@ -749,7 +755,7 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                isArabic ? 'لديك حساب بالفعل؟' : 'Already have an account?',
+                l10n?.alreadyHaveAccount ?? 'لديك حساب بالفعل؟',
                 style: TextStyle(
                   fontFamily: isArabic ? 'Cairo' : 'Poppins',
                   fontSize: 14,

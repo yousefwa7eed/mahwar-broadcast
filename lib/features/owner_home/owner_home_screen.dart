@@ -187,7 +187,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(RpcErrorTranslator.translate(e)),
+            content: Text(RpcErrorTranslator.translate(e, l10n)),
             backgroundColor: AppColors.error,
           ),
         );
@@ -202,9 +202,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
 
     final confirmed = await showConfirmDialog(
       context,
-      title: 'رفض عرض السعر؟',
-      message: 'سيتم رفض عرض المزوّد وإنهاء هذا الطلب.',
-      confirmLabel: 'نعم، رفض العرض',
+      title: l10n?.rejectOfferConfirmTitle ?? 'رفض عرض السعر؟',
+      message: l10n?.rejectOfferConfirmBody ?? 'سيتم رفض عرض المزوّد وإنهاء هذا الطلب.',
+      confirmLabel: l10n?.rejectOfferConfirmLabel ?? 'نعم، رفض العرض',
       confirmColor: AppColors.error,
     );
     if (confirmed != true || !mounted) return;
@@ -226,7 +226,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(RpcErrorTranslator.translate(e)),
+            content: Text(RpcErrorTranslator.translate(e, l10n)),
             backgroundColor: AppColors.error,
           ),
         );
@@ -371,9 +371,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
               const Spacer(),
               TextButton(
                 onPressed: () => context.push('/orders/owner'),
-                child: const Text(
-                  'عرض الكل',
-                  style: TextStyle(
+                child: Text(
+                  l10n?.viewAll ?? 'عرض الكل',
+                  style: const TextStyle(
                     fontFamily: 'Cairo',
                     fontSize: 13,
                     color: AppColors.orangePrimary,
@@ -419,7 +419,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                order.statusLabel,
+                                order.statusLabel(l10n),
                                 style: TextStyle(
                                   fontFamily: 'Cairo',
                                   fontSize: 12,
@@ -431,7 +431,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                             if (order.offeredPrice != null) ...[
                               const Spacer(),
                               Text(
-                                '${order.offeredPrice!.toStringAsFixed(0)} ج.م',
+                                '${order.offeredPrice!.toStringAsFixed(0)} ${l10n?.egp ?? 'ج.م'}',
                                 style: const TextStyle(
                                   fontFamily: 'Cairo',
                                   fontSize: 16,

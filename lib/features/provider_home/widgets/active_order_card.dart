@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/models/order.dart';
 import '../../../core/widgets/attachments_gallery.dart';
+import '../../../l10n/app_localizations.dart';
 import 'order_live_badge.dart';
 import 'order_progress_stepper.dart';
 
@@ -27,7 +28,7 @@ class ActiveOrderCard extends StatelessWidget {
 
   const ActiveOrderCard({
     super.key,
-    this.customerName = 'العميل',
+    this.customerName = '',
     required this.carMake,
     required this.carModel,
     required this.carYear,
@@ -62,6 +63,10 @@ class ActiveOrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final l10n = AppLocalizations.of(context);
+    final customerDisplayName = customerName.isEmpty
+        ? (l10n?.notificationCustomerFallback ?? 'العميل')
+        : customerName;
 
     return Container(
       width: double.infinity,
@@ -123,7 +128,7 @@ class ActiveOrderCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  '${offeredPrice!.toStringAsFixed(0)} ج.م',
+                  '${offeredPrice!.toStringAsFixed(0)} ${l10n?.egp ?? 'ج.م'}',
                   style: const TextStyle(
                     fontFamily: 'Cairo',
                     fontSize: 16,
@@ -143,7 +148,7 @@ class ActiveOrderCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  customerName,
+                  customerDisplayName,
                   style: TextStyle(
                     fontFamily: 'Cairo',
                     fontSize: 16,
@@ -205,7 +210,7 @@ class ActiveOrderCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    address.isEmpty ? 'الموقع غير متاح' : address,
+                    address.isEmpty ? (l10n?.locationUnavailable ?? 'الموقع غير متاح') : address,
                     style: TextStyle(
                       fontFamily: 'Cairo',
                       fontSize: 13,
@@ -249,6 +254,7 @@ class ActiveOrderCard extends StatelessWidget {
   }
 
   Widget _buildFooter(BuildContext context, bool isDark) {
+    final l10n = AppLocalizations.of(context);
     switch (status) {
       case OrderStatus.confirmed:
         return Row(
@@ -257,9 +263,9 @@ class ActiveOrderCard extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: onComplete,
                 icon: const Icon(Icons.done_all_rounded, size: 18),
-                label: const Text(
-                  'إتمام الطلب',
-                  style: TextStyle(
+                label: Text(
+                  l10n?.completeOrder ?? 'إتمام الطلب',
+                  style: const TextStyle(
                     fontFamily: 'Cairo',
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
@@ -297,8 +303,9 @@ class ActiveOrderCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   status == OrderStatus.pending
-                      ? 'بانتظار ردّك على الطلب'
-                      : 'بانتظار تأكيد العميل للعرض',
+                      ? (l10n?.waitingYourResponse ?? 'بانتظار ردّك على الطلب')
+                      : (l10n?.waitingCustomerConfirmation ??
+                          'بانتظار تأكيد العميل للعرض'),
                   style: const TextStyle(
                     fontFamily: 'Cairo',
                     fontSize: 13,

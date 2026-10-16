@@ -7,7 +7,7 @@ import '../../core/auth/home_route.dart';
 import '../../core/auth/otp_error_mapper.dart';
 import '../../core/auth/phone_utils.dart';
 import '../../core/config/app_config.dart';
-import '../../core/settings/app_settings_cubit.dart';
+import '../../l10n/app_localizations.dart';
 import 'widgets/error_dialog.dart';
 
 /// قبل توجيه المستخدم للرئيسية بعد التسجيل، يربط رقم هاتفه بالحساب (يرسل
@@ -32,13 +32,13 @@ Future<void> continueToPhoneVerification(
     return;
   }
 
-  final isArabic = context.read<AppSettingsCubit>().state.locale.languageCode == 'ar';
+  final l10n = AppLocalizations.of(context);
   final cubit = context.read<AuthCubit>();
   try {
     await cubit.attachPhone(normalized);
   } catch (e) {
     if (!context.mounted) return;
-    showErrorDialog(context, mapOtpError(e, isArabic: isArabic));
+    showErrorDialog(context, mapOtpError(e, l10n));
     return;
   }
 

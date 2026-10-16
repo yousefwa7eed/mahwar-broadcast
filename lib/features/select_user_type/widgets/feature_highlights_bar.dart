@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../l10n/app_localizations.dart';
 
 class FeatureHighlightsBar extends StatelessWidget {
   final bool isDarkMode;
@@ -12,21 +13,19 @@ class FeatureHighlightsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final highlights = [
       {
         'icon': Icons.gps_fixed_rounded,
-        'ar': 'تتبع جغرافي حي',
-        'en': 'Live GPS Tracking',
+        'title': l10n?.highlightLiveTracking ?? 'تتبع جغرافي حي',
       },
       {
         'icon': Icons.verified_user_outlined,
-        'ar': 'تسعير شفاف 100%',
-        'en': '100% Transparent Price',
+        'title': l10n?.highlightTransparentPricing ?? 'تسعير شفاف 100%',
       },
       {
         'icon': Icons.bolt_rounded,
-        'ar': 'نجدة سريعة 24/7',
-        'en': 'Fast Response 24/7',
+        'title': l10n?.highlightFastResponse ?? 'نجدة سريعة 24/7',
       },
     ];
 
@@ -44,7 +43,7 @@ class FeatureHighlightsBar extends StatelessWidget {
       child: Row(
         children: highlights.map((item) {
           final icon = item['icon'] as IconData;
-          final title = isArabic ? item['ar'] as String : item['en'] as String;
+          final title = item['title'] as String;
 
           return Container(
             margin: const EdgeInsets.only(left: 8, right: 2),

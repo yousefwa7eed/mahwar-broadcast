@@ -120,7 +120,7 @@ class OrderStatusIndicator extends StatelessWidget {
       case OrderStatus.cancelled:
         return l10n?.orderCancelled ?? 'تم إلغاء الطلب';
       case OrderStatus.completed:
-        return 'تم إتمام الطلب';
+        return l10n?.orderStatusCompletedTitle ?? 'تم إتمام الطلب';
     }
   }
 
@@ -139,7 +139,8 @@ class OrderStatusIndicator extends StatelessWidget {
       case OrderStatus.cancelled:
         return l10n?.orderCancelledSub ?? 'تم إلغاء هذا الطلب';
       case OrderStatus.completed:
-        return 'تمت الخدمة بنجاح، نأمل أن تكون تجربتك جيدة';
+        return l10n?.orderStatusCompletedSubtitle ??
+            'تمت الخدمة بنجاح، نأمل أن تكون تجربتك جيدة';
     }
   }
 }

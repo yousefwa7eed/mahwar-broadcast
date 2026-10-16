@@ -78,7 +78,8 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('حدث خطأ أثناء اختيار الصورة: $e')),
+          SnackBar(content: Text(
+              '${AppLocalizations.of(context)?.imagePickError ?? 'حدث خطأ أثناء اختيار الصورة'}: $e')),
         );
       }
     }
@@ -204,7 +205,8 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'تعذّر تحميل بيانات الطلب: $e';
+          _error =
+              '${AppLocalizations.of(context)?.orderLoadFailed ?? 'تعذّر تحميل بيانات الطلب'}: $e';
           _isLoading = false;
         });
       }
@@ -221,8 +223,9 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
     }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('عذراً، هذا الطلب لم يعد متاحاً (ربما انتهت مدته)'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)?.orderNoLongerAvailable ??
+              'عذراً، هذا الطلب لم يعد متاحاً (ربما انتهت مدته)'),
           backgroundColor: AppColors.warning,
         ),
       );
@@ -234,8 +237,9 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
   Future<void> _submitOffer() async {
     if (_priceController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('يرجى إدخال السعر المقترح'),
+        SnackBar(
+          content: Text(
+              AppLocalizations.of(context)?.enterPrice ?? 'يرجى إدخال السعر المقترح'),
           backgroundColor: Colors.red,
         ),
       );
@@ -245,8 +249,9 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
     final price = double.tryParse(_priceController.text);
     if (price == null || price <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('يرجى إدخال سعر صحيح'),
+        SnackBar(
+          content: Text(
+              AppLocalizations.of(context)?.enterValidPrice ?? 'يرجى إدخال سعر صحيح'),
           backgroundColor: Colors.red,
         ),
       );
@@ -290,8 +295,9 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
       if (mounted) {
         setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم إرسال عرض السعر بنجاح'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)?.offerSentSuccess ??
+                'تم إرسال عرض السعر بنجاح'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -311,7 +317,7 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
         setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(RpcErrorTranslator.translate(e)),
+            content: Text(RpcErrorTranslator.translate(e, AppLocalizations.of(context))),
             backgroundColor: AppColors.error,
           ),
         );
@@ -327,24 +333,25 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: isDark ? AppColors.darkCard : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'رفض الطلب',
-          style: TextStyle(fontFamily: 'Zain'),
+        title: Text(
+          AppLocalizations.of(context)?.rejectOrder ?? 'رفض الطلب',
+          style: const TextStyle(fontFamily: 'Zain'),
         ),
-        content: const Text(
-          'هل أنت متأكد من رفض هذا الطلب؟',
-          style: TextStyle(fontFamily: 'Cairo'),
+        content: Text(
+          AppLocalizations.of(context)?.rejectOrderConfirm ??
+              'هل أنت متأكد من رفض هذا الطلب؟',
+          style: const TextStyle(fontFamily: 'Cairo'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
+            child: Text(AppLocalizations.of(context)?.cancel ?? 'إلغاء'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'رفض',
-              style: TextStyle(color: AppColors.error),
+            child: Text(
+              AppLocalizations.of(context)?.reject ?? 'رفض',
+              style: const TextStyle(color: AppColors.error),
             ),
           ),
         ],
@@ -362,8 +369,9 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم رفض الطلب'),
+          SnackBar(
+            content: Text(
+                AppLocalizations.of(context)?.orderRejectedToast ?? 'تم رفض الطلب'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -375,7 +383,7 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
         setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(RpcErrorTranslator.translate(e)),
+            content: Text(RpcErrorTranslator.translate(e, AppLocalizations.of(context))),
             backgroundColor: AppColors.error,
           ),
         );
@@ -386,6 +394,7 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
@@ -400,7 +409,7 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
           onPressed: () => context.pop(),
         ),
         title: Text(
-          'تقديم عرض سعر',
+          l10n?.offerPrice ?? 'تقديم عرض سعر',
           style: TextStyle(
             fontFamily: 'Zain',
             fontSize: 22,
@@ -486,7 +495,7 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
                       ),
                     const Spacer(),
                     Text(
-                      order.statusLabel,
+                      order.statusLabel(l10n),
                       style: TextStyle(
                         fontFamily: 'Cairo',
                         fontSize: 12,
@@ -524,9 +533,9 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
                 ],
                 if (order.attachments != null && order.attachments!.isNotEmpty) ...[
                   const SizedBox(height: 10),
-                  const Text(
-                    'صور من العميل',
-                    style: TextStyle(
+                  Text(
+                    l10n?.customerPhotos ?? 'صور من العميل',
+                    style: const TextStyle(
                       fontFamily: 'Zain',
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
@@ -556,9 +565,9 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  'خريطة موقع العميل',
-                  style: TextStyle(
+                Text(
+                  l10n?.customerLocationMap ?? 'خريطة موقع العميل',
+                  style: const TextStyle(
                     fontFamily: 'Zain',
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
@@ -577,7 +586,7 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
 
           // Price Input
           Text(
-            'السعر المقترح (ج.م)',
+            l10n?.proposedPriceEgp ?? 'السعر المقترح (ج.م)',
             style: TextStyle(
               fontFamily: 'Zain',
               fontSize: 18,
@@ -591,13 +600,13 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
             decoration: InputDecoration(
-              hintText: 'مثال: 350',
+              hintText: l10n?.priceHintExample ?? 'مثال: 350',
               hintStyle: TextStyle(
                 fontFamily: 'Cairo',
                 color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
               ),
               prefixIcon: const Icon(Icons.attach_money_rounded, color: AppColors.orangePrimary),
-              suffixText: 'ج.م',
+              suffixText: l10n?.egp ?? 'ج.م',
               suffixStyle: const TextStyle(
                 fontFamily: 'Cairo',
                 fontSize: 16,
@@ -630,7 +639,7 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
 
           // Time Input
           Text(
-            'الوقت المتوقع للوصول (دقيقة)',
+            l10n?.etaMinutesLabel ?? 'الوقت المتوقع للوصول (دقيقة)',
             style: TextStyle(
               fontFamily: 'Zain',
               fontSize: 18,
@@ -644,13 +653,13 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             decoration: InputDecoration(
-              hintText: 'مثال: 15',
+              hintText: l10n?.etaHintExample ?? 'مثال: 15',
               hintStyle: TextStyle(
                 fontFamily: 'Cairo',
                 color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
               ),
               prefixIcon: const Icon(Icons.access_time_rounded, color: AppColors.orangePrimary),
-              suffixText: 'دقيقة',
+              suffixText: l10n?.min ?? 'دقيقة',
               suffixStyle: const TextStyle(
                 fontFamily: 'Cairo',
                 fontSize: 16,
@@ -683,7 +692,7 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
 
           // Notes (optional)
           Text(
-            'ملاحظات للمالك (اختياري)',
+            l10n?.notesToOwnerOptional ?? 'ملاحظات للمالك (اختياري)',
             style: TextStyle(
               fontFamily: 'Zain',
               fontSize: 18,
@@ -696,7 +705,7 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
             controller: _notesController,
             maxLines: 3,
             decoration: InputDecoration(
-              hintText: 'اكتب أي تفاصيل إضافية عن الخدمة...',
+              hintText: l10n?.notesHint ?? 'اكتب أي تفاصيل إضافية عن الخدمة...',
               hintStyle: TextStyle(
                 fontFamily: 'Cairo',
                 color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
@@ -729,7 +738,8 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
           if (_providerImages.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(
-              'صور مرفقة منك (${_providerImages.length})',
+              l10n?.yourAttachedPhotos(_providerImages.length) ??
+                  'صور مرفقة منك (${_providerImages.length})',
               style: TextStyle(
                 fontFamily: 'Zain',
                 fontSize: 15,
@@ -794,9 +804,9 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
               ),
               child: _isSubmitting
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text(
-                      'تقديم العرض',
-                      style: TextStyle(
+                  : Text(
+                      l10n?.submitOffer ?? 'تقديم العرض',
+                      style: const TextStyle(
                         fontFamily: 'Zain',
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -819,9 +829,9 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
                   borderRadius: BorderRadius.circular(16),
                 ),
               ),
-              child: const Text(
-                'رفض الطلب',
-                style: TextStyle(
+              child: Text(
+                l10n?.rejectOrder ?? 'رفض الطلب',
+                style: const TextStyle(
                   fontFamily: 'Zain',
                   fontSize: 18,
                   fontWeight: FontWeight.bold,

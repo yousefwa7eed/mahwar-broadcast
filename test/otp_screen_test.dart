@@ -11,6 +11,7 @@ import 'package:mahwar/core/settings/app_settings_cubit.dart';
 import 'package:mahwar/features/auth/otp_cooldown_store.dart';
 import 'package:mahwar/features/auth/otp_screen.dart';
 import 'package:mahwar/l10n/app_localizations.dart';
+import 'package:mahwar/l10n/app_localizations_en.dart';
 
 import 'fakes/fake_auth_service.dart';
 
@@ -477,19 +478,19 @@ void main() {
     expect(
       mapChangePhoneLookupError(
         const PostgrestException(message: 'TOO_MANY_LOOKUPS', code: 'P0001'),
-        isArabic: true,
+        null,
       ),
       'تم تجاوز عدد المحاولات. حاول مرة أخرى لاحقاً.',
     );
     expect(
       mapChangePhoneLookupError(
         AuthApiException('rl', code: 'over_request_rate_limit'),
-        isArabic: false,
+        AppLocalizationsEn(),
       ),
       'Too many attempts. Please try again later.',
     );
     expect(
-      mapChangePhoneLookupError(Exception('network'), isArabic: true),
+      mapChangePhoneLookupError(Exception('network'), null),
       'تعذّر التحقق من رقم الهاتف. حاول مرة أخرى.',
     );
   });
@@ -602,33 +603,33 @@ void main() {
     expect(
       mapRecoverySendError(
         AuthApiException('no user', code: 'user_not_found'),
-        isArabic: true,
+        null,
       ),
       neutral,
     );
     expect(
       mapRecoverySendError(
         AuthApiException('not confirmed', code: 'phone_not_confirmed'),
-        isArabic: true,
+        null,
       ),
       neutral,
     );
     expect(
       mapRecoverySendError(
         AuthApiException('blocked', code: 'phone_only_account_blocked'),
-        isArabic: true,
+        null,
       ),
       neutral,
     );
     expect(
       mapRecoverySendError(
         AuthApiException('sms error', code: 'sms_send_failed'),
-        isArabic: true,
+        null,
       ),
       'تعذّر إرسال الرمز. حاول مرة أخرى لاحقاً.',
     );
     expect(
-      mapRecoverySendError(Exception('raw'), isArabic: true),
+      mapRecoverySendError(Exception('raw'), null),
       'حدث خطأ ما. تحقق من اتصالك وحاول مرة أخرى.',
     );
   });
@@ -637,19 +638,19 @@ void main() {
     expect(
       mapOtpError(
         AuthApiException('sms error', code: 'sms_send_failed'),
-        isArabic: true,
+        null,
       ),
       'تعذّر إرسال الرمز. حاول مرة أخرى لاحقاً.',
     );
     expect(
       mapOtpError(
         AuthApiException('otp expired', code: 'otp_expired'),
-        isArabic: true,
+        null,
       ),
       'الرمز غير صحيح أو منتهي الصلاحية. حاول مرة أخرى.',
     );
     expect(
-      mapOtpError(Exception('raw'), isArabic: true),
+      mapOtpError(Exception('raw'), null),
       'حدث خطأ ما. تحقق من اتصالك وحاول مرة أخرى.',
     );
   });

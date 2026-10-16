@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/models/order.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../provider_home/widgets/order_live_badge.dart';
 import '../../provider_home/widgets/order_progress_stepper.dart';
 
@@ -32,14 +33,6 @@ class ActiveOrderWidget extends StatefulWidget {
     this.onReject,
   });
 
-  /// ملصقات المراحل من منظور العميل (تطابق ترتيب مراحل المزوّد نفسها).
-  static const List<String> _ownerStepLabels = [
-    'تم الإرسال',
-    'استجابة المزوّد',
-    'التأكيد',
-    'الإتمام',
-  ];
-
   @override
   State<ActiveOrderWidget> createState() => _ActiveOrderWidgetState();
 }
@@ -64,6 +57,13 @@ class _ActiveOrderWidgetState extends State<ActiveOrderWidget> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final l10n = AppLocalizations.of(context);
+    final ownerStepLabels = [
+      l10n?.ownerStepSent ?? 'تم الإرسال',
+      l10n?.ownerStepProviderResponse ?? 'استجابة المزوّد',
+      l10n?.stepConfirmation ?? 'التأكيد',
+      l10n?.stepCompletion ?? 'الإتمام',
+    ];
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -98,7 +98,7 @@ class _ActiveOrderWidgetState extends State<ActiveOrderWidget> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      order.statusLabel,
+                      order.statusLabel(l10n),
                       style: TextStyle(
                         fontFamily: 'Cairo',
                         fontSize: 12,
@@ -146,7 +146,7 @@ class _ActiveOrderWidgetState extends State<ActiveOrderWidget> {
               const SizedBox(height: 4),
               if (providerName.isNotEmpty)
                 Text(
-                  'المزود: $providerName',
+                  '${l10n?.providerLabel ?? 'المزود:'} $providerName',
                   style: TextStyle(
                     fontFamily: 'Cairo',
                     fontSize: 13,
@@ -163,7 +163,7 @@ class _ActiveOrderWidgetState extends State<ActiveOrderWidget> {
               OrderProgressStepper(
                 status: order.status,
                 direction: Axis.vertical,
-                labels: ActiveOrderWidget._ownerStepLabels,
+                labels: ownerStepLabels,
               ),
               // أزرار القبول/الرفض في أسفل البطاقة تماماً (بنفس نمط زر
               // «إتمام الطلب» عند المزوّد) — تظهر فور وصول عرض السعر بدون
@@ -176,9 +176,9 @@ class _ActiveOrderWidgetState extends State<ActiveOrderWidget> {
                       child: ElevatedButton.icon(
                         onPressed: _isActing ? null : () => _run(widget.onAccept),
                         icon: const Icon(Icons.check_rounded, size: 20),
-                        label: const Text(
-                          'قبول العرض',
-                          style: TextStyle(
+                        label: Text(
+                          l10n?.acceptOffer ?? 'قبول العرض',
+                          style: const TextStyle(
                             fontFamily: 'Cairo',
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
@@ -199,9 +199,9 @@ class _ActiveOrderWidgetState extends State<ActiveOrderWidget> {
                       child: OutlinedButton.icon(
                         onPressed: _isActing ? null : () => _run(widget.onReject),
                         icon: const Icon(Icons.close_rounded, size: 20),
-                        label: const Text(
-                          'رفض العرض',
-                          style: TextStyle(
+                        label: Text(
+                          l10n?.rejectOffer ?? 'رفض العرض',
+                          style: const TextStyle(
                             fontFamily: 'Cairo',
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
@@ -234,6 +234,7 @@ class _ActiveOrderWidgetState extends State<ActiveOrderWidget> {
     final isPending = order.status == OrderStatus.priced;
     final accent = isPending ? AppColors.orangePrimary : AppColors.success;
     final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final l10n = AppLocalizations.of(context);
 
     return Container(
       width: double.infinity,
@@ -270,7 +271,10 @@ class _ActiveOrderWidgetState extends State<ActiveOrderWidget> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isPending ? 'ردّ المزوّد على طلبك بعرض سعر' : 'السعر المُتفق عليه',
+                  isPending
+                      ? (l10n?.providerRespondedWithOffer ??
+                          'ردّ المزوّد على طلبك بعرض سعر')
+                      : (l10n?.agreedPrice ?? 'السعر المُتفق عليه'),
                   style: TextStyle(
                     fontFamily: 'Cairo',
                     fontSize: 12,

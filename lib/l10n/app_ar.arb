@@ -34,6 +34,85 @@
   "yes": "نعم",
   "no": "لا",
   "vehicleSpecs": "مواصفات السيارة",
+  "loginMethod": "طريقة الدخول",
+  "phoneTab": "هاتف",
+  "emailTab": "بريد",
+  "emailLabel": "البريد الإلكتروني",
+  "enterPhonePrompt": "يرجى إدخال رقم الهاتف",
+  "enterEmailPrompt": "يرجى إدخال البريد الإلكتروني",
+  "invalidPhoneShort": "رقم هاتف مصري غير صحيح (مثال: 01012345678)",
+  "invalidEmailFormat": "صيغة البريد الإلكتروني غير صحيحة",
+  "enterPasswordPrompt": "يرجى إدخال كلمة المرور",
+  "forgotPassword": "نسيت كلمة المرور؟",
+  "dontHaveAccount": "ليس لديك حساب؟ ",
+  "loginHeaderTitle": "سجل دخول",
+  "loginWelcome": "مرحباً بعودتك، يرجى إدخال بيانات حسابك للمتابعة",
+  "specTowTruck": "ونش طوارئ S.O.S",
+  "specTire": "خدمات الإطارات",
+  "specBattery": "بطاريات / كهرباء",
+  "specFuel": "تزويد بنزين",
+  "specMechanical": "ميكانيكي طوارئ",
+  "signupFullNameLabel": "الاسم رباعي (إجباري)",
+  "signupFullNameRequired": "يرجى إدخال الاسم رباعي",
+  "signupPhoneLabel": "رقم الهاتف (إجباري)",
+  "signupInvalidPhone": "رقم هاتف مصري غير صحيح (11 رقم مثال: 01012345678)",
+  "signupEmailLabel": "البريد الإلكتروني (اختياري)",
+  "signupNationalIdLabel": "الرقم القومي (اختياري)",
+  "signupNationalIdHint": "اختياري عند التسجيل، مطلوب فقط لإتمام طلب خدمة",
+  "signupInvalidNationalId": "الرقم القومي غير صحيح (14 رقم)",
+  "signupPasswordMismatch": "كلمة المرور غير متطابقة",
+  "signupAgreeTerms": "أوافق على شروط الاستخدام وسياسة الخصوصية",
+  "signupAgreeTermsRequired": "يجب الموافقة على شروط الاستخدام وسياسة الخصوصية للمتابعة",
+  "providerEnableLocationService": "يرجى تفعيل خدمة الموقع (GPS) من إعدادات جهازك",
+  "providerLocationDenied": "تم رفض إذن الوصول للموقع",
+  "providerLocationDeniedForever": "إذن الموقع مرفوض بشكل دائم، يرجى تفعيله من إعدادات التطبيق",
+  "providerLocationFilled": "تم تحديد موقعك وكتابة العنوان، يمكنك تعديله يدويًا",
+  "providerLocationDetectFailed": "تعذّر تحديد الموقع الحالي",
+  "providerSelectSpecPrompt": "يرجى اختيار تخصص واحد على الأقل",
+  "providerAgreeTermsPrompt": "يجب الموافقة على الشروط والأحكام وميثاق الخدمة",
+  "providerFullNameRequired": "يرجى إدخال الاسم رباعي",
+  "providerNameAtLeast3": "يرجى كتابة الاسم الثلاثي على الأقل",
+  "providerEnterPhone": "يرجى إدخال رقم الهاتف",
+  "providerInvalidPhone": "رقم هاتف مصري غير صحيح (11 رقم)",
+  "providerNationalIdHint": "14 رقم قومي مدون في البطاقة",
+  "providerNationalIdHelper": "إجباري لمزودي الخدمة لتوثيق الحساب والأمان",
+  "providerNationalIdRequired": "الرقم القومي إجباري لمزودي الخدمة",
+  "providerWorkshopSectionTitle": "بيانات الورشة والخدمة",
+  "providerWorkshopRequired": "يرجى إدخال اسم الورشة أو التوكيل",
+  "providerAddressHint": "حدد موقعك تلقائيًا أو اكتب العنوان يدويًا",
+  "providerLocateTooltip": "تحديد موقعي وكتابة العنوان تلقائيًا",
+  "providerAddressRequired": "يرجى إدخال عنوان الورشة/المقر",
+  "providerAutoFillHint": "اضغط على أيقونة الموقع لملء العنوان تلقائيًا، ويمكنك تعديله بعد ذلك",
+  "providerScopeRoadside": "طوارئ الطريق",
+  "providerScopeOnSite": "في الورشة",
+  "providerVehicleMakeLabel": "ماركة السيارة",
+  "providerVehicleMakeHint": "مثال: تويوتا",
+  "providerVehicleMakeRequired": "يرجى إدخال ماركة السيارة",
+  "providerVehicleModelLabel": "موديل السيارة",
+  "providerVehicleModelHint": "مثال: كورولا",
+  "providerVehicleModelRequired": "يرجى إدخال موديل السيارة",
+  "providerVehicleYearLabel": "السنة",
+  "providerVehicleYearRequired": "مطلوب",
+  "providerVehicleColorLabel": "اللون",
+  "providerVehicleColorHint": "أبيض",
+  "providerVehiclePlateLabel": "رقم اللوحة",
+  "providerVehiclePlateRequired": "يرجى إدخال رقم اللوحة",
+  "providerVehiclePlateHint": "أ ب ج 1234",
+  "providerVehicleSpecsHint": "مثال: ونش هيدروليك",
+  "providerEnterPassword": "يرجى إدخال كلمة المرور",
+  "providerPasswordTooShort": "كلمة المرور يجب أن لا تقل عن 6 خانات",
+  "alreadyHaveAccount": "لديك حساب بالفعل؟",
+  "setNewPasswordTitle": "تعيين كلمة مرور جديدة",
+  "setNewPasswordSubtitle": "أدخل كلمة مرور جديدة لحسابك (6 أحرف على الأقل).",
+  "setNewPasswordFieldLabel": "كلمة المرور الجديدة",
+  "setNewPasswordConfirmLabel": "تأكيد كلمة المرور",
+  "setNewPasswordConfirmPrompt": "يرجى تأكيد كلمة المرور",
+  "setNewPasswordSuccess": "تم تغيير كلمة المرور بنجاح. سجّل الدخول بكلمة المرور الجديدة.",
+  "setNewPasswordInvalidLink": "الرابط غير صالح أو منتهي",
+  "setNewPasswordInvalidLinkHint": "اطلب رابط استعادة جديدًا من شاشة \"نسيت كلمة المرور\" بالضغط على \"نسيت كلمة المرور؟\" في شاشة تسجيل الدخول.",
+  "setNewPasswordBackToLogin": "العودة لتسجيل الدخول",
+  "setNewPasswordLinkExpired": "انتهت صلاحية رابط استعادة كلمة المرور. يرجى طلب رابط جديد.",
+  "setNewPasswordFailed": "حدث خطأ في تعيين كلمة المرور. حاول مرة أخرى.",
   "otpTitle": "تأكيد رقم الهاتف",
   "otpSubTitle": "أدخل رمز التحقق المكوّن من 6 أرقام",
   "otpCodeSentTo": "أدخل رمز التحقق المكوّن من 6 أرقام الذي أُرسل إلى {phone}",
@@ -144,7 +223,6 @@
   "resendOrChooseOther": "يمكنك إعادة إرسال الطلب أو اختيار مزود آخر",
   "orderCancelledSub": "تم إلغاء هذا الطلب",
   "priceOfferLabel": "عرض السعر",
-  "acceptPrice": "قبول السعر",
   "reject": "رفض",
   "call": "اتصال",
   "message": "رسالة",
@@ -179,7 +257,8 @@
   "cancel": "إلغاء",
   "savedSuccessfully": "تم الحفظ بنجاح",
   "autoCancelTitle": "إلغاء الطلب تلقائياً بعد 5 دقائق",
-  "autoCancelSubtitle": "إذا لم يكتمل طلبك خلال 5 دقائق سيُلغى تلقائياً (مفعّل افتراضياً)","workingHours": "ساعات العمل",
+  "autoCancelSubtitle": "إذا لم يكتمل طلبك خلال 5 دقائق سيُلغى تلقائياً (مفعّل افتراضياً)",
+  "workingHours": "ساعات العمل",
   "workingHoursHint": "حدد ساعات عملك — خارج هذه الساعات لن تظهر في قائمة المزودين المتاحين",
   "closed": "مغلق",
   "openAt": "بداية العمل",
@@ -233,25 +312,41 @@
   "notificationBodyNewOrderWithService": "لديك طلب جديد: {service}",
   "@notificationBodyNewOrderWithService": {
     "placeholders": {
-      "service": { "type": "String" }
+      "service": {
+        "type": "String"
+      }
     }
   },
   "notificationBodyNewOrder": "لديك طلب جديد",
   "notificationBodyPriceOfferWithService": "{provider} قدم عرض سعر {price} {currency} لطلب {service}",
   "@notificationBodyPriceOfferWithService": {
     "placeholders": {
-      "provider": { "type": "String" },
-      "price": { "type": "String" },
-      "currency": { "type": "String" },
-      "service": { "type": "String" }
+      "provider": {
+        "type": "String"
+      },
+      "price": {
+        "type": "String"
+      },
+      "currency": {
+        "type": "String"
+      },
+      "service": {
+        "type": "String"
+      }
     }
   },
   "notificationBodyPriceOffer": "{provider} قدم عرض سعر {price} {currency}",
   "@notificationBodyPriceOffer": {
     "placeholders": {
-      "provider": { "type": "String" },
-      "price": { "type": "String" },
-      "currency": { "type": "String" }
+      "provider": {
+        "type": "String"
+      },
+      "price": {
+        "type": "String"
+      },
+      "currency": {
+        "type": "String"
+      }
     }
   },
   "notificationBodyPriceOfferReceived": "تم استلام عرض سعر جديد",
@@ -259,7 +354,9 @@
   "notificationBodyOrderRejectedWithProvider": "تم رفض الطلب من {provider}",
   "@notificationBodyOrderRejectedWithProvider": {
     "placeholders": {
-      "provider": { "type": "String" }
+      "provider": {
+        "type": "String"
+      }
     }
   },
   "notificationBodyOrderRejected": "تم رفض الطلب",
@@ -270,7 +367,9 @@
   "notificationBodyRatingWithValue": "حصلت على تقييم {rating} من 5",
   "@notificationBodyRatingWithValue": {
     "placeholders": {
-      "rating": { "type": "String" }
+      "rating": {
+        "type": "String"
+      }
     }
   },
   "notificationBodyRating": "حصلت على تقييم جديد",
@@ -280,31 +379,449 @@
   "notificationTimeMinutes": "منذ {count} دقيقة",
   "@notificationTimeMinutes": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "notificationTimeHours": "منذ {count} ساعة",
   "@notificationTimeHours": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "notificationTimeDays": "منذ {count} يوم",
   "@notificationTimeDays": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "notificationRatingLabel": "تقييم",
   "notificationRatingOfFive": "{rating} من 5",
   "@notificationRatingOfFive": {
     "placeholders": {
-      "rating": { "type": "String" }
+      "rating": {
+        "type": "String"
+      }
     }
   },
   "notificationFromCustomer": "من العميل",
   "notificationCustomerFallback": "العميل",
   "notificationRatingDate": "تاريخ التقييم",
   "notificationCommentLabel": "تعليق",
-  "viewTransactionDetails": "عرض تفاصيل المعاملة"
+  "viewTransactionDetails": "عرض تفاصيل المعاملة",
+  "availabilityOnlineTitle": "أنا متاح للخدمة الآن",
+  "availabilityOfflineTitle": "غير متاح حالياً",
+  "availabilityOnlineHint": "ستتلقى الطلبات القريبة من موقعك",
+  "availabilityOfflineHint": "لن تتلقى أي طلبات حالياً",
+  "stepAssigned": "الاسناد",
+  "stepPriceOffer": "عرض السعر",
+  "stepConfirmation": "التأكيد",
+  "stepCompletion": "الإتمام",
+  "ownerStepSent": "تم الإرسال",
+  "ownerStepProviderResponse": "استجابة المزوّد",
+  "acceptOffer": "قبول العرض",
+  "rejectOffer": "رفض العرض",
+  "providerRespondedWithOffer": "ردّ المزوّد على طلبك بعرض سعر",
+  "agreedPrice": "السعر المُتفق عليه",
+  "completeOrder": "إتمام الطلب",
+  "acceptOrder": "قبول الطلب",
+  "waitingYourResponse": "بانتظار ردّك على الطلب",
+  "waitingCustomerConfirmation": "بانتظار تأكيد العميل للعرض",
+  "locationUnavailable": "الموقع غير متاح",
+  "autoCancelCountdown": "سيُلغى الطلب تلقائياً خلال 5 دقائق — متبقي {time}",
+  "@autoCancelCountdown": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "tapToViewFullMap": "اضغط لعرض الخريطة الكاملة",
+  "orderStatusCompletedTitle": "تم إتمام الطلب",
+  "orderStatusCompletedSubtitle": "تمت الخدمة بنجاح، نأمل أن تكون تجربتك جيدة",
+  "imagePickError": "حدث خطأ أثناء اختيار الصورة",
+  "orderLoadFailed": "تعذّر تحميل بيانات الطلب",
+  "orderNoLongerAvailable": "عذراً، هذا الطلب لم يعد متاحاً (ربما انتهت مدته)",
+  "enterPrice": "يرجى إدخال السعر المقترح",
+  "enterValidPrice": "يرجى إدخال سعر صحيح",
+  "offerSentSuccess": "تم إرسال عرض السعر بنجاح",
+  "rejectOrder": "رفض الطلب",
+  "rejectOrderConfirm": "هل أنت متأكد من رفض هذا الطلب؟",
+  "orderRejectedToast": "تم رفض الطلب",
+  "customerPhotos": "صور من العميل",
+  "customerLocationMap": "خريطة موقع العميل",
+  "proposedPriceEgp": "السعر المقترح (ج.م)",
+  "priceHintExample": "مثال: 350",
+  "etaMinutesLabel": "الوقت المتوقع للوصول (دقيقة)",
+  "etaHintExample": "مثال: 15",
+  "notesToOwnerOptional": "ملاحظات للمالك (اختياري)",
+  "notesHint": "اكتب أي تفاصيل إضافية عن الخدمة...",
+  "yourAttachedPhotos": "صور مرفقة منك ({count})",
+  "@yourAttachedPhotos": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "submitOffer": "تقديم العرض",
+  "cancelOrderConfirmTitle": "إلغاء الطلب؟",
+  "cancelOrderConfirmBody": "سيتم إلغاء الطلب الحالي وإخطار المزوّد (إن تم إسناده).",
+  "goBack": "تراجع",
+  "providerPhoneUnavailable": "رقم المزوّد غير متاح",
+  "selectRatingPrompt": "يرجى اختيار تقييم من 1 إلى 5",
+  "ratingSubmittedThanks": "شكراً لك! تم إرسال تقييمك",
+  "providerRated": "تم تقييم المزوّد",
+  "ratingExperiencePrompt": "كيف كانت تجربتك مع المزوّد؟",
+  "addCommentOptionalHint": "أضف تعليقاً (اختياري)...",
+  "submitRating": "إرسال التقييم",
+  "providerRejectOrderConfirmTitle": "رفض الطلب؟",
+  "providerRejectOrderConfirmBody": "سيتم إخطار العميل وإلغاء هذا الطلب.",
+  "providerRejectOrderConfirmLabel": "نعم، رفض الطلب",
+  "providerOrderNoLongerAvailable": "هذا الطلب لم يعد متاحاً (ربما انتهت مدته)",
+  "completeOrderTitle": "إتمام الطلب؟",
+  "completeOrderConfirmBody": "ستُعتبر الخدمة مكتملة وسيتمكّن العميل من تقييمك بعدها.",
+  "orderCompletedToast": "تم إتمام الطلب بنجاح",
+  "currentOrdersTitle": "طلباتك الحالية",
+  "providePriceOffer": "تقديم عرض سعر",
+  "locatingLocation": "جاري تحديد الموقع...",
+  "providerDataUnavailable": "بيانات المزوّد غير متاحة",
+  "providerLoadFailed": "تعذّر تحميل بيانات المزوّد: {error}",
+  "@providerLoadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "mustLoginToSend": "يجب تسجيل الدخول لإرسال الطلب",
+  "requestDataNotFound": "تعذّر العثور على بيانات الطلب، يرجى إعادة إدخاله من جديد",
+  "phoneUnavailable": "رقم الهاتف غير متاح",
+  "cannotCallNumber": "لا يمكن الاتصال بهذا الرقم",
+  "providerDetailsTitle": "بيانات المزوّد",
+  "hasServiceVehicle": "لديه سيارة خدمة",
+  "noServiceVehicle": "بدون سيارة خدمة",
+  "availableNow": "متاح الآن",
+  "sendRequestToProvider": "إرسال الطلب لهذا المزوّد",
+  "providersLoadFailed": "تعذّر تحميل المزودين: {error}",
+  "@providersLoadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "selectProvider": "اختر المزوّد",
+  "noNearbyProviders": "لا يوجد مزودون متاحون قريباً",
+  "mapLoadFailed": "تعذّر تحميل بيانات الخريطة: {error}",
+  "@mapLoadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noMapAppsAvailable": "لا توجد تطبيقات خرائط متاحة على جهازك",
+  "enableLocationService": "يرجى تفعيل خدمة الموقع (GPS) من إعدادات جهازك",
+  "locationPermissionDenied": "تم رفض إذن الوصول للموقع",
+  "locationPermissionDeniedForever": "إذن الموقع مرفوض بشكل دائم، يرجى تفعيله من إعدادات التطبيق",
+  "locationDetectFailed": "تعذّر تحديد الموقع الحالي",
+  "accessMapTitle": "خريطة الوصول",
+  "customerLocationLabel": "موقع العميل",
+  "yourLocationLabel": "موقعك",
+  "approxDistanceToCustomer": "المسافة التقريبية عن العميل: {distance}",
+  "@approxDistanceToCustomer": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "approxDistance": "المسافة التقريبية: {distance}",
+  "@approxDistance": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "openRouteInMaps": "فتح مسار في الخرائط",
+  "locateCurrentPositionTooltip": "تحديد موقعي الحالي",
+  "orderStatusCompleted": "مكتمل",
+  "noRatingsYet": "لا توجد تقييمات بعد",
+  "ratingSummary": "{avg}م ({count} تقييم)",
+  "@ratingSummary": {
+    "placeholders": {
+      "avg": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "supportScopeEmergency": "طوارئ الطريق",
+  "supportScopeOnSite": "في الورشة",
+  "supportScopeBoth": "كلاهما",
+  "supportScopeBothDetailed": "بداخل الورشة وعلى الطريق",
+  "transactionSummaryTitle": "ملخّص المعاملة",
+  "transactionDateLabel": "تاريخ المعاملة",
+  "transactionClosedDateLabel": "تاريخ الإنهاء",
+  "transactionProviderLabel": "المزوّد",
+  "transactionPathTitle": "مسار المعاملة",
+  "transactionSucceeded": "تمت المعاملة بنجاح",
+  "transactionFailed": "لم تُنجز المعاملة",
+  "transactionEventOrderSent": "تم إرسال الطلب",
+  "transactionEventProviderReceived": "استلم المزوّد الطلب",
+  "transactionEventOfferWithPrice": "قدّم المزوّد عرض السعر ({price} {currency})",
+  "@transactionEventOfferWithPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "transactionEventOfferConfirmed": "تم تأكيد العرض",
+  "transactionEventCompleted": "تم إتمام المعاملة",
+  "transactionEventRejectedByProvider": "رفض المزوّد المعاملة",
+  "transactionEventRejectedByOwner": "رفض العميل عرض السعر",
+  "transactionEventCancelledTimeout": "أُلغي الطلب (انتهت مهلة الاستجابة)",
+  "transactionFailureProvider": "رفض من جهة المزوّد",
+  "transactionFailureOwner": "رفض من جهة العميل",
+  "transactionFailureAutoCancel": "إلغاء تلقائي (انتهت مهلة الاستجابة)",
+  "apply": "تطبيق",
+  "orderHistoryLoadFailed": "تعذّر تحميل السجل: {error}",
+  "@orderHistoryLoadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "selectTransactionDate": "اختر تاريخ المعاملة",
+  "filterByDateAllDays": "فلترة بحث بالتاريخ: كل الأيام",
+  "ratingExperienceTitle": "قيّم تجربتك مع المزوّد",
+  "ratingQualityPrompt": "كيف كانت جودة الخدمة؟",
+  "ratingProviderPrompt": "كيف كانت خدمة «{name}»؟",
+  "@ratingProviderPrompt": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rateLater": "التقييم لاحقاً",
+  "rpcErrorOrderNotFound": "الطلب غير موجود أو تم حذفه.",
+  "rpcErrorNotOwner": "ليس لديك صلاحية للقيام بهذا الإجراء على هذا الطلب.",
+  "rpcErrorOrderNotPending": "لم يعد الطلب متاحاً، ربما تمت معالجته أو إلغاؤه.",
+  "rpcErrorNotAssigned": "الطلب لم يُسنَد لأي مزوّد بعد.",
+  "rpcErrorNotProvider": "ليس لديك صلاحية للتعامل مع هذا الطلب.",
+  "rpcErrorInvalidPrice": "السعر المُدخل غير صالح، تأكد من إدخال مبلغ صحيح أكبر من صفر.",
+  "rpcErrorNotPricedOrNotOwner": "لا يوجد عرض سعر سارٍ لهذا الطلب، أو أنك لست صاحب الطلب.",
+  "rpcErrorNotConfirmedOrNotProvider": "الطلب غير مؤكد، أو أنك لست المزوّد المسند للمهمة.",
+  "rpcErrorInvalidRating": "قيمة التقييم غير صالحة (يجب أن تكون بين 1 و5).",
+  "rpcErrorOrderNotCompleted": "لا يمكن تقييم الطلب قبل اكتماله.",
+  "rpcErrorAlreadyRated": "تم تقييم هذا الطلب من قبل.",
+  "rpcErrorOrderNotFoundOrForbidden": "الطلب غير موجود، أو ليس لك صلاحية للوصول إليه.",
+  "rpcErrorOwnerNationalIdMissing": "مطلوب إضافة رقم قومي صحيح لإتمام الطلب. يرجى تحديث بياناتك الشخصية.",
+  "rpcErrorOwnerNationalIdInvalid": "الرقم القومي المسجّل في حسابك غير صحيح. يرجى تحديثه من البيانات الشخصية.",
+  "rpcErrorDuplicatePendingOrder": "لديك طلب قيد الانتظار بالفعل. يمكنك إلغاؤه أو انتظاره قبل إنشاء طلب جديد.",
+  "rpcErrorProviderUnavailable": "لم يعد هذا المزوّد متاحاً لاستقبال الطلب. جرّب مزوّداً آخر.",
+  "rpcErrorTooManyAttachments": "عدد الصور كبير جداً (الحد الأقصى 10 صور).",
+  "rpcErrorInvalidAttachmentUrl": "تعذّر التحقق من إحدى الصور المرفقة. يرجى المحاولة مرة أخرى.",
+  "rpcErrorNotAuthenticated": "انتهت الجلسة، يرجى تسجيل الدخول من جديد.",
+  "rpcErrorPhoneNotVerified": "يجب تأكيد رقم هاتفك أولًا لإتمام هذا الإجراء.",
+  "rpcErrorPhoneChangeRequiresOtp": "لتغيير رقم الهاتف يجب التحقق منه برمز SMS. استخدم زر تغيير الرقم.",
+  "rpcErrorGeneric": "حدث خطأ في الاتصال، حاول مرة أخرى.",
+  "otpErrorExpired": "الرمز غير صحيح أو منتهي الصلاحية. حاول مرة أخرى.",
+  "otpErrorRateLimited": "تم تجاوز عدد المحاولات. يرجى الانتظار قليلاً ثم إعادة المحاولة.",
+  "otpErrorSendFailed": "تعذّر إرسال الرمز. حاول مرة أخرى لاحقاً.",
+  "otpErrorPhoneExists": "رقم الهاتف مسجّل بالفعل في حساب آخر.",
+  "otpErrorPhoneNotConfirmed": "لم يتم تأكيد رقم الهاتف بعد. حاول إدخال الرمز مرة أخرى.",
+  "otpErrorReauth": "يرجى تسجيل الدخول مرة أخرى للمتابعة.",
+  "otpErrorUserNotFound": "تعذّر إرسال رمز التحقق. تأكد من صحة رقم الهاتف ثم أعد المحاولة.",
+  "otpErrorGeneric": "حدث خطأ ما. تحقق من اتصالك وحاول مرة أخرى.",
+  "recoveryNeutralError": "تعذّر إرسال رمز التحقق. تأكد من صحة رقم الهاتف ثم أعد المحاولة.",
+  "changePhoneThrottleError": "تم تجاوز عدد المحاولات. حاول مرة أخرى لاحقاً.",
+  "changePhoneLookupFailed": "تعذّر التحقق من رقم الهاتف. حاول مرة أخرى.",
+  "signupGenericError": "حدث خطأ أثناء إنشاء الحساب، حاول مرة أخرى",
+  "signupMissingWorkshopName": "من فضلك أدخل اسم الورشة",
+  "signupMissingNationalId": "من فضلك أدخل الرقم القومي",
+  "signupMissingAddress": "من فضلك أدخل العنوان",
+  "signupMissingLocation": "من فضلك حدد موقعك على الخريطة",
+  "signupMissingSpecialization": "من فضلك اختر تخصص واحد على الأقل",
+  "signupInvalidRole": "حدث خطأ في نوع الحساب، حاول التسجيل مرة أخرى",
+  "signupDuplicatePhone": "رقم الهاتف مسجّل بالفعل",
+  "signupDuplicateNationalId": "الرقم القومي مسجّل بالفعل",
+  "signupUniqueViolation": "رقم الهاتف أو الرقم القومي مسجّل بالفعل",
+  "signupAccountExistsCustomer": "رقم الهاتف أو الرقم القومي مسجّل بالفعل في حساب عميل. يرجى تسجيل الدخول من صفحة تسجيل دخول العميل.",
+  "signupAccountExistsProvider": "رقم الهاتف أو الرقم القومي مسجّل بالفعل في حساب مزوّد. يرجى تسجيل الدخول من صفحة تسجيل دخول المزوّد.",
+  "signupAccountExistsUnknown": "رقم الهاتف أو الرقم القومي مسجّل بالفعل في حساب آخر. يرجى تسجيل الدخول بالحساب الموجود.",
+  "roleMismatchProvider": "هذا الحساب مسجّل كمزوّد. يرجى تسجيل الدخول من صفحة تسجيل دخول المزوّد.",
+  "roleMismatchCustomer": "هذا الحساب مسجّل كعميل. يرجى تسجيل الدخول من صفحة تسجيل دخول العميل.",
+  "roleUnresolved": "تعذّر تحديد نوع الحساب بعد تسجيل الدخول. يرجى المحاولة مرة أخرى.",
+  "signOutSuccess": "تم تسجيل الخروج",
+  "confirmAction": "تأكيد",
+  "cancelAction": "تراجع",
+  "errorTitle": "خطأ",
+  "okButton": "حسناً",
+  "errPhoneDuplicate": "رقم الهاتف مسجل بالفعل في حساب آخر. يرجى استخدام رقم هاتف مختلف أو تسجيل الدخول بالحساب الموجود.",
+  "errNationalIdDuplicate": "الرقم القومي مسجل بالفعل في حساب آخر. إذا كنت تملك حساباً سابقاً، يرجى تسجيل الدخول إليه.",
+  "errEmailDuplicate": "البريد الإلكتروني مسجل بالفعل في حساب آخر. يرجى تسجيل الدخول بالحساب الموجود أو استخدام بريد إلكتروني مختلف.",
+  "errInvalidCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة. يرجى التحقق من البيانات والمحاولة مرة أخرى.",
+  "errEmailNotConfirmed": "لم يتم تأكيد البريد الإلكتروني بعد. يرجى التحقق من بريدك الإلكتروني والضغط على رابط التأكيد.",
+  "errTooManyRequests": "لقد تجاوزت عدد المحاولات المسموح. يرجى الانتظار قليلاً ثم المحاولة مرة أخرى.",
+  "errUserNotFound": "لا يوجد حساب مرتبط بهذا البريد الإلكتروني. يرجى التسجيل أولاً.",
+  "errInvalidPassword": "كلمة المرور غير صحيحة. يرجى المحاولة مرة أخرى.",
+  "authErrorUnexpected": "حدث خطأ غير متوقع، حاول مرة أخرى.",
+  "authErrorNoAccount": "لا يوجد حساب مرتبط بهذا الرقم أو البريد الإلكتروني",
+  "authErrorNetwork": "لا يوجد اتصال بالإنترنت، تحقق من اتصالك وحاول مجددًا",
+  "authErrorSignOut": "حدث خطأ أثناء تسجيل الخروج",
+  "resetPasswordTitle": "استعادة كلمة المرور",
+  "forgotPhoneEntrySubtitle": "أدخل رقم الهاتف المرتبط بحسابك وسنرسل إليه رمز تحقق",
+  "enterValidEgyptianPhone": "أدخل رقم هاتف مصري صحيح",
+  "phoneAlreadyRegistered": "رقم الهاتف مسجل بالفعل لدى مستخدم آخر",
+  "rejectOfferConfirmTitle": "رفض عرض السعر؟",
+  "rejectOfferConfirmBody": "سيتم رفض عرض المزوّد وإنهاء هذا الطلب.",
+  "rejectOfferConfirmLabel": "نعم، رفض العرض",
+  "signupOwnerTitle": "حساب مالك سيارة جديد",
+  "signupOwnerSubtitle": "سجل بياناتك وسيارتك لتتمكن من طلب خدمات الطوارئ",
+  "signupProviderTitle": "انضم لشبكة مزودي خدمة محور",
+  "signupProviderSubtitle": "سجل بيانات ورشتك أو خدماتك لتلقي طلبات طوارئ الطرق في نطاقك المباشر",
+  "forgotPasswordSubtitle": "أدخل رقم الهاتف المرتبط بحسابك. سنرسل إليه رمز تحقق عبر رسالة نصية (SMS).",
+  "sendVerificationCode": "إرسال رمز التحقق",
+  "errorWithDetail": "حدث خطأ: {error}",
+  "@errorWithDetail": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "errorSaving": "حدث خطأ أثناء الحفظ: {error}",
+  "@errorSaving": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "chooseAvatarTitle": "اختر صورتك الرمزية",
+  "chooseAvatarSubtitle": "ستظهر هذه الصورة في ملفك الشخصي وطلباتك",
+  "saving": "جاري الحفظ...",
+  "saveAvatar": "حفظ الصورة الرمزية",
+  "nameRequired": "الاسم مطلوب",
+  "phoneRequired": "رقم الهاتف مطلوب",
+  "enterValidEgyptianPhoneNumber": "أدخل رقم هاتف مصري صحيح (01xxxxxxxxx)",
+  "selectSpecialtiesDesc": "اختر التخصصات التي تقدمها ورشتك، وستظهر لمالكي السيارات عند البحث عن الخدمات",
+  "noSpecialtiesAvailable": "لا توجد تخصصات متاحة حالياً",
+  "workshopNameRequired": "اسم الورشة مطلوب",
+  "workshopAddressRequired": "يرجى إدخال عنوان الورشة",
+  "vehicleSpecsHintEquipped": "مثال: ونش هيدروليك، سيارة مجهزة",
+  "deleteCarConfirm": "هل أنت متأكد من حذف هذه السيارة؟",
+  "noCarsRegistered": "لا توجد سيارات مسجلة",
+  "tapToAddCar": "اضغط + لإضافة سيارة",
+  "addNewCar": "إضافة سيارة جديدة",
+  "selectCarMakeModelYear": "يرجى اختيار ماركة وموديل وسنة السيارة",
+  "add": "إضافة",
+  "appliedToAllDays": "تم تطبيق الجدول على جميع الأيام",
+  "dailyExceptions": "الأيام الاستثنائية",
+  "dailyExceptionsHint": "عطّل يوماً أو عدّل وقته — باقي الأيام تتبع الجدول الموحّد",
+  "oneScheduleForAllDays": "الجدول الموحّد لجميع الأيام",
+  "oneScheduleForAllDaysHint": "حدّد موعداً واحداً وطبّقه على كل أيام الأسبوع، ثم استثنِ بعدها ما تريد",
+  "applyToAllDays": "تطبيق على جميع الأيام",
+  "today": "اليوم",
+  "customLabel": "خاص",
+  "dayOff": "إجازة",
+  "available": "متاح",
+  "restoreUnifiedTime": "استعادة الجدول الموحّد",
+  "weekdaySunday": "الأحد",
+  "weekdayMonday": "الاثنين",
+  "weekdayTuesday": "الثلاثاء",
+  "weekdayWednesday": "الأربعاء",
+  "weekdayThursday": "الخميس",
+  "weekdayFriday": "الجمعة",
+  "weekdaySaturday": "السبت",
+  "welcomeToMahwar": "أهلاً بك في محور",
+  "chooseAccountTypeSubtitle": "اختر نوع حسابك للبدء في استخدام التطبيق واستكشاف الخدمات المتاحة",
+  "needUrgentRoadsideHelp": "هل تحتاج مساعدة عاجلة في الطريق؟",
+  "supportTeamReady24_7": "فريق الدعم الفني جاهز لمساعدتك 24 ساعة",
+  "mahwarHotlineAvailable": "خط طوارئ محور: 19xxx جاهز في جميع المحافظات",
+  "callNow": "اتصل الآن",
+  "highlightLiveTracking": "تتبع جغرافي حي",
+  "highlightTransparentPricing": "تسعير شفاف 100%",
+  "highlightFastResponse": "نجدة سريعة 24/7",
+  "topRoadsideAssistance": "شبكة طوارئ السيارات الأولى",
+  "fastSafeRoadside24_7": "خدمة سريعة وآمنة على كافة الطرق 24/7",
+  "viewAll": "عرض الكل",
+  "unknownServiceType": "نوع الخدمة غير معروف، يرجى تحديث التطبيق",
+  "preparingYourRequest": "جاري تجهيز طلبك...",
+  "pleaseWaitDontClose": "يرجى الانتظار، لا تغلق التطبيق",
+  "additionalOptions": "خيارات إضافية",
+  "locationTimeoutRetry": "تعذّر تحديد موقعك خلال 30 ثانية، تأكد من توافر GPS ثم أعد المحاولة",
+  "onboardingTitle1": "أسرع نجدة لطوارئ السيارات",
+  "onboardingDesc1": "محور يربطك بأقرب أونياش وفنيي طوارئ الطرق جغرافياً في ثوانٍ معدودة.",
+  "onboardingTitle2": "تسعير شفاف وبدون تعقيد",
+  "onboardingDesc2": "استلم عرض السعر المباشر من مقدم الخدمة واقبل أو ارفض بضغطة زر.",
+  "onboardingTitle3": "خدمة شاملة لكافة الأعطال",
+  "onboardingDesc3": "سواء احتجت ونش، أو تغير إطار، بنزين، بطارية، أو ميكانيكي طوارئ.",
+  "legalLastUpdated": "آخر تحديث: أغسطس 2025",
+  "legalContactTitle": "للتواصل معنا",
+  "legalContactBody": "إذا كان لديك أي استفسارات حول هذه السياسة، يرجى التواصل معنا على:\nsupport@mahwar.app\nأو الاتصال بخط الدعم: 19000",
+  "legalTermsIntro": "مرحباً بك في تطبيق مِحْوَر لخدمات طوارئ السيارات. باستخدامك لهذا التطبيق، أنت توافق على الشروط والأحكام التالية التي تنظم العلاقة بينك وبين منصة مِحْوَر.",
+  "legalTermsSection1Title": "قبول الشروط",
+  "legalTermsSection1Body": "باستخدامك لتطبيق مِحْوَر، أنت تُقر بأنك قرأت هذه الشروط وفهمتها وتوافق على الالتزام بها. إذا كنت لا توافق على أي من هذه الشروط، يرجى عدم استخدام التطبيق.",
+  "legalTermsSection2Title": "الاستخدام المقبول",
+  "legalTermsSection2Body": "يُسمح باستخدام التطبيق فقط للأغراض القانونية ووفقاً للقوانين المعمول بها في جمهورية مصر العربية. يُحظر استخدام التطبيق لأي غرض احتيالي أو ضار أو مخالف للآداب العامة.",
+  "legalTermsSection3Title": "الحسابات والمسؤولية",
+  "legalTermsSection3Body": "أنت مسؤول عن الحفاظ على سرية بيانات حسابك وكلمة مرورك. كما أنت مسؤول عن جميع الأنشطة التي تحدث تحت حسابك. يجب إبلاغنا فوراً عن أي استخدام غير مصرح به لحسابك.",
+  "legalTermsSection4Title": "طبيعة خدمات التطبيق",
+  "legalTermsSection4Body": "يوفر تطبيق مِحْوَر منصة رقمية لربط مالكي السيارات بمقدمي خدمات الطوارئ. نحن لسنا طرفاً في الاتفاق بين العميل ومقدم الخدمة، ولا نتحمل المسؤولية عن جودة الخدمات المقدمة.",
+  "legalTermsSection5Title": "التسعير والمدفوعات",
+  "legalTermsSection5Body": "جميع المدفوعات تتم مباشرةً بين مالك السيارة ومقدم الخدمة. يتيح التطبيق عملية التفاوض على السعر والموافقة عليه. التطبيق لا يتحصل على عمولة أو رسوم مالية من المعاملات.",
+  "legalTermsSection6Title": "الإلغاء والرفض",
+  "legalTermsSection6Body": "يمكن لمالك السيارة إلغاء الطلب في أي وقت قبل قبول السعر. يمكن لمقدم الخدمة رفض الطلب قبل تقديم عرض السعر. بعد قبول السعر من قبل العميل، يُعتبر الطلب مُلزِماً.",
+  "legalTermsSection7Title": "الملكية الفكرية",
+  "legalTermsSection7Body": "جميع حقوق الملكية الفكرية للتطبيق بما في ذلك التصاميم والشعارات والمحتوى محفوظة لشركة مِحْوَر. لا يُسمح بإعادة إنتاج أي جزء من التطبيق أو استخدامه تجارياً دون إذن مسبق.",
+  "legalTermsSection8Title": "التعديلات على الشروط",
+  "legalTermsSection8Body": "نحتفظ بحقنا في تعديل هذه الشروط والأحكام في أي وقت. سيتم إشعار المستخدمين بأي تغييرات جوهرية من خلال التطبيق. استمرارك في استخدام التطبيق بعد التعديلات يُعدّ قبولاً لها.",
+  "legalPrivacyIntro": "نحن في تطبيق مِحْوَر نُقدّر ثقتك ونلتزم التزاماً تاماً بحماية بياناتك الشخصية. توضح هذه السياسة كيفية جمع البيانات واستخدامها وحمايتها.",
+  "legalPrivacySection1Title": "البيانات التي نجمعها",
+  "legalPrivacySection1Body": "نجمع البيانات الضرورية لتقديم خدماتنا، وتشمل: الاسم الكامل، رقم الهاتف، البريد الإلكتروني، الموقع الجغرافي الحي، الرقم القومي (لمقدمي الخدمة)، وبيانات السيارة (الماركة، الموديل، السنة). لا نجمع أي بيانات غير ضرورية.",
+  "legalPrivacySection2Title": "كيفية استخدام بياناتك",
+  "legalPrivacySection2Body": "نستخدم بياناتك للأغراض التالية: تقديم خدمات الطوارئ، ربطك بأقرب مقدمي الخدمة جغرافياً، إرسال الإشعارات ذات الصلة بطلباتك، تحسين جودة التطبيق وتجربة المستخدم، وضمان أمان المنصة.",
+  "legalPrivacySection3Title": "مشاركة البيانات",
+  "legalPrivacySection3Body": "لا نشارك بياناتك مع أطراف ثالثة إلا في الحالات التالية: عند ضرورة تقديم الخدمة (مشاركة موقعك مع مقدم الخدمة المختار)، أو عند الإلزام القانوني من الجهات الحكومية المختصة، أو بموافقتك الصريحة.",
+  "legalPrivacySection4Title": "أمان البيانات",
+  "legalPrivacySection4Body": "نستخدم أحدث تقنيات التشفير والأمان لحماية بياناتك. نعتمد على Supabase كبنية تحتية آمنة مع تشفير SSL/TLS لجميع الاتصالات. يتم تطبيق سياسات Row Level Security (RLS) لضمان عدم الوصول غير المصرح به لبياناتك.",
+  "legalPrivacySection5Title": "حقوقك على بياناتك",
+  "legalPrivacySection5Body": "لديك الحقوق التالية بشأن بياناتك: حق الوصول والاطلاع على بياناتك المخزنة، حق التصحيح والتعديل، حق حذف حسابك وبياناتك كاملاً، وحق الاعتراض على معالجة بياناتك في حالات معينة.",
+  "legalPrivacySection6Title": "بيانات الموقع الجغرافي",
+  "legalPrivacySection6Body": "نستخدم الموقع الجغرافي فقط خلال جلسة الطلب النشطة لإيجاد أقرب مقدمي الخدمة. لا نتتبع موقعك في الخلفية خارج طلبات الخدمة. يمكنك التحكم في صلاحيات الموقع من إعدادات هاتفك في أي وقت.",
+  "legalPrivacySection7Title": "الاحتفاظ بالبيانات",
+  "legalPrivacySection7Body": "نحتفظ ببيانات حسابك طالما كان حسابك نشطاً. عند حذف حسابك، يتم حذف جميع بياناتك الشخصية خلال 30 يوماً. قد نحتفظ ببعض البيانات المجهولة للتحليل الإحصائي.",
+  "legalPrivacySection8Title": "التحديثات على السياسة",
+  "legalPrivacySection8Body": "قد نقوم بتحديث سياسة الخصوصية هذه من وقت لآخر لتعكس التغييرات في ممارساتنا أو لأسباب تشغيلية أو قانونية. سنُشعرك بأي تغييرات جوهرية عبر إشعار داخل التطبيق قبل دخول التغييرات حيز التنفيذ.",
+  "signOut": "تسجيل الخروج",
+  "connectionError": "حدث خطأ في الاتصال، حاول مرة أخرى.",
+  "needNationalIdFirst": "لإرسال طلب خدمة يجب إضافة رقمك القومي الصحيح أولاً في بياناتك الشخصية.",
+  "locationServiceDisabled": "يرجى تفعيل خدمة الموقع (GPS) من إعدادات جهازك",
+  "locationPermissionPermanentlyDenied": "إذن الموقع مرفوض بشكل دائم، يرجى تفعيله من إعدادات التطبيق",
+  "serviceRequestErrorWithDetail": "حدث خطأ: {detail}",
+  "@serviceRequestErrorWithDetail": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "locationTimeoutDelayed": "تعذّر تحديد موقعك خلال 30 ثانية، تأكد من توافر GPS ثم أعد المحاولة"
 }

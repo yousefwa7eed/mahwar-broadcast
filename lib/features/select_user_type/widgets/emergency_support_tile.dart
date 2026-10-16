@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../l10n/app_localizations.dart';
 
 class EmergencySupportTile extends StatelessWidget {
   final bool isDarkMode;
@@ -12,6 +13,7 @@ class EmergencySupportTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -43,7 +45,7 @@ class EmergencySupportTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isArabic ? 'هل تحتاج مساعدة عاجلة في الطريق؟' : 'Need urgent roadside help?',
+                  l10n?.needUrgentRoadsideHelp ?? 'هل تحتاج مساعدة عاجلة في الطريق؟',
                   style: TextStyle(
                     fontFamily: isArabic ? 'Zain' : 'Poppins',
                     fontSize: isArabic ? 18 : 14,
@@ -52,9 +54,7 @@ class EmergencySupportTile extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  isArabic
-                      ? 'فريق الدعم الفني جاهز لمساعدتك 24 ساعة'
-                      : 'Our support team is ready to assist 24/7',
+                  l10n?.supportTeamReady24_7 ?? 'فريق الدعم الفني جاهز لمساعدتك 24 ساعة',
                   style: TextStyle(
                     fontFamily: isArabic ? 'Cairo' : 'Poppins',
                     fontSize: 12,
@@ -69,9 +69,7 @@ class EmergencySupportTile extends StatelessWidget {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    isArabic
-                        ? 'خط طوارئ محور: 19xxx جاهز في جميع المحافظات'
-                        : 'Mahwar Hotline: 19xxx available nationwide',
+                    l10n?.mahwarHotlineAvailable ?? 'خط طوارئ محور: 19xxx جاهز في جميع المحافظات',
                   ),
                   backgroundColor: const Color(0xFFFF6B00),
                 ),
@@ -81,7 +79,7 @@ class EmergencySupportTile extends StatelessWidget {
               foregroundColor: const Color(0xFFFF6B00),
             ),
             child: Text(
-              isArabic ? 'اتصل الآن' : 'Call Now',
+              l10n?.callNow ?? 'اتصل الآن',
               style: TextStyle(
                 fontFamily: isArabic ? 'Cairo' : 'Poppins',
                 fontWeight: FontWeight.bold,

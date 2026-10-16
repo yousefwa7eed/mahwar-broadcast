@@ -1,4 +1,5 @@
 import '../utils/supabase_time.dart';
+import '../../l10n/app_localizations.dart';
 
 enum OrderStatus {
   pending,
@@ -110,22 +111,22 @@ class Order {
     }
   }
 
-  String get statusLabel {
+  String statusLabel(AppLocalizations? l10n) {
     switch (status) {
       case OrderStatus.pending:
-        return 'قيد الإرسال';
+        return l10n?.orderStatusPending ?? 'قيد الإرسال';
       case OrderStatus.priced:
-        return 'تم تقديم عرض';
+        return l10n?.orderStatusPriced ?? 'تم تقديم عرض';
       case OrderStatus.confirmed:
-        return 'مؤكد';
+        return l10n?.orderStatusConfirmed ?? 'مؤكد';
       case OrderStatus.rejectedByProvider:
-        return 'مرفوض من المزود';
+        return l10n?.orderStatusRejectedProvider ?? 'مرفوض من المزود';
       case OrderStatus.rejectedByOwner:
-        return 'مرفوض من المالك';
+        return l10n?.orderStatusRejectedOwner ?? 'مرفوض من المالك';
       case OrderStatus.cancelled:
-        return 'ملغي';
+        return l10n?.orderStatusCancelled ?? 'ملغي';
       case OrderStatus.completed:
-        return 'مكتمل';
+        return l10n?.orderStatusCompleted ?? 'مكتمل';
     }
   }
 

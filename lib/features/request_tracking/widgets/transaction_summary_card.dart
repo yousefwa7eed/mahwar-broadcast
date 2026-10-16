@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/avatar_config.dart';
 import '../../../../core/models/order.dart';
+import '../../../../l10n/app_localizations.dart';
 
 enum TransactionEventKind { neutral, accent, success, failure }
 
@@ -22,14 +23,17 @@ class TransactionEvent {
 /// الخادم لا يخزّن سجل انتقالات، لكن المسار نفسه حتمي: إرسال ← (استلام
 /// المزوّد) ← (عرض سعر) ← (تأكيد) ثم إتمام أو فشل — والتوقيتات المتاحة
 /// (created_at / updated_at) تُرفق لكل حدث متاح منها بدقة.
-List<TransactionEvent> buildTransactionPath(Order order) {
+List<TransactionEvent> buildTransactionPath(Order order, AppLocalizations? l10n) {
   final events = <TransactionEvent>[
-    TransactionEvent('تم إرسال الطلب', time: order.createdAt),
+    TransactionEvent(
+      l10n?.transactionEventOrderSent ?? 'تم إرسال الطلب',
+      time: order.createdAt,
+    ),
   ];
 
   if (order.providerId != null) {
-    events.add(const TransactionEvent(
-      'استلم المزوّد الطلب',
+    events.add(TransactionEvent(
+      l10n?.transactionEventProviderReceived ?? 'استلم المزوّد الطلب',
       kind: TransactionEventKind.accent,
     ));
   }
@@ -37,15 +41,19 @@ List<TransactionEvent> buildTransactionPath(Order order) {
   final hasOffer = order.offeredPrice != null;
   if (hasOffer && order.status != OrderStatus.pending) {
     events.add(TransactionEvent(
-      'قدّم المزوّد عرض السعر (${order.offeredPrice!.toStringAsFixed(0)} ${order.currency})',
+      l10n?.transactionEventOfferWithPrice(
+            order.offeredPrice!.toStringAsFixed(0),
+            order.currency,
+          ) ??
+          'قدّم المزوّد عرض السعر (${order.offeredPrice!.toStringAsFixed(0)} ${order.currency})',
       kind: TransactionEventKind.accent,
     ));
   }
 
   if (order.status == OrderStatus.confirmed ||
       order.status == OrderStatus.completed) {
-    events.add(const TransactionEvent(
-      'تم تأكيد العرض',
+    events.add(TransactionEvent(
+      l10n?.transactionEventOfferConfirmed ?? 'تم تأكيد العرض',
       kind: TransactionEventKind.accent,
     ));
   }
@@ -53,28 +61,29 @@ List<TransactionEvent> buildTransactionPath(Order order) {
   switch (order.status) {
     case OrderStatus.completed:
       events.add(TransactionEvent(
-        'تم إتمام المعاملة',
+        l10n?.transactionEventCompleted ?? 'تم إتمام المعاملة',
         time: order.updatedAt,
         kind: TransactionEventKind.success,
       ));
       break;
     case OrderStatus.rejectedByProvider:
       events.add(TransactionEvent(
-        'رفض المزوّد المعاملة',
+        l10n?.transactionEventRejectedByProvider ?? 'رفض المزوّد المعاملة',
         time: order.updatedAt,
         kind: TransactionEventKind.failure,
       ));
       break;
     case OrderStatus.rejectedByOwner:
       events.add(TransactionEvent(
-        'رفض العميل عرض السعر',
+        l10n?.transactionEventRejectedByOwner ?? 'رفض العميل عرض السعر',
         time: order.updatedAt,
         kind: TransactionEventKind.failure,
       ));
       break;
     case OrderStatus.cancelled:
       events.add(TransactionEvent(
-        'أُلغي الطلب (انتهت مهلة الاستجابة)',
+        l10n?.transactionEventCancelledTimeout ??
+            'أُلغي الطلب (انتهت مهلة الاستجابة)',
         time: order.updatedAt,
         kind: TransactionEventKind.failure,
       ));
@@ -89,14 +98,15 @@ List<TransactionEvent> buildTransactionPath(Order order) {
 }
 
 /// سبب فشل المعاملة + الجهة الرافضة — null إذا لم تفشل المعاملة.
-String? transactionFailureReason(Order order) {
+String? transactionFailureReason(Order order, AppLocalizations? l10n) {
   switch (order.status) {
     case OrderStatus.rejectedByProvider:
-      return 'رفض من جهة المزوّد';
+      return l10n?.transactionFailureProvider ?? 'رفض من جهة المزوّد';
     case OrderStatus.rejectedByOwner:
-      return 'رفض من جهة العميل';
+      return l10n?.transactionFailureOwner ?? 'رفض من جهة العميل';
     case OrderStatus.cancelled:
-      return 'إلغاء تلقائي (انتهت مهلة الاستجابة)';
+      return l10n?.transactionFailureAutoCancel ??
+          'إلغاء تلقائي (انتهت مهلة الاستجابة)';
     case OrderStatus.completed:
     case OrderStatus.pending:
     case OrderStatus.priced:
@@ -127,13 +137,14 @@ class TransactionSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final l10n = AppLocalizations.of(context);
     final textPrimary =
         isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final textSecondary =
         isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
-    final events = buildTransactionPath(order);
-    final failureReason = transactionFailureReason(order);
+    final events = buildTransactionPath(order, l10n);
+    final failureReason = transactionFailureReason(order, l10n);
     final providerLine = _providerLine();
 
     return Container(
@@ -155,7 +166,7 @@ class TransactionSummaryCard extends StatelessWidget {
                   color: AppColors.orangePrimary, size: 22),
               const SizedBox(width: 8),
               Text(
-                'ملخّص المعاملة',
+                l10n?.transactionSummaryTitle ?? 'ملخّص المعاملة',
                 style: TextStyle(
                   fontFamily: 'Zain',
                   fontSize: 20,
@@ -172,7 +183,7 @@ class TransactionSummaryCard extends StatelessWidget {
             context,
             isDark,
             icon: Icons.event_rounded,
-            label: 'تاريخ المعاملة',
+            label: l10n?.transactionDateLabel ?? 'تاريخ المعاملة',
             value: _formatStamp(context, order.createdAt),
           ),
           if (order.updatedAt != null) ...[
@@ -181,7 +192,7 @@ class TransactionSummaryCard extends StatelessWidget {
               context,
               isDark,
               icon: Icons.flag_rounded,
-              label: 'تاريخ الإنهاء',
+              label: l10n?.transactionClosedDateLabel ?? 'تاريخ الإنهاء',
               value: _formatStamp(context, order.updatedAt),
             ),
           ],
@@ -202,7 +213,7 @@ class TransactionSummaryCard extends StatelessWidget {
                     context,
                     isDark,
                     icon: Icons.storefront_rounded,
-                    label: 'المزوّد',
+                    label: l10n?.transactionProviderLabel ?? 'المزوّد',
                     value: providerLine,
                   ),
                 ),
@@ -213,7 +224,7 @@ class TransactionSummaryCard extends StatelessWidget {
           const Divider(height: 1),
           const SizedBox(height: 14),
           Text(
-            'مسار المعاملة',
+            l10n?.transactionPathTitle ?? 'مسار المعاملة',
             style: TextStyle(
               fontFamily: 'Cairo',
               fontSize: 13,
@@ -235,6 +246,7 @@ class TransactionSummaryCard extends StatelessWidget {
   /// توضيح الجهة الرافضة بشكل صريح.
   Widget _buildOutcome(
       BuildContext context, bool isDark, String? failureReason) {
+    final l10n = AppLocalizations.of(context);
     final completed = order.status == OrderStatus.completed;
     final color = completed ? AppColors.success : AppColors.error;
 
@@ -259,7 +271,9 @@ class TransactionSummaryCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  completed ? 'تمت المعاملة بنجاح' : 'لم تُنجز المعاملة',
+                  completed
+                      ? (l10n?.transactionSucceeded ?? 'تمت المعاملة بنجاح')
+                      : (l10n?.transactionFailed ?? 'لم تُنجز المعاملة'),
                   style: TextStyle(
                     fontFamily: 'Cairo',
                     fontSize: 14,

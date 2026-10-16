@@ -5,6 +5,7 @@ import 'car_selection_dropdowns_widget.dart';
 import '../../../core/auth/national_id_utils.dart';
 import '../../../core/auth/phone_utils.dart';
 import '../../../core/settings/app_settings_cubit.dart';
+import '../../../l10n/app_localizations.dart';
 
 class OwnerSignupFormWidget extends StatefulWidget {
   final Function(
@@ -55,12 +56,12 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
   void _submit(bool isArabic) {
     if (_formKey.currentState!.validate()) {
       if (!_agreedToTerms) {
+        final l10n = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              isArabic
-                  ? 'يجب الموافقة على شروط الاستخدام وسياسة الخصوصية للمتابعة'
-                  : 'You must agree to the Terms of Use and Privacy Policy to continue',
+              l10n?.signupAgreeTermsRequired ??
+                  'يجب الموافقة على شروط الاستخدام وسياسة الخصوصية للمتابعة',
               style: TextStyle(fontFamily: isArabic ? 'Cairo' : 'Poppins'),
             ),
             backgroundColor: Colors.red,
@@ -88,6 +89,7 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
   Widget build(BuildContext context) {
     const Color primaryColor = Color(0xFFFF6B00);
     final isArabic = context.watch<AppSettingsCubit>().state.locale.languageCode == 'ar';
+    final l10n = AppLocalizations.of(context);
 
     return Form(
       key: _formKey,
@@ -98,7 +100,7 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
           TextFormField(
             controller: _fullNameController,
             decoration: InputDecoration(
-              labelText: isArabic ? 'الاسم رباعي (إجباري)' : 'Full Name (Required)',
+              labelText: l10n?.signupFullNameLabel ?? 'الاسم رباعي (إجباري)',
               prefixIcon: const Icon(Icons.person_rounded, color: primaryColor),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
               focusedBorder: OutlineInputBorder(
@@ -108,7 +110,7 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
             ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return isArabic ? 'يرجى إدخال الاسم رباعي' : 'Please enter your full name';
+                return l10n?.signupFullNameRequired ?? 'يرجى إدخال الاسم رباعي';
               }
               return null;
             },
@@ -122,7 +124,7 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
             textDirection: TextDirection.ltr,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             decoration: InputDecoration(
-              labelText: isArabic ? 'رقم الهاتف (إجباري)' : 'Phone Number (Required)',
+              labelText: l10n?.signupPhoneLabel ?? 'رقم الهاتف (إجباري)',
               hintText: '01xxxxxxxxx',
               prefixIcon:
                   const Icon(Icons.phone_android_rounded, color: primaryColor),
@@ -134,12 +136,11 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
             ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return isArabic ? 'يرجى إدخال رقم الهاتف' : 'Please enter your phone number';
+                return l10n?.enterPhonePrompt ?? 'يرجى إدخال رقم الهاتف';
               }
               if (!PhoneUtils.isValidEgyptianMobile(value)) {
-                return isArabic
-                    ? 'رقم هاتف مصري غير صحيح (11 رقم مثال: 01012345678)'
-                    : 'Invalid Egyptian phone number (e.g. 01012345678)';
+                return l10n?.signupInvalidPhone ??
+                    'رقم هاتف مصري غير صحيح (11 رقم مثال: 01012345678)';
               }
               return null;
             },
@@ -152,7 +153,7 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
             keyboardType: TextInputType.emailAddress,
             textDirection: TextDirection.ltr,
             decoration: InputDecoration(
-              labelText: isArabic ? 'البريد الإلكتروني (اختياري)' : 'Email Address (Optional)',
+              labelText: l10n?.signupEmailLabel ?? 'البريد الإلكتروني (اختياري)',
               hintText: 'example@domain.com',
               prefixIcon: const Icon(Icons.email_rounded, color: primaryColor),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
@@ -168,10 +169,9 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             maxLength: 14,
             decoration: InputDecoration(
-              labelText: isArabic ? 'الرقم القومي (اختياري)' : 'National ID (Optional)',
-              helperText: isArabic
-                  ? 'اختياري عند التسجيل، مطلوب فقط لإتمام طلب خدمة'
-                  : 'Optional at registration, required to complete a service request',
+              labelText: l10n?.signupNationalIdLabel ?? 'الرقم القومي (اختياري)',
+              helperText: l10n?.signupNationalIdHint ??
+                  'اختياري عند التسجيل، مطلوب فقط لإتمام طلب خدمة',
               helperMaxLines: 2,
               prefixIcon: const Icon(Icons.badge_rounded, color: primaryColor),
               counterText: '',
@@ -182,9 +182,7 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
                 return null; // optional at signup
               }
               if (!NationalIdUtils.isValid(value)) {
-                return isArabic
-                    ? 'الرقم القومي غير صحيح (14 رقم)'
-                    : 'Invalid national ID (14 digits)';
+                return l10n?.signupInvalidNationalId ?? 'الرقم القومي غير صحيح (14 رقم)';
               }
               return null;
             },
@@ -206,7 +204,7 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
             controller: _passwordController,
             obscureText: _obscurePassword,
             decoration: InputDecoration(
-              labelText: isArabic ? 'كلمة المرور' : 'Password',
+              labelText: l10n?.password ?? 'كلمة المرور',
               prefixIcon: const Icon(Icons.lock_rounded, color: primaryColor),
               suffixIcon: IconButton(
                 icon: Icon(
@@ -222,9 +220,8 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
             ),
             validator: (value) {
               if (value == null || value.length < 6) {
-                return isArabic
-                    ? 'كلمة المرور يجب أن لا تقل عن 6 أحرف'
-                    : 'Password must be at least 6 characters';
+                return l10n?.passwordTooShort ??
+                    'كلمة المرور يجب أن لا تقل عن 6 أحرف';
               }
               return null;
             },
@@ -236,7 +233,7 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
             controller: _confirmPasswordController,
             obscureText: _obscureConfirmPassword,
             decoration: InputDecoration(
-              labelText: isArabic ? 'تأكيد كلمة المرور' : 'Confirm Password',
+              labelText: l10n?.confirmPassword ?? 'تأكيد كلمة المرور',
               prefixIcon:
                   const Icon(Icons.lock_outline_rounded, color: primaryColor),
               suffixIcon: IconButton(
@@ -255,7 +252,7 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
             ),
             validator: (value) {
               if (value != _passwordController.text) {
-                return isArabic ? 'كلمة المرور غير متطابقة' : 'Passwords do not match';
+                return l10n?.signupPasswordMismatch ?? 'كلمة المرور غير متطابقة';
               }
               return null;
             },
@@ -278,9 +275,8 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
                 child: GestureDetector(
                   onTap: () => setState(() => _agreedToTerms = !_agreedToTerms),
                   child: Text(
-                    isArabic
-                        ? 'أوافق على شروط الاستخدام وسياسة الخصوصية'
-                        : 'I agree to the Terms of Use and Privacy Policy',
+                    l10n?.signupAgreeTerms ??
+                        'أوافق على شروط الاستخدام وسياسة الخصوصية',
                     style: TextStyle(
                       fontFamily: isArabic ? 'Cairo' : 'Poppins',
                       fontSize: 13,
@@ -305,7 +301,7 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
               ),
               onPressed: () => _submit(isArabic),
               child: Text(
-                isArabic ? 'إنشاء حساب جديد' : 'Create Account',
+                l10n?.signup ?? 'إنشاء حساب جديد',
                 style: TextStyle(
                   fontFamily: isArabic ? 'Cairo' : 'Poppins',
                   fontSize: 16,

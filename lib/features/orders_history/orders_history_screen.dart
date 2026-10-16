@@ -43,6 +43,7 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
   }
 
   Future<void> _loadOrders() async {
+    final l10n = AppLocalizations.of(context);
     final userId = _client.auth.currentUser?.id;
     if (userId == null) {
       setState(() => _isLoading = false);
@@ -68,7 +69,8 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'تعذّر تحميل السجل: $e';
+          _error = l10n?.orderHistoryLoadFailed(e.toString()) ??
+              'تعذّر تحميل السجل: $e';
           _isLoading = false;
         });
       }
@@ -102,15 +104,16 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
   }
 
   Future<void> _pickFilterDate() async {
+    final l10n = AppLocalizations.of(context);
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
       initialDate: _filterDate ?? now,
       firstDate: DateTime(now.year - 1),
       lastDate: now,
-      helpText: 'اختر تاريخ المعاملة',
-      cancelText: 'إلغاء',
-      confirmText: 'تطبيق',
+      helpText: l10n?.selectTransactionDate ?? 'اختر تاريخ المعاملة',
+      cancelText: l10n?.cancel ?? 'إلغاء',
+      confirmText: l10n?.apply ?? 'تطبيق',
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: Theme.of(context).colorScheme.copyWith(
@@ -204,8 +207,9 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
                           Expanded(
                             child: Text(
                               _filterDate == null
-                                  ? 'فلترة بحث بالتاريخ: كل الأيام'
-                                  : 'تاريخ المعاملة: ${_formatDay(context, _filterDate!)}',
+                                  ? (l10n?.filterByDateAllDays ??
+                                      'فلترة بحث بالتاريخ: كل الأيام')
+                                  : '${l10n?.transactionDateLabel ?? 'تاريخ المعاملة'}: ${_formatDay(context, _filterDate!)}',
                               style: TextStyle(
                                 fontFamily: 'Cairo',
                                 fontSize: 13,
@@ -281,9 +285,9 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
           ElevatedButton(
             onPressed: _loadOrders,
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.orangePrimary),
-            child: const Text(
-              'إعادة المحاولة',
-              style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+            child: Text(
+              l10n?.retry ?? 'إعادة المحاولة',
+              style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -347,7 +351,7 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
   Widget _buildOrderCard(
       BuildContext context, bool isDark, Order order, AppLocalizations? l10n) {
     final statusColor = _statusColor(order.status);
-    final statusLabel = order.statusLabel;
+    final statusLabel = order.statusLabel(l10n);
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),
@@ -428,7 +432,7 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
             if (order.offeredPrice != null) ...[
               const SizedBox(height: 8),
               Text(
-                '${order.offeredPrice!.toStringAsFixed(0)} ج.م',
+                '${order.offeredPrice!.toStringAsFixed(0)} ${l10n?.egp ?? 'ج.م'}',
                 style: const TextStyle(
                   fontFamily: 'Cairo',
                   fontSize: 18,

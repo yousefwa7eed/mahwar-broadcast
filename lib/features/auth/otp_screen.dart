@@ -91,9 +91,6 @@ class _OtpScreenState extends State<OtpScreen> {
     super.dispose();
   }
 
-  bool _currentIsArabic() =>
-      context.read<AppSettingsCubit>().state.locale.languageCode == 'ar';
-
   void _startTicker() {
     _ticker?.cancel();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _syncCooldown());
@@ -142,7 +139,7 @@ class _OtpScreenState extends State<OtpScreen> {
     final code = _codeController.text.trim();
     if (code.length != _codeLength) return;
 
-    final isArabic = _currentIsArabic();
+    final l10n = AppLocalizations.of(context);
     setState(() {
       _isBusy = true;
       _errorText = null;
@@ -160,7 +157,7 @@ class _OtpScreenState extends State<OtpScreen> {
       if (!mounted) return;
       setState(() {
         _isBusy = false;
-        _errorText = mapOtpError(e, isArabic: isArabic);
+        _errorText = mapOtpError(e, l10n);
       });
       _resetCode();
     }
@@ -207,7 +204,7 @@ class _OtpScreenState extends State<OtpScreen> {
   Future<void> _onResendPressed() async {
     final phone = _phone;
     if (_isBusy || phone == null || phone.isEmpty) return;
-    final isArabic = _currentIsArabic();
+    final l10n = AppLocalizations.of(context);
     setState(() {
       _isBusy = true;
       _errorText = null;
@@ -230,7 +227,7 @@ class _OtpScreenState extends State<OtpScreen> {
       if (!mounted) return;
       setState(() {
         _isBusy = false;
-        _errorText = mapOtpError(e, isArabic: isArabic);
+        _errorText = mapOtpError(e, l10n);
       });
     }
   }
@@ -238,12 +235,10 @@ class _OtpScreenState extends State<OtpScreen> {
   Future<void> _onNewPhoneSubmit() async {
     if (_isBusy) return;
     final raw = _newPhoneController.text.trim();
-    final isArabic = _currentIsArabic();
+    final l10n = AppLocalizations.of(context);
     if (!PhoneUtils.isValidEgyptianMobile(raw)) {
       setState(() {
-        _errorText = isArabic
-            ? 'أدخل رقم هاتف مصري صحيح'
-            : 'Enter a valid Egyptian phone number';
+        _errorText = l10n?.enterValidEgyptianPhone ?? 'أدخل رقم هاتف مصري صحيح';
       });
       return;
     }
@@ -273,7 +268,7 @@ class _OtpScreenState extends State<OtpScreen> {
           if (isChangeNumber) {
             setState(() {
               _isBusy = false;
-              _errorText = mapChangePhoneLookupError(e, isArabic: isArabic);
+              _errorText = mapChangePhoneLookupError(e, l10n);
             });
             return;
           }
@@ -286,9 +281,8 @@ class _OtpScreenState extends State<OtpScreen> {
             ownerEmail != cubit.currentUserEmail) {
           setState(() {
             _isBusy = false;
-            _errorText = isArabic
-                ? 'رقم الهاتف مسجل بالفعل لدى مستخدم آخر'
-                : 'This phone number is already registered';
+            _errorText = l10n?.phoneAlreadyRegistered ??
+                'رقم الهاتف مسجل بالفعل لدى مستخدم آخر';
           });
           return;
         }
@@ -311,7 +305,7 @@ class _OtpScreenState extends State<OtpScreen> {
       if (!mounted) return;
       setState(() {
         _isBusy = false;
-        _errorText = mapOtpError(e, isArabic: isArabic);
+        _errorText = mapOtpError(e, l10n);
       });
     }
   }
@@ -365,7 +359,7 @@ class _OtpScreenState extends State<OtpScreen> {
       children: [
         const SizedBox(height: 8),
         Text(
-          isArabic ? 'تأكيد رقم الهاتف' : 'Verify your phone number',
+          l10n?.otpTitle ?? 'تأكيد رقم الهاتف',
           style: TextStyle(
             fontFamily: isArabic ? 'Zain' : 'Poppins',
             fontSize: 32,
@@ -548,7 +542,7 @@ class _OtpScreenState extends State<OtpScreen> {
         const SizedBox(height: 8),
         Text(
           widget.mode == OtpMode.forgot
-              ? (isArabic ? 'استعادة كلمة المرور' : 'Reset Password')
+              ? (l10n?.resetPasswordTitle ?? 'استعادة كلمة المرور')
               : (l10n?.changeNumberTitle ?? 'تغيير رقم الهاتف'),
           style: TextStyle(
             fontFamily: isArabic ? 'Zain' : 'Poppins',
@@ -560,9 +554,8 @@ class _OtpScreenState extends State<OtpScreen> {
         const SizedBox(height: 4),
         Text(
           widget.mode == OtpMode.forgot
-              ? (isArabic
-                  ? 'أدخل رقم الهاتف المرتبط بحسابك وسنرسل إليه رمز تحقق'
-                  : 'Enter the phone number linked to your account and we will send it a verification code')
+              ? (l10n?.forgotPhoneEntrySubtitle ??
+                  'أدخل رقم الهاتف المرتبط بحسابك وسنرسل إليه رمز تحقق')
               : (l10n?.changeNumberSubTitle ??
                   'أدخل رقم الهاتف الجديد وسنرسل إليه رمز تحقق'),
           style: TextStyle(

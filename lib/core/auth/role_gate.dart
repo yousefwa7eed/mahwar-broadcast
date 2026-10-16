@@ -1,3 +1,5 @@
+import '../../l10n/app_localizations.dart';
+
 /// دور المستخدم القياسي في التطبيق — يطابق القيم المخزّنة في
 /// `public.profiles.role` و`user_metadata.role`.
 ///
@@ -42,26 +44,22 @@ enum AppRole {
 /// دون أي بيانات إضافية عن الحساب.
 String roleMismatchMessage({
   required AppRole actualRole,
-  required bool isArabic,
+  required AppLocalizations? l10n,
 }) {
   final isProvider = actualRole == AppRole.provider;
-  if (isArabic) {
-    return isProvider
-        ? 'هذا الحساب مسجّل كمزوّد. يرجى تسجيل الدخول من صفحة تسجيل دخول المزوّد.'
-        : 'هذا الحساب مسجّل كعميل. يرجى تسجيل الدخول من صفحة تسجيل دخول العميل.';
+  if (isProvider) {
+    return l10n?.roleMismatchProvider ??
+        'هذا الحساب مسجّل كمزوّد. يرجى تسجيل الدخول من صفحة تسجيل دخول المزوّد.';
   }
-  return isProvider
-      ? 'This account is registered as a provider. Please sign in from the provider login page.'
-      : 'This account is registered as a customer. Please sign in from the customer login page.';
+  return l10n?.roleMismatchCustomer ??
+      'هذا الحساب مسجّل كعميل. يرجى تسجيل الدخول من صفحة تسجيل دخول العميل.';
 }
 
 /// رسالة تُعرض إذا تعذّر تحديد دور الحساب بعد اكتمال تسجيل الدخول أو عند
 /// الإقلاع (فشل قراءة `profiles.role` أو انتهاء المهلة). نُظهرها مع خيارَي
 /// إعادة المحاولة وتسجيل الخروج بدل ترك المستخدم في شاشة عالقة بلا أي رسالة.
 /// لا تُقرأ الـ `user_metadata` على الإطلاق في مسار التحديد.
-String roleUnresolvedMessage({required bool isArabic}) {
-  if (isArabic) {
-    return 'تعذّر تحديد نوع الحساب بعد تسجيل الدخول. يرجى المحاولة مرة أخرى.';
-  }
-  return 'Could not determine the account type after signing in. Please try again.';
+String roleUnresolvedMessage({required AppLocalizations? l10n}) {
+  return l10n?.roleUnresolved ??
+      'تعذّر تحديد نوع الحساب بعد تسجيل الدخول. يرجى المحاولة مرة أخرى.';
 }

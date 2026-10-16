@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
+
 void showErrorDialog(BuildContext context, String message) {
   final colorScheme = Theme.of(context).colorScheme;
+  final l10n = AppLocalizations.of(context);
 
   showDialog(
     context: context,
@@ -20,7 +23,7 @@ void showErrorDialog(BuildContext context, String message) {
           ),
           const SizedBox(width: 12),
           Text(
-            'خطأ',
+            l10n?.errorTitle ?? 'خطأ',
             style: TextStyle(
               fontFamily: 'Cairo',
               fontWeight: FontWeight.bold,
@@ -31,7 +34,7 @@ void showErrorDialog(BuildContext context, String message) {
         ],
       ),
       content: Text(
-        _friendlyMessage(message),
+        _friendlyMessage(message, l10n),
         style: TextStyle(
           fontFamily: 'Cairo',
           fontSize: 14,
@@ -42,9 +45,9 @@ void showErrorDialog(BuildContext context, String message) {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text(
-            'حسناً',
-            style: TextStyle(
+          child: Text(
+            l10n?.okButton ?? 'حسناً',
+            style: const TextStyle(
               fontFamily: 'Cairo',
               fontWeight: FontWeight.bold,
               color: Color(0xFFFF6B00),
@@ -57,38 +60,62 @@ void showErrorDialog(BuildContext context, String message) {
   );
 }
 
-String _friendlyMessage(String message) {
+String _friendlyMessage(String message, AppLocalizations? l10n) {
   final lower = message.toLowerCase();
 
+  if (lower.contains('unexpected_error')) {
+    return l10n?.authErrorUnexpected ?? 'حدث خطأ غير متوقع، حاول مرة أخرى.';
+  }
+  if (lower.contains('no_account_found')) {
+    return l10n?.authErrorNoAccount ??
+        'لا يوجد حساب مرتبط بهذا الرقم أو البريد الإلكتروني';
+  }
+  if (lower.contains('network_error')) {
+    return l10n?.authErrorNetwork ??
+        'لا يوجد اتصال بالإنترنت، تحقق من اتصالك وحاول مجددًا';
+  }
+  if (lower.contains('sign_out_failed')) {
+    return l10n?.authErrorSignOut ?? 'حدث خطأ أثناء تسجيل الخروج';
+  }
+
   if (lower.contains('phone') && (lower.contains('already') || lower.contains('exists') || lower.contains('duplicate') || lower.contains('unique'))) {
-    return 'رقم الهاتف مسجل بالفعل في حساب آخر. يرجى استخدام رقم هاتف مختلف أو تسجيل الدخول بالحساب الموجود.';
+    return l10n?.errPhoneDuplicate ??
+        'رقم الهاتف مسجل بالفعل في حساب آخر. يرجى استخدام رقم هاتف مختلف أو تسجيل الدخول بالحساب الموجود.';
   }
   if (lower.contains('national_id') && (lower.contains('already') || lower.contains('exists') || lower.contains('duplicate') || lower.contains('unique'))) {
-    return 'الرقم القومي مسجل بالفعل في حساب آخر. إذا كنت تملك حساباً سابقاً، يرجى تسجيل الدخول إليه.';
+    return l10n?.errNationalIdDuplicate ??
+        'الرقم القومي مسجل بالفعل في حساب آخر. إذا كنت تملك حساباً سابقاً، يرجى تسجيل الدخول إليه.';
   }
   if (lower.contains('email') && (lower.contains('already') || lower.contains('exists') || lower.contains('duplicate') || lower.contains('unique') || lower.contains('registered'))) {
-    return 'البريد الإلكتروني مسجل بالفعل في حساب آخر. يرجى تسجيل الدخول بالحساب الموجود أو استخدام بريد إلكتروني مختلف.';
+    return l10n?.errEmailDuplicate ??
+        'البريد الإلكتروني مسجل بالفعل في حساب آخر. يرجى تسجيل الدخول بالحساب الموجود أو استخدام بريد إلكتروني مختلف.';
   }
   if (lower.contains('رقم الهاتف مسجل')) {
-    return 'رقم الهاتف مسجل بالفعل في حساب آخر. يرجى استخدام رقم هاتف مختلف أو تسجيل الدخول بالحساب الموجود.';
+    return l10n?.errPhoneDuplicate ??
+        'رقم الهاتف مسجل بالفعل في حساب آخر. يرجى استخدام رقم هاتف مختلف أو تسجيل الدخول بالحساب الموجود.';
   }
   if (lower.contains('الرقم القومي مسجل')) {
-    return 'الرقم القومي مسجل بالفعل في حساب آخر. إذا كنت تملك حساباً سابقاً، يرجى تسجيل الدخول إليه.';
+    return l10n?.errNationalIdDuplicate ??
+        'الرقم القومي مسجل بالفعل في حساب آخر. إذا كنت تملك حساباً سابقاً، يرجى تسجيل الدخول إليه.';
   }
   if (lower.contains('invalid login credentials') || lower.contains('invalid')) {
-    return 'البريد الإلكتروني أو كلمة المرور غير صحيحة. يرجى التحقق من البيانات والمحاولة مرة أخرى.';
+    return l10n?.errInvalidCredentials ??
+        'البريد الإلكتروني أو كلمة المرور غير صحيحة. يرجى التحقق من البيانات والمحاولة مرة أخرى.';
   }
   if (lower.contains('email not confirmed') || lower.contains('not confirmed')) {
-    return 'لم يتم تأكيد البريد الإلكتروني بعد. يرجى التحقق من بريدك الإلكتروني والضغط على رابط التأكيد.';
+    return l10n?.errEmailNotConfirmed ??
+        'لم يتم تأكيد البريد الإلكتروني بعد. يرجى التحقق من بريدك الإلكتروني والضغط على رابط التأكيد.';
   }
   if (lower.contains('too many requests') || lower.contains('rate limit')) {
-    return 'لقد تجاوزت عدد المحاولات المسموح. يرجى الانتظار قليلاً ثم المحاولة مرة أخرى.';
+    return l10n?.errTooManyRequests ??
+        'لقد تجاوزت عدد المحاولات المسموح. يرجى الانتظار قليلاً ثم المحاولة مرة أخرى.';
   }
   if (lower.contains('user not found') || lower.contains('no user')) {
-    return 'لا يوجد حساب مرتبط بهذا البريد الإلكتروني. يرجى التسجيل أولاً.';
+    return l10n?.errUserNotFound ??
+        'لا يوجد حساب مرتبط بهذا البريد الإلكتروني. يرجى التسجيل أولاً.';
   }
   if (lower.contains('password')) {
-    return 'كلمة المرور غير صحيحة. يرجى المحاولة مرة أخرى.';
+    return l10n?.errInvalidPassword ?? 'كلمة المرور غير صحيحة. يرجى المحاولة مرة أخرى.';
   }
 
   return message;

@@ -73,7 +73,9 @@ class _AvatarPickerScreenState extends State<AvatarPickerScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('حدث خطأ: $e'),
+            content: Text(
+              AppLocalizations.of(context)?.errorWithDetail('$e') ?? 'حدث خطأ: $e',
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -87,7 +89,6 @@ class _AvatarPickerScreenState extends State<AvatarPickerScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final l10n = AppLocalizations.of(context);
-    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
     final avatars = AvatarConfig.getAvatarsForRole(widget.role);
 
     return Scaffold(
@@ -121,7 +122,7 @@ class _AvatarPickerScreenState extends State<AvatarPickerScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    isArabic ? 'اختر صورتك الرمزية' : 'Choose your avatar',
+                    l10n?.chooseAvatarTitle ?? 'اختر صورتك الرمزية',
                     style: TextStyle(
                       fontFamily: 'Zain',
                       fontSize: 22,
@@ -131,9 +132,7 @@ class _AvatarPickerScreenState extends State<AvatarPickerScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    isArabic
-                        ? 'ستظهر هذه الصورة في ملفك الشخصي وطلباتك'
-                        : 'This will appear on your profile and orders',
+                    l10n?.chooseAvatarSubtitle ?? 'ستظهر هذه الصورة في ملفك الشخصي وطلباتك',
                     style: TextStyle(
                       fontFamily: 'Cairo',
                       fontSize: 14,
@@ -202,8 +201,8 @@ class _AvatarPickerScreenState extends State<AvatarPickerScreen> {
                             : const Icon(Icons.save_rounded),
                         label: Text(
                           _isSaving
-                              ? (isArabic ? 'جاري الحفظ...' : 'Saving...')
-                              : (isArabic ? 'حفظ الصورة الرمزية' : 'Save Avatar'),
+                              ? (l10n?.saving ?? 'جاري الحفظ...')
+                              : (l10n?.saveAvatar ?? 'حفظ الصورة الرمزية'),
                           style: const TextStyle(
                             fontFamily: 'Cairo',
                             fontSize: 16,

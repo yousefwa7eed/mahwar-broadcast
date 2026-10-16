@@ -149,12 +149,11 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
       }
     } on PostgrestException catch (e) {
       if (mounted) {
-        String message = 'حدث خطأ: ${e.message}';
+        String message = AppLocalizations.of(context)?.errorWithDetail(e.message) ??
+            'حدث خطأ: ${e.message}';
         if (e.code == '23505') {
-          final isArabic = Localizations.localeOf(context).languageCode == 'ar';
-          message = isArabic
-              ? 'رقم الهاتف مسجل بالفعل لدى مستخدم آخر'
-              : 'This phone number is already registered';
+          message = AppLocalizations.of(context)?.phoneAlreadyRegistered ??
+              'رقم الهاتف مسجل بالفعل لدى مستخدم آخر';
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -167,7 +166,10 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('حدث خطأ: $e', style: const TextStyle(fontFamily: 'Cairo')),
+            content: Text(
+              AppLocalizations.of(context)?.errorWithDetail('$e') ?? 'حدث خطأ: $e',
+              style: const TextStyle(fontFamily: 'Cairo'),
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -246,7 +248,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
                       isDark: isDark,
                       validator: (v) {
                         if (v == null || v.trim().isEmpty) {
-                          return isArabic ? 'الاسم مطلوب' : 'Name is required';
+                          return l10n?.nameRequired ?? 'الاسم مطلوب';
                         }
                         return null;
                       },
@@ -262,13 +264,12 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       validator: (v) {
                         if (v == null || v.trim().isEmpty) {
-                          return isArabic ? 'رقم الهاتف مطلوب' : 'Phone number is required';
+                          return l10n?.phoneRequired ?? 'رقم الهاتف مطلوب';
                         }
                         final sanitized = PhoneUtils.normalize(v.trim());
                         if (!PhoneUtils.isValidEgyptianMobile(sanitized)) {
-                          return isArabic
-                              ? 'أدخل رقم هاتف مصري صحيح (01xxxxxxxxx)'
-                              : 'Enter a valid Egyptian phone number';
+                          return l10n?.enterValidEgyptianPhoneNumber ??
+                              'أدخل رقم هاتف مصري صحيح (01xxxxxxxxx)';
                         }
                         return null;
                       },

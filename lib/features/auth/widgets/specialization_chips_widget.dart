@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../l10n/app_localizations.dart';
 
 class SpecializationChipsWidget extends StatelessWidget {
   final List<String> selectedSpecializations;
@@ -22,6 +23,7 @@ class SpecializationChipsWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -30,7 +32,14 @@ class SpecializationChipsWidget extends StatelessWidget {
           runSpacing: 8,
           children: specializationsList.map((spec) {
             final id = spec['id']!;
-            final label = isArabic ? spec['ar']! : spec['en']!;
+            final label = switch (id) {
+              'crane' => l10n?.specTowTruck ?? 'ونش طوارئ S.O.S',
+              'tire' => l10n?.specTire ?? 'خدمات الإطارات',
+              'battery' => l10n?.specBattery ?? 'بطاريات / كهرباء',
+              'fuel' => l10n?.specFuel ?? 'تزويد بنزين',
+              'mechanical' => l10n?.specMechanical ?? 'ميكانيكي طوارئ',
+              _ => isArabic ? spec['ar']! : spec['en']!,
+            };
             final isSelected = selectedSpecializations.contains(id);
 
             return FilterChip(

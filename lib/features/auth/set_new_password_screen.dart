@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/auth/auth_cubit.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/settings/app_settings_cubit.dart';
+import '../../l10n/app_localizations.dart';
 import 'widgets/error_dialog.dart';
 
 /// شاشة تعيين كلمة مرور جديدة — تُفتح من رابط الاستعادة (deep link) بعد
@@ -36,20 +37,20 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final isArabic =
-        context.read<AppSettingsCubit>().state.locale.languageCode == 'ar';
+    final l10n = AppLocalizations.of(context);
     setState(() => _submitting = true);
     try {
       await context.read<AuthCubit>().setNewPassword(_passwordController.text);
       if (!mounted) return;
-      _showSuccess(isArabic);
+      _showSuccess();
       context.go('/login');
     } on AuthSessionMissingException {
       if (!mounted) return;
       setState(() => _submitting = false);
       showErrorDialog(
         context,
-        'انتهت صلاحية رابط استعادة كلمة المرور. يرجى طلب رابط جديد.',
+        l10n?.setNewPasswordLinkExpired ??
+            'انتهت صلاحية رابط استعادة كلمة المرور. يرجى طلب رابط جديد.',
       );
     } on AuthException catch (e) {
       if (!mounted) return;
@@ -59,11 +60,15 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
       if (!mounted) return;
       setState(() => _submitting = false);
       showErrorDialog(
-          context, 'حدث خطأ في تعيين كلمة المرور. حاول مرة أخرى.');
+        context,
+        l10n?.setNewPasswordFailed ??
+            'حدث خطأ في تعيين كلمة المرور. حاول مرة أخرى.',
+      );
     }
   }
 
-  void _showSuccess(bool isArabic) {
+  void _showSuccess() {
+    final l10n = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
@@ -76,9 +81,8 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                isArabic
-                    ? 'تم تغيير كلمة المرور بنجاح. سجّل الدخول بكلمة المرور الجديدة.'
-                    : 'Password changed successfully. Log in with your new password.',
+                l10n?.setNewPasswordSuccess ??
+                    'تم تغيير كلمة المرور بنجاح. سجّل الدخول بكلمة المرور الجديدة.',
                 style: const TextStyle(
                   fontFamily: 'Cairo',
                   fontSize: 13,
@@ -126,6 +130,7 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
 
   Widget _buildForm(BuildContext context, Color primaryColor, bool isArabic,
       ColorScheme colorScheme, bool isDark) {
+    final l10n = AppLocalizations.of(context);
     return Form(
       key: _formKey,
       child: Column(
@@ -142,7 +147,7 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
           ),
           const SizedBox(height: 20),
           Text(
-            isArabic ? 'تعيين كلمة مرور جديدة' : 'Set a New Password',
+            l10n?.setNewPasswordTitle ?? 'تعيين كلمة مرور جديدة',
             style: TextStyle(
               fontFamily: isArabic ? 'Cairo' : 'Poppins',
               fontSize: 24,
@@ -152,9 +157,8 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            isArabic
-                ? 'أدخل كلمة مرور جديدة لحسابك (6 أحرف على الأقل).'
-                : 'Enter a new password for your account (min 6 characters).',
+            l10n?.setNewPasswordSubtitle ??
+                'أدخل كلمة مرور جديدة لحسابك (6 أحرف على الأقل).',
             style: TextStyle(
               fontFamily: isArabic ? 'Cairo' : 'Poppins',
               fontSize: 14,
@@ -167,7 +171,7 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
             controller: _passwordController,
             obscureText: _obscure,
             decoration: InputDecoration(
-              labelText: isArabic ? 'كلمة المرور الجديدة' : 'New password',
+              labelText: l10n?.setNewPasswordFieldLabel ?? 'كلمة المرور الجديدة',
               prefixIcon: Icon(Icons.lock_rounded, color: primaryColor),
               suffixIcon: IconButton(
                 icon: Icon(
@@ -185,14 +189,11 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
             validator: (value) {
               final pass = value ?? '';
               if (pass.isEmpty) {
-                return isArabic
-                    ? 'يرجى إدخال كلمة المرور الجديدة'
-                    : 'Please enter a new password';
+                return l10n?.enterNewPassword ?? 'يرجى إدخال كلمة المرور الجديدة';
               }
               if (pass.length < 6) {
-                return isArabic
-                    ? 'كلمة المرور يجب أن لا تقل عن 6 أحرف'
-                    : 'Password must be at least 6 characters';
+                return l10n?.passwordTooShort ??
+                    'كلمة المرور يجب أن لا تقل عن 6 أحرف';
               }
               return null;
             },
@@ -202,7 +203,7 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
             controller: _confirmController,
             obscureText: _obscureConfirm,
             decoration: InputDecoration(
-              labelText: isArabic ? 'تأكيد كلمة المرور' : 'Confirm password',
+              labelText: l10n?.setNewPasswordConfirmLabel ?? 'تأكيد كلمة المرور',
               prefixIcon: Icon(Icons.lock_outline_rounded, color: primaryColor),
               suffixIcon: IconButton(
                 icon: Icon(
@@ -220,14 +221,11 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
             ),
             validator: (value) {
               if ((value ?? '').isEmpty) {
-                return isArabic
-                    ? 'يرجى تأكيد كلمة المرور'
-                    : 'Please confirm your password';
+                return l10n?.setNewPasswordConfirmPrompt ??
+                    'يرجى تأكيد كلمة المرور';
               }
               if (value != _passwordController.text) {
-                return isArabic
-                    ? 'كلمتا المرور غير متطابقتين'
-                    : 'Passwords do not match';
+                return l10n?.passwordsDoNotMatch ?? 'كلمتا المرور غير متطابقتين';
               }
               return null;
             },
@@ -254,7 +252,7 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
                       ),
                     )
                   : Text(
-                      isArabic ? 'تغيير كلمة المرور' : 'Change Password',
+                      l10n?.changePassword ?? 'تغيير كلمة المرور',
                       style: TextStyle(
                         fontFamily: isArabic ? 'Cairo' : 'Poppins',
                         fontSize: 16,
@@ -271,6 +269,7 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
 
   Widget _buildExpiredView(BuildContext context, Color primaryColor,
       bool isArabic, ColorScheme colorScheme) {
+    final l10n = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -288,7 +287,7 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
         ),
         const SizedBox(height: 20),
         Text(
-          isArabic ? 'الرابط غير صالح أو منتهي' : 'Invalid or expired link',
+          l10n?.setNewPasswordInvalidLink ?? 'الرابط غير صالح أو منتهي',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontFamily: isArabic ? 'Cairo' : 'Poppins',
@@ -299,9 +298,8 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          isArabic
-              ? 'اطلب رابط استعادة جديدًا من شاشة "نسيت كلمة المرور" بالضغط على "نسيت كلمة المرور؟" في شاشة تسجيل الدخول.'
-              : 'Request a fresh reset link via "Forgot password?" on the login screen.',
+          l10n?.setNewPasswordInvalidLinkHint ??
+              'اطلب رابط استعادة جديدًا من شاشة "نسيت كلمة المرور" بالضغط على "نسيت كلمة المرور؟" في شاشة تسجيل الدخول.',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontFamily: isArabic ? 'Cairo' : 'Poppins',
@@ -321,7 +319,7 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
           ),
           onPressed: () => context.go('/login'),
           child: Text(
-            isArabic ? 'العودة لتسجيل الدخول' : 'Back to Login',
+            l10n?.setNewPasswordBackToLogin ?? 'العودة لتسجيل الدخول',
             style: const TextStyle(
               fontFamily: 'Cairo',
               fontSize: 16,

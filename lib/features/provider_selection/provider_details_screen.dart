@@ -50,7 +50,11 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
 
       final rows = response as List;
       if (rows.isEmpty) {
-        if (mounted) setState(() => _error = 'بيانات المزوّد غير متاحة');
+        if (mounted) {
+          setState(() => _error =
+              AppLocalizations.of(context)?.providerDataUnavailable ??
+                  'بيانات المزوّد غير متاحة');
+        }
         return;
       }
 
@@ -72,8 +76,10 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final l10n = AppLocalizations.of(context);
         setState(() {
-          _error = 'تعذّر تحميل بيانات المزوّد: $e';
+          _error = l10n?.providerLoadFailed(e.toString()) ??
+              'تعذّر تحميل بيانات المزوّد: $e';
           _isLoading = false;
         });
       }
@@ -82,10 +88,11 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
 
   Future<void> _sendRequest() async {
     if (_isSending) return;
+    final l10n = AppLocalizations.of(context);
 
     final userId = _client.auth.currentUser?.id;
     if (userId == null) {
-      _showError('يجب تسجيل الدخول لإرسال الطلب');
+      _showError(l10n?.mustLoginToSend ?? 'يجب تسجيل الدخول لإرسال الطلب');
       return;
     }
 
@@ -98,7 +105,8 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
         draft.longitude == null ||
         draft.carMake == null;
     if (missingDraft) {
-      _showError('تعذّر العثور على بيانات الطلب، يرجى إعادة إدخاله من جديد');
+      _showError(l10n?.requestDataNotFound ??
+          'تعذّر العثور على بيانات الطلب، يرجى إعادة إدخاله من جديد');
       return;
     }
 
@@ -166,10 +174,9 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
       if (mounted) {
         setState(() => _isSending = false);
         final l10n = AppLocalizations.of(context);
-        final isArabic = l10n?.localeName.startsWith('ar') ?? true;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(RpcErrorTranslator.translate(e, arabic: isArabic)),
+            content: Text(RpcErrorTranslator.translate(e, l10n)),
             backgroundColor: AppColors.error,
           ),
         );
@@ -188,8 +195,10 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
     final phone = _provider?.phoneNumber;
     if (phone == null || phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('رقم الهاتف غير متاح'),
+        SnackBar(
+          content: Text(
+              AppLocalizations.of(context)?.phoneUnavailable ??
+                  'رقم الهاتف غير متاح'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -201,8 +210,10 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
       await launchUrl(uri);
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('لا يمكن الاتصال بهذا الرقم'),
+        SnackBar(
+          content: Text(
+              AppLocalizations.of(context)?.cannotCallNumber ??
+                  'لا يمكن الاتصال بهذا الرقم'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -212,6 +223,7 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
@@ -226,7 +238,7 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
           onPressed: () => context.pop(),
         ),
         title: Text(
-          'بيانات المزوّد',
+          l10n?.providerDetailsTitle ?? 'بيانات المزوّد',
           style: TextStyle(
             fontFamily: 'Zain',
             fontSize: 22,
@@ -325,7 +337,7 @@ return SingleChildScrollView(
                     const Icon(Icons.star_rounded, size: 18, color: Colors.amber),
                     const SizedBox(width: 2),
                     Text(
-                      p.ratingLabel,
+                      p.ratingLabel(l10n),
                       style: TextStyle(
                         fontFamily: 'Cairo',
                         fontSize: 13,
@@ -374,19 +386,26 @@ return SingleChildScrollView(
           if (p.address.isNotEmpty)
             _buildInfoRow(isDark, icon: Icons.place_outlined, label: p.address),
           const SizedBox(height: 10),
-          _buildInfoRow(isDark, icon: Icons.support_agent_rounded, label: p.supportScopeLabel),
+          _buildInfoRow(
+              isDark,
+              icon: Icons.support_agent_rounded,
+              label: p.supportScopeLabel(l10n)),
           const SizedBox(height: 10),
           _buildInfoRow(
             isDark,
             icon: Icons.car_repair,
-            label: p.hasVehicle ? (p.vehicleType ?? 'لديه سيارة خدمة') : 'بدون سيارة خدمة',
+            label: p.hasVehicle
+                ? (p.vehicleType ?? (l10n?.hasServiceVehicle ?? 'لديه سيارة خدمة'))
+                : (l10n?.noServiceVehicle ?? 'بدون سيارة خدمة'),
           ),
           const SizedBox(height: 10),
           _buildInfoRow(
             isDark,
             icon: Icons.circle,
             iconColor: p.isOnline ? AppColors.success : AppColors.error,
-            label: p.isOnline ? 'متاح الآن' : 'غير متاح حالياً',
+            label: p.isOnline
+                ? (l10n?.availableNow ?? 'متاح الآن')
+                : (l10n?.availabilityOfflineTitle ?? 'غير متاح حالياً'),
           ),
           const SizedBox(height: 24),
 
@@ -403,7 +422,7 @@ return SingleChildScrollView(
                     )
                   : const Icon(Icons.send_rounded),
               label: Text(
-                'إرسال الطلب لهذا المزوّد',
+                l10n?.sendRequestToProvider ?? 'إرسال الطلب لهذا المزوّد',
                 style: TextStyle(
                   fontFamily: 'Zain',
                   fontSize: 19,

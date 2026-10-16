@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/auth/auth_cubit.dart';
 import '../../core/auth/role_hint_cache.dart';
 import '../../core/auth/role_gate.dart';
+import '../../l10n/app_localizations.dart';
 import 'widgets/splash_animation_widget.dart';
 import 'widgets/splash_logo_widget.dart';
 import 'widgets/splash_version_widget.dart';
@@ -107,7 +108,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Widget _buildError() {
-    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
@@ -118,19 +119,19 @@ class _SplashScreenState extends State<SplashScreen> {
               const Icon(Icons.error_outline, size: 80, color: Color(0xFFE53935)),
               const SizedBox(height: 16),
               Text(
-                roleUnresolvedMessage(isArabic: isArabic),
+                roleUnresolvedMessage(l10n: l10n),
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _onRetry,
-                child: Text(isArabic ? 'إعادة المحاولة' : 'Retry'),
+                child: Text(l10n?.retry ?? 'إعادة المحاولة'),
               ),
               const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: _onSignOut,
-                child: Text(isArabic ? 'تسجيل الخروج' : 'Sign out'),
+                child: Text(l10n?.signOut ?? 'تسجيل الخروج'),
               ),
             ],
           ),

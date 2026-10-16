@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/errors/rpc_error_translator.dart';
+import '../../../l10n/app_localizations.dart';
 
 /// نافذة تقييم المزوّد — تُعرض تلقائياً للعميل لحظة اكتمال الطلب.
 /// تلتزم بنفس واجهة [rate_provider] المستخدمة في شاشة التتبع
@@ -35,11 +36,12 @@ class _ProviderRatingDialogState extends State<ProviderRatingDialog> {
 
   Future<void> _submit() async {
     if (_isSubmitting) return;
+    final l10n = AppLocalizations.of(context);
 
     if (_rating == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('يرجى اختيار تقييم من 1 إلى 5'),
+        SnackBar(
+          content: Text(l10n?.selectRatingPrompt ?? 'يرجى اختيار تقييم من 1 إلى 5'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -61,8 +63,8 @@ class _ProviderRatingDialogState extends State<ProviderRatingDialog> {
         final messenger = ScaffoldMessenger.of(context);
         Navigator.of(context).pop();
         messenger.showSnackBar(
-          const SnackBar(
-            content: Text('شكراً لك! تم إرسال تقييمك'),
+          SnackBar(
+            content: Text(l10n?.ratingSubmittedThanks ?? 'شكراً لك! تم إرسال تقييمك'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -72,7 +74,7 @@ class _ProviderRatingDialogState extends State<ProviderRatingDialog> {
         setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(RpcErrorTranslator.translate(e)),
+            content: Text(RpcErrorTranslator.translate(e, l10n)),
             backgroundColor: AppColors.error,
           ),
         );
@@ -83,6 +85,7 @@ class _ProviderRatingDialogState extends State<ProviderRatingDialog> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final l10n = AppLocalizations.of(context);
     final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
@@ -97,7 +100,7 @@ class _ProviderRatingDialogState extends State<ProviderRatingDialog> {
           children: [
             Center(
               child: Text(
-                'قيّم تجربتك مع المزوّد',
+                l10n?.ratingExperienceTitle ?? 'قيّم تجربتك مع المزوّد',
                 style: TextStyle(
                   fontFamily: 'Zain',
                   fontSize: 20,
@@ -110,8 +113,9 @@ class _ProviderRatingDialogState extends State<ProviderRatingDialog> {
             Center(
               child: Text(
                 widget.providerName.isEmpty
-                    ? 'كيف كانت جودة الخدمة؟'
-                    : 'كيف كانت خدمة «${widget.providerName}»؟',
+                    ? (l10n?.ratingQualityPrompt ?? 'كيف كانت جودة الخدمة؟')
+                    : (l10n?.ratingProviderPrompt(widget.providerName) ??
+                        'كيف كانت خدمة «${widget.providerName}»؟'),
                 style: TextStyle(
                   fontFamily: 'Cairo',
                   fontSize: 13,
@@ -142,7 +146,7 @@ class _ProviderRatingDialogState extends State<ProviderRatingDialog> {
               controller: _commentController,
               maxLines: 3,
               decoration: InputDecoration(
-                hintText: 'أضف تعليقاً (اختياري)...',
+                hintText: l10n?.addCommentOptionalHint ?? 'أضف تعليقاً (اختياري)...',
                 hintStyle: TextStyle(
                   fontFamily: 'Cairo',
                   color: textSecondary,
@@ -188,9 +192,9 @@ class _ProviderRatingDialogState extends State<ProviderRatingDialog> {
                           strokeWidth: 2.5,
                         ),
                       )
-                    : const Text(
-                        'إرسال التقييم',
-                        style: TextStyle(
+                    : Text(
+                        l10n?.submitRating ?? 'إرسال التقييم',
+                        style: const TextStyle(
                           fontFamily: 'Zain',
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -204,7 +208,7 @@ class _ProviderRatingDialogState extends State<ProviderRatingDialog> {
               child: TextButton(
                 onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
                 child: Text(
-                  'التقييم لاحقاً',
+                  l10n?.rateLater ?? 'التقييم لاحقاً',
                   style: TextStyle(
                     fontFamily: 'Cairo',
                     fontSize: 13,

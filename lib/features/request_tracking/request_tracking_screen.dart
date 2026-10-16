@@ -89,7 +89,8 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'تعذّر تحميل بيانات الطلب';
+          _error = AppLocalizations.of(context)?.orderLoadFailed ??
+              'تعذّر تحميل بيانات الطلب';
           _isLoading = false;
         });
       }
@@ -204,7 +205,9 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
         setState(() => _isActing = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(RpcErrorTranslator.translate(e)),
+            content: Text(
+              RpcErrorTranslator.translate(e, AppLocalizations.of(context)),
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -236,7 +239,9 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
         setState(() => _isActing = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(RpcErrorTranslator.translate(e)),
+            content: Text(
+              RpcErrorTranslator.translate(e, AppLocalizations.of(context)),
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -249,16 +254,20 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('إلغاء الطلب؟'),
-        content: const Text('سيتم إلغاء الطلب الحالي وإخطار المزوّد (إن تم إسناده).'),
+        title: Text(AppLocalizations.of(context)?.cancelOrderConfirmTitle ??
+            'إلغاء الطلب؟'),
+        content: Text(
+            AppLocalizations.of(context)?.cancelOrderConfirmBody ??
+                'سيتم إلغاء الطلب الحالي وإخطار المزوّد (إن تم إسناده).'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('تراجع'),
+            child: Text(AppLocalizations.of(context)?.goBack ?? 'تراجع'),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('إلغاء الطلب'),
+            child:
+                Text(AppLocalizations.of(context)?.cancelOrder ?? 'إلغاء الطلب'),
           ),
         ],
       ),
@@ -273,8 +282,9 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
       if (mounted) {
         setState(() => _isActing = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم إلغاء الطلب'),
+          SnackBar(
+            content: Text(
+                AppLocalizations.of(context)?.orderCancelled ?? 'تم إلغاء الطلب'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -284,7 +294,9 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
         setState(() => _isActing = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(RpcErrorTranslator.translate(e)),
+            content: Text(
+              RpcErrorTranslator.translate(e, AppLocalizations.of(context)),
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -296,8 +308,9 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
     final phone = _providerPhone;
     if (phone == null || phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('رقم المزوّد غير متاح'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)?.providerPhoneUnavailable ??
+              'رقم المزوّد غير متاح'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -313,8 +326,9 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
   Future<void> _submitRating() async {
     if (_rating == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('يرجى اختيار تقييم من 1 إلى 5'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)?.selectRatingPrompt ??
+              'يرجى اختيار تقييم من 1 إلى 5'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -338,8 +352,9 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
           _isRated = true;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('شكراً لك! تم إرسال تقييمك'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)?.ratingSubmittedThanks ??
+                'شكراً لك! تم إرسال تقييمك'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -349,7 +364,9 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
         setState(() => _isSubmittingRating = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(RpcErrorTranslator.translate(e)),
+            content: Text(
+              RpcErrorTranslator.translate(e, AppLocalizations.of(context)),
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -563,9 +580,9 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
                             color: AppColors.error,
                           ),
                         )
-                      : const Text(
-                          'إلغاء الطلب',
-                          style: TextStyle(
+                      : Text(
+                          l10n?.cancelOrder ?? 'إلغاء الطلب',
+                          style: const TextStyle(
                             fontFamily: 'Zain',
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -611,6 +628,7 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
   }
 
   Widget _buildRatedCard(BuildContext context, bool isDark) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -626,7 +644,7 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
           const Icon(Icons.feedback_rounded, size: 40, color: AppColors.success),
           const SizedBox(height: 8),
           Text(
-            'تم تقييم المزوّد',
+            l10n?.providerRated ?? 'تم تقييم المزوّد',
             style: TextStyle(
               fontFamily: 'Zain',
               fontSize: 18,
@@ -652,6 +670,7 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
   }
 
   Widget _buildRatingForm(BuildContext context, bool isDark) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -667,7 +686,7 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
         children: [
           Center(
             child: Text(
-              'كيف كانت تجربتك مع المزوّد؟',
+              l10n?.ratingExperiencePrompt ?? 'كيف كانت تجربتك مع المزوّد؟',
               style: TextStyle(
                 fontFamily: 'Zain',
                 fontSize: 20,
@@ -699,7 +718,7 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
             controller: _ratingCommentController,
             maxLines: 3,
             decoration: InputDecoration(
-              hintText: 'أضف تعليقاً (اختياري)...',
+              hintText: l10n?.addCommentOptionalHint ?? 'أضف تعليقاً (اختياري)...',
               hintStyle: TextStyle(
                 fontFamily: 'Cairo',
                 color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
@@ -738,9 +757,9 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
               ),
               child: _isSubmittingRating
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text(
-                      'إرسال التقييم',
-                      style: TextStyle(
+                  : Text(
+                      l10n?.submitRating ?? 'إرسال التقييم',
+                      style: const TextStyle(
                         fontFamily: 'Zain',
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -815,6 +834,7 @@ class _AutoCancelCountdownState extends State<_AutoCancelCountdown> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final expired = _remaining.inSeconds <= 0;
     if (expired) return const SizedBox.shrink();
 
@@ -832,7 +852,8 @@ class _AutoCancelCountdownState extends State<_AutoCancelCountdown> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'سيُلغى الطلب تلقائياً خلال 5 دقائق — متبقي ${_fmt(_remaining)}',
+              l10n?.autoCancelCountdown(_fmt(_remaining)) ??
+                  'سيُلغى الطلب تلقائياً خلال 5 دقائق — متبقي ${_fmt(_remaining)}',
               style: const TextStyle(
                 fontFamily: 'Cairo',
                 fontSize: 12,

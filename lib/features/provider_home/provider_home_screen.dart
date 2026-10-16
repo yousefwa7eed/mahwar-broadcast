@@ -236,6 +236,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
   /// لأن address_text لا يُحفظ عند إنشاء الطلب). النتائج تُخزّن مؤقتاً.
   Future<void> _enrichActiveOrders(List<Order> orders) async {
     if (orders.isEmpty) return;
+    final l10n = AppLocalizations.of(context);
 
     final ownerIds = orders.map((o) => o.carOwnerId).toSet();
     for (final id in ownerIds) {
@@ -249,7 +250,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
           final row = rows.first as Map;
           final name = row['full_name'] as String?;
           _ownerNames[id] = (name == null || name.trim().isEmpty)
-              ? 'العميل'
+              ? (l10n?.notificationCustomerFallback ?? 'العميل')
               : name.trim();
           final avatarId = row['avatar_id'] as String?;
           final avatarUrl = row['avatar_url'] as String?;
@@ -260,10 +261,10 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
             _ownerAvatarUrls[id] = avatarUrl;
           }
         } else {
-          _ownerNames[id] = 'العميل';
+          _ownerNames[id] = l10n?.notificationCustomerFallback ?? 'العميل';
         }
       } catch (_) {
-        _ownerNames[id] = 'العميل';
+        _ownerNames[id] = l10n?.notificationCustomerFallback ?? 'العميل';
       }
     }
 
@@ -510,11 +511,13 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
   }
 
   Future<void> _rejectOrder(String orderId) async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showConfirmDialog(
       context,
-      title: 'رفض الطلب؟',
-      message: 'سيتم إخطار العميل وإلغاء هذا الطلب.',
-      confirmLabel: 'نعم، رفض الطلب',
+      title: l10n?.providerRejectOrderConfirmTitle ?? 'رفض الطلب؟',
+      message: l10n?.providerRejectOrderConfirmBody ??
+          'سيتم إخطار العميل وإلغاء هذا الطلب.',
+      confirmLabel: l10n?.providerRejectOrderConfirmLabel ?? 'نعم، رفض الطلب',
       confirmColor: AppColors.error,
     );
     if (confirmed != true || !mounted) return;
@@ -539,7 +542,8 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('هذا الطلب لم يعد متاحاً (ربما انتهت مدته)'),
+            content: Text(l10n?.providerOrderNoLongerAvailable ??
+                'هذا الطلب لم يعد متاحاً (ربما انتهت مدته)'),
             backgroundColor: AppColors.warning,
           ),
         );
@@ -547,7 +551,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(RpcErrorTranslator.translate(e)),
+          content: Text(RpcErrorTranslator.translate(e, l10n)),
           backgroundColor: AppColors.error,
         ),
       );
@@ -555,11 +559,13 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
   }
 
   Future<void> _completeOrder(String orderId) async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showConfirmDialog(
       context,
-      title: 'إتمام الطلب؟',
-      message: 'ستُعتبر الخدمة مكتملة وسيتمكّن العميل من تقييمك بعدها.',
-      confirmLabel: 'إتمام الطلب',
+      title: l10n?.completeOrderTitle ?? 'إتمام الطلب؟',
+      message: l10n?.completeOrderConfirmBody ??
+          'ستُعتبر الخدمة مكتملة وسيتمكّن العميل من تقييمك بعدها.',
+      confirmLabel: l10n?.completeOrder ?? 'إتمام الطلب',
       confirmColor: AppColors.success,
     );
     if (confirmed != true || !mounted) return;
@@ -571,8 +577,8 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم إتمام الطلب بنجاح'),
+          SnackBar(
+            content: Text(l10n?.orderCompletedToast ?? 'تم إتمام الطلب بنجاح'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -583,7 +589,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(RpcErrorTranslator.translate(e)),
+            content: Text(RpcErrorTranslator.translate(e, l10n)),
             backgroundColor: AppColors.error,
           ),
         );
@@ -684,7 +690,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                             Flexible(
                               child: Text(
                                 _isLocatingAddress
-                                    ? 'جاري تحديد الموقع...'
+                                    ? (l10n?.locatingLocation ?? 'جاري تحديد الموقع...')
                                     : _addressText,
                                 style: TextStyle(
                                   fontFamily: 'Cairo',
@@ -721,7 +727,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
           Row(
             children: [
               Text(
-                'طلباتك الحالية',
+                l10n?.currentOrdersTitle ?? 'طلباتك الحالية',
                 style: TextStyle(
                   fontFamily: 'Zain',
                   fontSize: 20,
@@ -801,7 +807,8 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                       );
                       return order.status == OrderStatus.pending
                           ? NearbyRequestCard(
-                              customerName: _ownerNames[order.carOwnerId] ?? 'العميل',
+                              customerName: _ownerNames[order.carOwnerId] ??
+                                  (l10n?.notificationCustomerFallback ?? 'العميل'),
                               carMake: order.carMake,
                               carModel: order.carModel,
                               carYear: order.carYear,
@@ -818,7 +825,8 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                               customerAvatarUrl: _ownerAvatarUrls[order.carOwnerId],
                             )
                           : ActiveOrderCard(
-                              customerName: _ownerNames[order.carOwnerId] ?? 'العميل',
+                              customerName: _ownerNames[order.carOwnerId] ??
+                                  (l10n?.notificationCustomerFallback ?? 'العميل'),
                               carMake: order.carMake,
                               carModel: order.carModel,
                               carYear: order.carYear,
@@ -827,7 +835,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                               attachments: order.attachments ?? const [],
                               orderId: order.id,
                               status: order.status,
-                              statusLabel: order.statusLabel,
+                              statusLabel: order.statusLabel(l10n),
                               offeredPrice: order.offeredPrice,
                               createdAt: order.createdAt,
                               onComplete: order.status == OrderStatus.confirmed
@@ -886,6 +894,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
   }
 
   Widget _buildProviderOrderCard(BuildContext context, bool isDark, Order order) {
+    final l10n = AppLocalizations.of(context);
     final statusColor = _orderStatusColor(order.status);
 
     return Container(
@@ -910,7 +919,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  order.statusLabel,
+                  order.statusLabel(l10n),
                   style: TextStyle(
                     fontFamily: 'Cairo',
                     fontSize: 12,
@@ -932,7 +941,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
               if (order.offeredPrice != null) ...[
                 const SizedBox(width: 12),
                 Text(
-                  '${order.offeredPrice!.toStringAsFixed(0)} ج.م',
+                  '${order.offeredPrice!.toStringAsFixed(0)} ${l10n?.egp ?? 'ج.م'}',
                   style: const TextStyle(
                     fontFamily: 'Cairo',
                     fontSize: 16,
@@ -976,9 +985,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 10),
                     ),
-                    child: const Text(
-                      'تقديم عرض سعر',
-                      style: TextStyle(
+                    child: Text(
+                      l10n?.providePriceOffer ?? 'تقديم عرض سعر',
+                      style: const TextStyle(
                         fontFamily: 'Cairo',
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
@@ -998,9 +1007,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 10),
                     ),
-                    child: const Text(
-                      'رفض',
-                      style: TextStyle(
+                    child: Text(
+                      l10n?.reject ?? 'رفض',
+                      style: const TextStyle(
                         fontFamily: 'Cairo',
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
@@ -1018,9 +1027,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                   child: ElevatedButton.icon(
                     onPressed: () => _completeOrder(order.id),
                     icon: const Icon(Icons.done_all_rounded, size: 18),
-                    label: const Text(
-                      'إتمام الطلب',
-                      style: TextStyle(
+                    label: Text(
+                      l10n?.completeOrder ?? 'إتمام الطلب',
+                      style: const TextStyle(
                         fontFamily: 'Cairo',
                         fontSize: 14,
                         fontWeight: FontWeight.bold,

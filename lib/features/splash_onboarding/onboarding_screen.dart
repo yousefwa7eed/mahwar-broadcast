@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../l10n/app_localizations.dart';
 import 'widgets/onboarding_progress_bar.dart';
 import 'widgets/onboarding_story_card.dart';
 
@@ -15,23 +16,29 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   late AnimationController _animController;
   int _currentIndex = 0;
 
-  final List<Map<String, String>> _slides = [
-    {
-      'image': 'assets/onboarding/on1.png',
-      'title': 'أسرع نجدة لطوارئ السيارات',
-      'description': 'محور يربطك بأقرب أونياش وفنيي طوارئ الطرق جغرافياً في ثوانٍ معدودة.',
-    },
-    {
-      'image': 'assets/onboarding/on2.png',
-      'title': 'تسعير شفاف وبدون تعقيد',
-      'description': 'استلم عرض السعر المباشر من مقدم الخدمة واقبل أو ارفض بضغطة زر.',
-    },
-    {
-      'image': 'assets/onboarding/on3.png',
-      'title': 'خدمة شاملة لكافة الأعطال',
-      'description': 'سواء احتجت ونش، أو تغير إطار، بنزين، بطارية، أو ميكانيكي طوارئ.',
-    },
-  ];
+  List<Map<String, String>> get _slides {
+    final l10n = AppLocalizations.of(context);
+    return [
+      {
+        'image': 'assets/onboarding/on1.png',
+        'title': l10n?.onboardingTitle1 ?? 'أسرع نجدة لطوارئ السيارات',
+        'description': l10n?.onboardingDesc1 ??
+            'محور يربطك بأقرب أونياش وفنيي طوارئ الطرق جغرافياً في ثوانٍ معدودة.',
+      },
+      {
+        'image': 'assets/onboarding/on2.png',
+        'title': l10n?.onboardingTitle2 ?? 'تسعير شفاف وبدون تعقيد',
+        'description': l10n?.onboardingDesc2 ??
+            'استلم عرض السعر المباشر من مقدم الخدمة واقبل أو ارفض بضغطة زر.',
+      },
+      {
+        'image': 'assets/onboarding/on3.png',
+        'title': l10n?.onboardingTitle3 ?? 'خدمة شاملة لكافة الأعطال',
+        'description': l10n?.onboardingDesc3 ??
+            'سواء احتجت ونش، أو تغير إطار، بنزين، بطارية، أو ميكانيكي طوارئ.',
+      },
+    ];
+  }
 
   @override
   void initState() {
@@ -108,6 +115,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final currentSlide = _slides[_currentIndex];
 
     return Scaffold(
@@ -156,9 +164,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                               color: Colors.white.withValues(alpha: 0.3),
                             ),
                           ),
-                          child: const Text(
-                            'تخطي',
-                            style: TextStyle(
+                          child: Text(
+                            l10n?.skip ?? 'تخطي',
+                            style: const TextStyle(
                               fontFamily: 'Cairo',
                               color: Colors.white,
                               fontSize: 14,

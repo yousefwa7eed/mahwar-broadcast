@@ -9,6 +9,7 @@ import '../../core/auth/otp_error_mapper.dart';
 import '../../core/auth/phone_utils.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/settings/app_settings_cubit.dart';
+import '../../l10n/app_localizations.dart';
 import 'widgets/error_dialog.dart';
 
 /// استعادة كلمة المرور عبر SMS: يدخل المستخدم رقم هاتفه المصري، يُرسل GoTrue
@@ -40,6 +41,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final l10n = AppLocalizations.of(context);
     final normalized = PhoneUtils.normalize(_phoneController.text.trim());
     setState(() => _submitting = true);
     try {
@@ -51,24 +53,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     } on AuthApiException catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      final isArabic =
-          context.read<AppSettingsCubit>().state.locale.languageCode == 'ar';
-      showErrorDialog(
-          context, mapRecoverySendError(e, isArabic: isArabic));
+      showErrorDialog(context, mapRecoverySendError(e, l10n));
     } on AuthException catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      final isArabic =
-          context.read<AppSettingsCubit>().state.locale.languageCode == 'ar';
-      showErrorDialog(
-          context, mapRecoverySendError(e, isArabic: isArabic));
+      showErrorDialog(context, mapRecoverySendError(e, l10n));
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      final isArabic =
-          context.read<AppSettingsCubit>().state.locale.languageCode == 'ar';
-      showErrorDialog(context,
-          mapRecoverySendError(e, isArabic: isArabic));
+      showErrorDialog(context, mapRecoverySendError(e, l10n));
     }
   }
 
@@ -78,6 +71,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         context.watch<AppSettingsCubit>().state.locale.languageCode == 'ar';
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
 
     final Color primaryColor = _isProvider
         ? (isDark ? AppColors.orangePrimary : const Color(0xFF1E1E1E))
@@ -110,7 +104,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  isArabic ? 'استعادة كلمة المرور' : 'Reset Password',
+                  l10n?.resetPasswordTitle ?? 'استعادة كلمة المرور',
                   style: TextStyle(
                     fontFamily: isArabic ? 'Cairo' : 'Poppins',
                     fontSize: 24,
@@ -120,9 +114,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  isArabic
-                      ? 'أدخل رقم الهاتف المرتبط بحسابك. سنرسل إليه رمز تحقق عبر رسالة نصية (SMS).'
-                      : 'Enter the phone number linked to your account. We will send a verification code via SMS.',
+                  l10n?.forgotPasswordSubtitle ??
+                      'أدخل رقم الهاتف المرتبط بحسابك. سنرسل إليه رمز تحقق عبر رسالة نصية (SMS).',
                   style: TextStyle(
                     fontFamily: isArabic ? 'Cairo' : 'Poppins',
                     fontSize: 14,
@@ -140,7 +133,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     LengthLimitingTextInputFormatter(15),
                   ],
                   decoration: InputDecoration(
-                    labelText: isArabic ? 'رقم الهاتف' : 'Phone number',
+                    labelText: l10n?.phoneNumber ?? 'رقم الهاتف',
                     hintText: '01012345678',
                     hintStyle: TextStyle(
                       fontSize: 12,
@@ -158,14 +151,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   validator: (value) {
                     final input = value?.trim() ?? '';
                     if (input.isEmpty) {
-                      return isArabic
-                          ? 'يرجى إدخال رقم الهاتف'
-                          : 'Please enter your phone number';
+                      return l10n?.enterPhonePrompt ?? 'يرجى إدخال رقم الهاتف';
                     }
                     if (!PhoneUtils.isValidEgyptianMobile(input)) {
-                      return isArabic
-                          ? 'رقم هاتف مصري غير صحيح (مثال: 01012345678)'
-                          : 'Invalid Egyptian phone number (e.g. 01012345678)';
+                      return l10n?.invalidPhoneShort ??
+                          'رقم هاتف مصري غير صحيح (مثال: 01012345678)';
                     }
                     return null;
                   },
@@ -192,7 +182,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             ),
                           )
                         : Text(
-                            isArabic ? 'إرسال رمز التحقق' : 'Send Code',
+                            l10n?.sendVerificationCode ?? 'إرسال رمز التحقق',
                             style: TextStyle(
                               fontFamily: isArabic ? 'Cairo' : 'Poppins',
                               fontSize: 16,

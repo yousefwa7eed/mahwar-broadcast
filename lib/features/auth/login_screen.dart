@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/auth/auth_cubit.dart';
 import '../../core/auth/home_route.dart';
 import '../../core/auth/role_gate.dart';
-import '../../core/settings/app_settings_cubit.dart';
+import '../../l10n/app_localizations.dart';
 import 'widgets/error_dialog.dart';
 import 'widgets/login_form_widget.dart';
 import 'widgets/login_header_widget.dart';
@@ -67,17 +67,12 @@ class _LoginScreenState extends State<LoginScreen> {
           );
           if (!context.mounted) return;
 
-          final isArabic = context
-                  .read<AppSettingsCubit>()
-                  .state
-                  .locale
-                  .languageCode ==
-              'ar';
+          final l10n = AppLocalizations.of(context);
 
           // تعذّر تحديد الدور → رسالة فورية ثم رفض الجلسة في الخلفية (بلا
           // انتظار أي طلب شبكي حتى لا تتأخر الرسالة).
           if (actualRole == null) {
-            showErrorDialog(context, roleUnresolvedMessage(isArabic: isArabic));
+            showErrorDialog(context, roleUnresolvedMessage(l10n: l10n));
             context.read<AuthCubit>().rejectSession();
             return;
           }
@@ -89,7 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
           if (expectedRole != null && actualRole != expectedRole) {
             showErrorDialog(
               context,
-              roleMismatchMessage(actualRole: actualRole, isArabic: isArabic),
+              roleMismatchMessage(actualRole: actualRole, l10n: l10n),
             );
             context.read<AuthCubit>().rejectSession();
             return;

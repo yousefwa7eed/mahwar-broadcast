@@ -83,7 +83,7 @@ class SelectUserTypeScreen extends StatelessWidget {
                         children: [
                           // Welcoming Title Section
                           Text(
-                            isArabic ? 'أهلاً بك في محور' : 'Welcome to Mahwar',
+                            l10n?.welcomeToMahwar ?? 'أهلاً بك في محور',
                             style: TextStyle(
                               fontFamily: isArabic ? 'Zain' : 'Poppins',
                               fontSize: isArabic ? 32 : 26,
@@ -94,9 +94,8 @@ class SelectUserTypeScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            isArabic
-                                ? 'اختر نوع حسابك للبدء في استخدام التطبيق واستكشاف الخدمات المتاحة'
-                                : 'Choose your account type to start using the app and exploring available services',
+                            l10n?.chooseAccountTypeSubtitle ??
+                                'اختر نوع حسابك للبدء في استخدام التطبيق واستكشاف الخدمات المتاحة',
                             style: TextStyle(
                               fontFamily: isArabic ? 'Cairo' : 'Poppins',
                               fontSize: 13,

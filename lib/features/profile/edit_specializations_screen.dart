@@ -61,13 +61,12 @@ class _EditSpecializationsScreenState extends State<EditSpecializationsScreen> {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
 
-    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
-
     if (_selected.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            isArabic ? 'يرجى اختيار تخصص واحد على الأقل' : 'Please select at least one specialization',
+            AppLocalizations.of(context)?.providerSelectSpecPrompt ??
+                'يرجى اختيار تخصص واحد على الأقل',
             style: const TextStyle(fontFamily: 'Cairo'),
           ),
           backgroundColor: AppColors.error,
@@ -122,7 +121,7 @@ class _EditSpecializationsScreenState extends State<EditSpecializationsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              isArabic ? 'حدث خطأ أثناء الحفظ: $e' : 'Error saving: $e',
+              AppLocalizations.of(context)?.errorSaving('$e') ?? 'حدث خطأ أثناء الحفظ: $e',
               style: const TextStyle(fontFamily: 'Cairo'),
             ),
             backgroundColor: AppColors.error,
@@ -189,9 +188,8 @@ class _EditSpecializationsScreenState extends State<EditSpecializationsScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    isArabic
-                        ? 'اختر التخصصات التي تقدمها ورشتك، وستظهر لمالكي السيارات عند البحث عن الخدمات'
-                        : 'Select the specialties your workshop offers. They appear to car owners when searching for services.',
+                    l10n?.selectSpecialtiesDesc ??
+                        'اختر التخصصات التي تقدمها ورشتك، وستظهر لمالكي السيارات عند البحث عن الخدمات',
                     style: TextStyle(
                       fontFamily: isArabic ? 'Cairo' : 'Poppins',
                       fontSize: 13,
@@ -202,7 +200,7 @@ class _EditSpecializationsScreenState extends State<EditSpecializationsScreen> {
 
                   if (_allSpecializations.isEmpty)
                     Text(
-                      isArabic ? 'لا توجد تخصصات متاحة حالياً' : 'No specialties available',
+                      l10n?.noSpecialtiesAvailable ?? 'لا توجد تخصصات متاحة حالياً',
                       style: TextStyle(
                         fontFamily: 'Cairo',
                         fontSize: 14,

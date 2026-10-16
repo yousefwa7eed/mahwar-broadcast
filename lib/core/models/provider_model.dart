@@ -1,3 +1,5 @@
+import '../../l10n/app_localizations.dart';
+
 enum SupportScope { emergency, onSite, both }
 
 class ProviderModel {
@@ -55,14 +57,14 @@ class ProviderModel {
     }
   }
 
-  String get supportScopeLabel {
+  String supportScopeLabel(AppLocalizations? l10n) {
     switch (supportScope) {
       case SupportScope.emergency:
-        return 'طوارئ الطريق';
+        return l10n?.supportScopeEmergency ?? 'طوارئ الطريق';
       case SupportScope.onSite:
-        return 'في الورشة';
+        return l10n?.supportScopeOnSite ?? 'في الورشة';
       case SupportScope.both:
-        return 'كلاهما';
+        return l10n?.supportScopeBoth ?? 'كلاهما';
     }
   }
 }
