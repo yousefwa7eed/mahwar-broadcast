@@ -143,6 +143,10 @@ class AppLocalizationsAr extends AppLocalizations {
       'أدخل رقم الهاتف الجديد وسنرسل إليه رمز التحقق';
 
   @override
+  String get phoneChangeRequiresOtp =>
+      'لتغيير رقم الهاتف يجب التحقق منه برمز SMS. استخدم زر تغيير الرقم.';
+
+  @override
   String get sendCode => 'إرسال الرمز';
 
   @override

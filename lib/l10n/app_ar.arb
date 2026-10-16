@@ -57,6 +57,7 @@
   "didNotReceiveCode": "لم يصلك الرمز؟",
   "changeNumberTitle": "تغيير رقم الهاتف",
   "changeNumberSubTitle": "أدخل رقم الهاتف الجديد وسنرسل إليه رمز التحقق",
+  "phoneChangeRequiresOtp": "لتغيير رقم الهاتف يجب التحقق منه برمز SMS. استخدم زر تغيير الرقم.",
   "sendCode": "إرسال الرمز",
   "verify": "تأكيد",
   "home": "الرئيسية",

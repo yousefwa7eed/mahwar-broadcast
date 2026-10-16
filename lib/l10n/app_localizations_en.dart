@@ -147,6 +147,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Enter the new number and we\'ll send a verification code to it';
 
   @override
+  String get phoneChangeRequiresOtp =>
+      'Changing your phone number requires SMS verification. Use the Change number button.';
+
+  @override
   String get sendCode => 'Send code';
 
   @override

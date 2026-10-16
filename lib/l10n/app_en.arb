@@ -57,6 +57,7 @@
   "didNotReceiveCode": "Didn't receive the code?",
   "changeNumberTitle": "Change phone number",
   "changeNumberSubTitle": "Enter the new number and we'll send a verification code to it",
+  "phoneChangeRequiresOtp": "Changing your phone number requires SMS verification. Use the Change number button.",
   "sendCode": "Send code",
   "verify": "Verify",
   "home": "Home",

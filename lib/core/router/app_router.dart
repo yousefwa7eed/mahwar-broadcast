@@ -1,4 +1,8 @@
+import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import '../config/app_config.dart';
+import '../../core/auth/auth_cubit.dart';
 import '../../core/auth/role_gate.dart';
 import '../../core/models/notification_model.dart';
 import '../../features/auth/forgot_password_screen.dart';
@@ -30,8 +34,51 @@ import '../../features/profile/manage_cars_screen.dart';
 import '../../features/profile/avatar_picker_screen.dart';
 import '../../features/legal/screens.dart';
 
+/// المسارات العامة التي لا تخضع لبوابة توثيق الهاتف (اختيار النوع، الدخول،
+/// التسجيل، OTP، الاستعادة، القانوني). أي مسار آخر يُعدّ محميًا.
+const List<String> phoneGatePublicPaths = <String>[
+  '/splash',
+  '/onboarding',
+  '/select-user-type',
+  '/login',
+  '/signup',
+  '/forgot-password',
+  '/set-new-password',
+  '/otp-verify',
+  '/terms',
+  '/privacy',
+];
+
+/// هل [location] مسار عام لا تخضع لبوابة توثيق الهاتف؟
+bool isPhoneGatePublicPath(String location) => phoneGatePublicPaths
+    .any((p) => location == p || location.startsWith('$p/'));
+
+/// بوابة توثيق الهاتف: أي جلسة مصادَقة لكن رقمها غير موثّق تُحوَّل إلى
+/// `/otp-verify` قبل الوصول لأي مسار محمي — فلا يصل مستخدم غير موثّق للرئيسية.
+/// تُقرأ الحالة من [AuthCubit] (مخزّنة، تُحلّ مرة واحدة عبر
+/// `get_my_phone_verified`). بلا جلسة لا تتدخّل البوابة (بقية الحرّاس تتولّاها).
+/// فشل الشبكة يفتح البوابة (fail-open) لأن الحارس الخادمي هو خط الدفاع الحقيقي.
+/// وفي وضع التطوير مع تفعيل تجاوز OTP لا تتدخّل البوابة إطلاقًا (توافقًا مع
+/// `continueToPhoneVerification`).
+Future<String?> phoneVerificationRedirect(
+  BuildContext context,
+  GoRouterState state,
+) async {
+  if (AppConfig.otpBypass) return null;
+  if (isPhoneGatePublicPath(state.matchedLocation)) return null;
+
+  final cubit = context.read<AuthCubit>();
+  if (!cubit.hasSession) return null;
+
+  final verified = await cubit.ensurePhoneVerified();
+  if (verified) return null;
+
+  return '/otp-verify?mode=signup';
+}
+
 final GoRouter appRouter = GoRouter(
   initialLocation: '/splash',
+  redirect: phoneVerificationRedirect,
   routes: [
     GoRoute(
       path: '/splash',

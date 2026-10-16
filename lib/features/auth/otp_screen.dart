@@ -184,7 +184,16 @@ class _OtpScreenState extends State<OtpScreen> {
         // ويُترجَم هنا إلى المسار المسجّل عبر الدالة الموحّدة — بدلاً من بناء
         // مسار /home/$role قد لا يكون له مقابل في الـ router. بدون دور صالح
         // لا نتنقل (بدل افتراض car_owner بصمت).
-        final homeRoute = homeRouteForRole(widget.role);
+        //
+        // بوابة توثيق الهاتف توجّه لجلسة غير موثّقة إلى هذه الشاشة بلا دور في
+        // الـ query؛ في هذه الحالة نقرأ الدور الحقيقي من الخادم قبل التنقل حتى
+        // لا يبقى المستخدم عالقًا بلا توجيه بعد نجاح التحقق.
+        var role = widget.role;
+        if (homeRouteForRole(role) == null) {
+          role = await cubit.resolveCurrentRole();
+          if (!mounted) return;
+        }
+        final homeRoute = homeRouteForRole(role);
         if (homeRoute != null) context.go(homeRoute);
       }
       case OtpMode.changeNumber:

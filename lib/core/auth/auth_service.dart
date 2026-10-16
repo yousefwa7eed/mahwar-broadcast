@@ -27,6 +27,12 @@ abstract class AuthService {
   /// إلى `user_metadata` (حتى لا يُوجَّه المزوّد إلى رئيسية مالك السيارة).
   Future<String?> getServerRole();
 
+  /// هل رقم هاتف المستخدم الحالي موثَّق؟ يقرأ حالة `auth.users.phone_confirmed_at`
+  /// عبر دالة الخادم `get_my_phone_verified` — المصدر الموثوق الوحيد (لا نعتمد
+  /// على `profiles` ولا `user_metadata`). تُستخدم بواسطة بوابة التوجيه لتحويل
+  /// الجلسات غير الموثّقة إلى شاشة التحقق.
+  Future<bool> getMyPhoneVerified();
+
   Future<AuthResponse> signUpWithEmail({
     required String email,
     required String password,
@@ -157,6 +163,12 @@ class SupabaseAuthService extends AuthService {
       // فشل قراءة الدور من الخادم → null. لا رجوع إلى user_metadata إطلاقًا.
       return null;
     }
+  }
+
+  @override
+  Future<bool> getMyPhoneVerified() async {
+    final res = await _client.rpc('get_my_phone_verified');
+    return res == true;
   }
 
   @override

@@ -24,6 +24,15 @@ class FakeAuthService extends AuthService {
   /// إن كان مضبوطًا فإن `getServerRole` يرميه قبل إرجاع [serverRole].
   Object? serverRoleError;
 
+  /// حالة توثيق الهاتف العائدة من `getMyPhoneVerified`. الافتراضي `true`
+  /// (موثّق) حتى لا تتأثر اختبارات لا تعنى ببوابة التوثيق.
+  bool phoneVerified = true;
+
+  /// إن كان مضبوطًا فإن `getMyPhoneVerified` يرميه (محاكاة فشل شبكة).
+  Object? phoneVerifiedError;
+
+  int phoneVerifiedCount = 0;
+
   /// تأخير مُصطنع في `getServerRole` لمحاكاة انتهاء المهلة في شاشة الإقلاع.
   Duration? serverRoleDelay;
 
@@ -147,6 +156,13 @@ class FakeAuthService extends AuthService {
     if (delay != null) await Future<void>.delayed(delay);
     if (serverRoleError != null) throw serverRoleError!;
     return serverRole;
+  }
+
+  @override
+  Future<bool> getMyPhoneVerified() async {
+    phoneVerifiedCount++;
+    if (phoneVerifiedError != null) throw phoneVerifiedError!;
+    return phoneVerified;
   }
 
   @override

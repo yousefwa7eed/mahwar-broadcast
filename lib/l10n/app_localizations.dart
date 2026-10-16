@@ -356,6 +356,12 @@ abstract class AppLocalizations {
   /// **'أدخل رقم الهاتف الجديد وسنرسل إليه رمز التحقق'**
   String get changeNumberSubTitle;
 
+  /// No description provided for @phoneChangeRequiresOtp.
+  ///
+  /// In ar, this message translates to:
+  /// **'لتغيير رقم الهاتف يجب التحقق منه برمز SMS. استخدم زر تغيير الرقم.'**
+  String get phoneChangeRequiresOtp;
+
   /// No description provided for @sendCode.
   ///
   /// In ar, this message translates to:

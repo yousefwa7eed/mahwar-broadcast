@@ -32,6 +32,10 @@ class RpcErrorTranslator {
     'INVALID_ATTACHMENT_URL':
         'تعذّر التحقق من إحدى الصور المرفقة. يرجى المحاولة مرة أخرى.',
     'NOT_AUTHENTICATED': 'انتهت الجلسة، يرجى تسجيل الدخول من جديد.',
+    'PHONE_NOT_VERIFIED':
+        'يجب تأكيد رقم هاتفك أولًا لإتمام هذا الإجراء.',
+    'PHONE_CHANGE_REQUIRES_OTP':
+        'لتغيير رقم الهاتف يجب التحقق منه برمز SMS. استخدم زر تغيير الرقم.',
   };
 
   static const Map<String, String> _messagesEn = {
@@ -65,6 +69,10 @@ class RpcErrorTranslator {
     'INVALID_ATTACHMENT_URL':
         'One of the attached photos could not be verified. Please try again.',
     'NOT_AUTHENTICATED': 'Your session has expired. Please sign in again.',
+    'PHONE_NOT_VERIFIED':
+        'Please verify your phone number first to complete this action.',
+    'PHONE_CHANGE_REQUIRES_OTP':
+        'Changing your phone number requires SMS verification. Use the Change number button.',
   };
 
   /// ترجمة أي خطأ Supabase معكوس من دالة RPC إلى رسالة واضحة.

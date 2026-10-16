@@ -186,6 +186,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
     await context.read<ProfileCubit>().refreshProfile();
     if (!mounted) return;
     await _loadProfile();
+    if (!mounted) return;
   }
 
   @override

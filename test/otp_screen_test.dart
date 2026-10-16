@@ -321,6 +321,36 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('وضع التسجيل بدور غائب: يقرأ الدور من الخادم ثم ينتقل للرئيسية',
+      (tester) async {
+    final fake = FakeAuthService()
+      ..user = User(
+        id: 'fake-user-id',
+        appMetadata: const {},
+        userMetadata: const {'role': 'car_owner'},
+        aud: 'authenticated',
+        createdAt: 'now',
+        email: 'me@mahwar.app',
+      )
+      ..serverRole = 'car_owner';
+    final (app, router) = buildApp(
+      fake,
+      phone: '01000000000',
+      // بلا دور (بوابة توثيق الهاتف توجّه هنا بلا دور في الـ query).
+    );
+
+    await tester.pumpWidget(app);
+    await tester.enterText(otpHiddenField(), '123456');
+    await tester.pump();
+    await tester.pump();
+
+    expect(fake.verifyCount, 1);
+    expect(fake.serverRoleCount, greaterThanOrEqualTo(1));
+    expect(currentPath(router), '/home/owner');
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('وضع تغيير رقم الهاتف يبدأ بشاشة إدخال الرقم الجديد', (tester) async {
     final fake = FakeAuthService();
     final (app, _) = buildApp(fake, mode: OtpMode.changeNumber);

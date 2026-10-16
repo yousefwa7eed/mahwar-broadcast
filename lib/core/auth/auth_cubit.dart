@@ -102,6 +102,12 @@ class AuthCubit extends Cubit<AuthState> {
   /// النوع `Object?` لأن `AuthState` هنا اسم الحالة المحلية لا حالة Supabase.
   StreamSubscription<Object?>? _authSub;
 
+  /// حالة توثيق هاتف المستخدم الحالي مخزّنة مؤقتًا (tri-state):
+  /// null = غير معروفة بعد، true = موثّق، false = غير موثّق. تُصفَّر عند كل
+  /// تغيّر جلسة وتُضبط true بعد نجاح تحقق OTP. تربط بوابة التوجيه بحالة
+  /// موثوقة واحدة بلا سؤال الخادم عند كل تنقّل.
+  bool? _phoneVerified;
+
   AuthCubit({AuthService? service})
       : _authService = service ?? SupabaseAuthService(),
         super(const AuthInitial()) {
@@ -125,11 +131,14 @@ class AuthCubit extends Cubit<AuthState> {
       if ((event == AuthChangeEvent.signedIn ||
               event == AuthChangeEvent.initialSession) &&
           session != null) {
+        // جلسة جديدة (أو تبديل حساب) → حالة التوثيق المخزّنة لا تصحّ لها.
+        _phoneVerified = null;
         emit(AuthAuthenticated(session.user));
         // عمل غير حرج بعد الدخول — لا يُنتظر حتى لا يؤخّر التوجيه/الرفض.
         unawaited(_saveFcmToken(session.user.id));
         unawaited(_subscribeToRoleTopic(session.user));
       } else if (event == AuthChangeEvent.signedOut) {
+        _phoneVerified = null;
         emit(const AuthUnauthenticated());
       }
     });
@@ -338,6 +347,7 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> signOut() async {
     try {
       await _authService.signOut();
+      _phoneVerified = null;
       emit(const AuthUnauthenticated());
     } catch (e) {
       emit(AuthError('حدث خطأ أثناء تسجيل الخروج'));
@@ -369,6 +379,7 @@ class AuthCubit extends Cubit<AuthState> {
   /// منسّق الخروج بعد التنظيف المحلي وقبل الانتقال (بلا أي شبكة). بلا تأثير
   /// عند إغلاق الـ cubit.
   void markUnauthenticated() {
+    _phoneVerified = null;
     if (!isClosed) emit(const AuthUnauthenticated());
   }
 
@@ -420,6 +431,9 @@ class AuthCubit extends Cubit<AuthState> {
 
   Future<void> verifyPhoneOtp({required String localPhone, required String otp}) async {
     await _authService.verifyPhoneOtp(localPhone: localPhone, otp: otp);
+    // نجح التحقق → الرقم موثّق الآن؛ نحدّث البوابة فورًا حتى لا يعيد التنقل
+    // التالي سؤال الخادم ولا يُحجب المستخدم لحظيًا بعد نجاح التحقق.
+    _phoneVerified = true;
   }
 
   Future<void> resendPhoneOtp(String localPhone) async {
@@ -438,4 +452,35 @@ class AuthCubit extends Cubit<AuthState> {
   /// إيميل المستخدم الحالي — لتمييز رقمه الخاص عن رقم مملوك لحساب آخر في
   /// الفحص المسبق لتغيير الرقم. null خارج جلسة مصادَقة.
   String? get currentUserEmail => _authService.currentUser?.email;
+
+  /// هل توجد جلسة مصادَقة محليًا؟ (قراءة متزامنة بلا شبكة.)
+  bool get hasSession => _authService.currentUser != null;
+
+  /// حالة توثيق الهاتف المعروفة حاليًا: null = غير معروفة، true = موثّق،
+  /// false = غير موثّق.
+  bool? get knownPhoneVerified => _phoneVerified;
+
+  /// يضمن معرفة حالة توثيق هاتف المستخدم الحالي: يعيد المخزّن إن وُجد، وإلا
+  /// يسأل الخادم عبر `get_my_phone_verified` مرة واحدة ويخزّن الناتج. عند فشل
+  /// الشبكة يعيد `true` (fail-open) لأن البوابة الخادمية (RPC/RLS) هي الحارس
+  /// الحقيقي، وفشل عابر لا يجوز أن يحجب مستخدمًا موثّقًا عن التطبيق. بلا جلسة
+  /// يعيد true (لا شأن للبوابة بغير المسجّلين).
+  Future<bool> ensurePhoneVerified() async {
+    final cached = _phoneVerified;
+    if (cached != null) return cached;
+    if (!hasSession) return true;
+    try {
+      final verified = await _authService.getMyPhoneVerified();
+      _phoneVerified = verified;
+      return verified;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  /// يضبط حالة التوثيق المعروفة مباشرةً — يُستخدم بعد نجاح تحقق OTP من خارج
+  /// هذا الـ cubit إن لزم، وأساسه ضبطها داخل [verifyPhoneOtp].
+  void setPhoneVerified(bool value) {
+    _phoneVerified = value;
+  }
 }

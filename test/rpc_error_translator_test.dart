@@ -19,6 +19,30 @@ void main() {
       );
     });
 
+    test('maps PHONE_NOT_VERIFIED in both languages', () {
+      final error = _pg('PHONE_NOT_VERIFIED', code: 'P0001');
+      expect(
+        RpcErrorTranslator.translate(error),
+        contains('تأكيد رقم هاتفك'),
+      );
+      expect(
+        RpcErrorTranslator.translate(error, arabic: false),
+        contains('verify your phone number'),
+      );
+    });
+
+    test('maps PHONE_CHANGE_REQUIRES_OTP in both languages', () {
+      final error = _pg('PHONE_CHANGE_REQUIRES_OTP', code: 'P0001');
+      expect(
+        RpcErrorTranslator.translate(error),
+        contains('لتغيير رقم الهاتف'),
+      );
+      expect(
+        RpcErrorTranslator.translate(error, arabic: false),
+        contains('Changing your phone number'),
+      );
+    });
+
     test('maps OWNER_NATIONAL_ID_MISSING in both languages', () {
       final error = _pg('OWNER_NATIONAL_ID_MISSING', code: 'P0001');
       expect(
