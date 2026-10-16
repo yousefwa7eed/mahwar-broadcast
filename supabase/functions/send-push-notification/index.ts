@@ -150,12 +150,12 @@ function buildTitleBody(type: string, metadata: Record<string, unknown>): { titl
       return { title: "تم إتمام الطلب", body: "تم إتمام خدمة الطلب بنجاح" };
     case "shift_started":
       return {
-        title: "بدء ساعات الدوام",
+        title: "بدء ساعات العمل",
         body: "بدأت ساعات عملك — أنت الآن متاح أمام العملاء",
       };
     case "shift_ended":
       return {
-        title: "انتهاء ساعات الدوام",
+        title: "انتهاء ساعات العمل",
         body: "انتهت ساعات عملك — أصبحت الآن غير متاح",
       };
     case "rating_received":
@@ -265,15 +265,15 @@ Deno.serve(async (req: Request) => {
     typeof metadata["deep_link"] === "string" ? (metadata["deep_link"] as string).trim() : "";
 
   // الشاشة المستهدفة عند لمس الإشعار — جدول واحد موحّد حسب دور المستقبِل
-  // ونوع الإشعار (مطابق تماماً لجانب العميل: PushNotificationService.orderRouteFor):
+  // ونوع الإشعار (مطابق لجانب العميل: PushNotificationService.resolveOrderRoute):
   //   provider + new_order       → quote (شاشة القبول/عرض السعر)
   //   provider + order_confirmed → provider_home (بطاقة الطلب فيها زر «إتمام الطلب»)
-  //   provider + rating_received → notifications (لا يوجد إجراء على الطلب)
+  //   provider + rating_received → notifications (يفتحها العميل على شاشة تفاصيل التقييم)
   //   provider + rejected/cancelled → track (كتلة الحالة العامة + عودة للرئيسية)
   //   car_owner + أي نوع مرتبط بطلب → track (شاشة التتبع بأزرارها)
   //   لا يوجد طلب مرتبط         → notifications
   // أي تركيبة غير مذكورة أعلاه → track، وفي غياب order_id → notifications.
-  const screen =
+  let screen =
     notif.type === "shift_started" || notif.type === "shift_ended"
       ? "provider_home"
       : !notif.order_id
@@ -287,6 +287,26 @@ Deno.serve(async (req: Request) => {
                   ? "notifications"
                   : "track")
           : "track";
+
+  // إن كانت الوجهة شاشة إجرائية (quote/provider_home) لكن الطلب انتهى
+  // (مكتمل/مرفوض/ملغى) نحوله لشاشة التتبع (ملخّص المعاملة) بدل فتح إجراء لم
+  // يعد صالحاً — نفس منطق العميل (PushNotificationService.orderIsFinalized).
+  if (notif.order_id && (screen === "quote" || screen === "provider_home")) {
+    const { data: order } = await supabase
+      .from("orders")
+      .select("status")
+      .eq("id", notif.order_id)
+      .maybeSingle();
+    const status = (order?.status as string | undefined) ?? "";
+    if (
+      status === "completed" ||
+      status === "rejected_by_provider" ||
+      status === "rejected_by_owner" ||
+      status === "cancelled"
+    ) {
+      screen = "track";
+    }
+  }
 
   // 4) بناء message
   const base: Record<string, unknown> = {

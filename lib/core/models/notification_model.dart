@@ -83,9 +83,9 @@ factory NotificationModel.fromJson(Map<String, dynamic> json) {
       case 'order_completed':
         return 'تم إتمام الطلب';
       case 'shift_started':
-        return 'بدء ساعات الدوام';
+        return 'بدء ساعات العمل';
       case 'shift_ended':
-        return 'انتهاء ساعات الدوام';
+        return 'انتهاء ساعات العمل';
       case 'rating_received':
         return 'تقييم جديد';
       case 'new_message':

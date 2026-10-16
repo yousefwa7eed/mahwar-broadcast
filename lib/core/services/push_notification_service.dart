@@ -143,6 +143,44 @@ class PushNotificationService {
     return '/request/track?orderId=$orderId';
   }
 
+  /// وجهة إشعار مرتبط بطلب مع مراعاة **حالة الطلب الحالية**: أي إشعار لطلب
+  /// انتهى (مكتمل/مرفوض/ملغى) يُفتح على شاشة التتبع حيث «ملخّص المعاملة»، بدل
+  /// الوصول لشاشة إجراء لم يعد لها معنى (مثل «عرض السعر» بعد انتهاء المعاملة).
+  /// عند تعذّر قراءة الحالة (شبكة) نتراجع للجدول الثابت [orderRouteFor].
+  static Future<String> resolveOrderRoute({
+    required String orderId,
+    required String type,
+    required String role,
+  }) async {
+    final route = orderRouteFor(orderId: orderId, type: type, role: role);
+    final finished = await orderIsFinalized(orderId);
+    if (finished == true) {
+      // الطلب انتهى — تُعرض حالة النهاية وملخّص المعاملة في شاشة التتبع لكلا
+      // الطرفين، بدل شاشة إجراء (عرض سعر/بطاقة نشطة) تجاوزها الزمن.
+      return '/request/track?orderId=$orderId';
+    }
+    return route;
+  }
+
+  /// هل الطلب وصل لحالة نهائية؟ null عند تعذّر القراءة (نتراجع بأمان للجدول).
+  static Future<bool?> orderIsFinalized(String orderId) async {
+    try {
+      final row = await Supabase.instance.client
+          .from('orders')
+          .select('status')
+          .eq('id', orderId)
+          .maybeSingle();
+      final status = row?['status'] as String?;
+      if (status == null) return null;
+      return status == 'completed' ||
+          status == 'rejected_by_provider' ||
+          status == 'rejected_by_owner' ||
+          status == 'cancelled';
+    } catch (_) {
+      return null;
+    }
+  }
+
   void _openFromMessage(RemoteMessage message) {
     final data = message.data;
     final screen = data['screen'] as String?;
@@ -154,15 +192,21 @@ class PushNotificationService {
     //    provider_home/notifications)، وإن كانت قديمة أو القيمة غير معروفة
     //    فنقرر بأمان حسب الدور والنوع (نفس الجدول).
     if (orderId != null && orderId.isNotEmpty) {
+      // إشعار تقييم: يُفتح على شاشة تفاصيل الإشعار (محتوى التقييم + رابط
+      // تفاصيل المعاملة) بدل الاكتفاء بصفحة الإشعارات.
+      if (type == 'rating_received') {
+        _openNotificationDetail(data['notification_id'] as String?);
+        return;
+      }
       switch (screen) {
         case 'quote':
-          appRouter.push('/request/quote?orderId=$orderId');
+        case 'provider_home':
+          // شاشة إجرائية — قد يكون الطلب انتهى؛ نتحقق ونحوّل لشاشة التتبع
+          // (ملخّص المعاملة) عند اللزوم.
+          _openActionableOrder(orderId, type, screen!);
           return;
         case 'track':
           appRouter.push('/request/track?orderId=$orderId');
-          return;
-        case 'provider_home':
-          appRouter.push('/home/provider');
           return;
         case 'notifications':
           appRouter.push('/notifications');
@@ -174,7 +218,7 @@ class PushNotificationService {
       return;
     }
 
-    // إشعار حدود الدوام (مزوّد): يفتح الرئيسية مباشرة عبر go() — يحلّ محل
+    // إشعار حدود ساعات العمل (مزوّد): يفتح الرئيسية مباشرة عبر go() — يحلّ محل
     // الشاشات المكدّسة ولا يفتح نسخة ثانية من لوحة المزوّد.
     if (type == 'shift_started' || type == 'shift_ended') {
       _openHome();
@@ -194,7 +238,7 @@ class PushNotificationService {
         _openHome();
         return;
       }
-      _openBroadcastDetail(data['notification_id'] as String?);
+      _openNotificationDetail(data['notification_id'] as String?);
       return;
     }
 
@@ -216,23 +260,42 @@ class PushNotificationService {
   }
 
   /// مسار آمن لرسالة قديمة تحمل order_id بدون screen معرّف (أو بقيمة غير
-  /// معروفة): نستنتج الوجهة من الدور والنوع بنفس قاعدة مسارات القائمة.
+  /// معروفة): نستنتج الوجهة من الدور والنوع بنفس قاعدة مسارات القائمة، مع مراعاة
+  /// حالة الطلب (الطلب المنتهي → ملخّص المعاملة في شاشة التتبع).
   Future<void> _openOrderByRole(String orderId, String? type) async {
     final role = await resolveCurrentUserRole(SupabaseAuthService());
+    final route = await PushNotificationService.resolveOrderRoute(
+      orderId: orderId,
+      type: type ?? '',
+      role: role ?? '',
+    );
+    appRouter.push(route);
+  }
+
+  /// شاشة إجرائية (عرض سعر / رئيسية المزوّد) لإشعار طلب — لكن إن كان الطلب قد
+  /// انتهى بالفعل نحوّل لشاشة التتبع (ملخّص المعاملة) بدل فتح شاشة تجاوزها الزمن.
+  Future<void> _openActionableOrder(
+    String orderId,
+    String? type,
+    String screen,
+  ) async {
+    final finished = await PushNotificationService.orderIsFinalized(orderId);
+    if (finished == true) {
+      appRouter.push('/request/track?orderId=$orderId');
+      return;
+    }
     appRouter.push(
-      PushNotificationService.orderRouteFor(
-        orderId: orderId,
-        type: type ?? '',
-        role: role ?? '',
-      ),
+      screen == 'quote'
+          ? '/request/quote?orderId=$orderId'
+          : '/home/provider',
     );
   }
 
-  /// يفتح تفاصيل إشعار عام (broadcast) قادم من الـ push: نجلب صفّ الإشعار من
-  /// جدول notifications عبر notification_id (المصدر الوحيد للبيانات — كما في
+  /// يفتح شاشة تفاصيل الإشعار (عام أو تقييم) قادمة من الـ push: نجلب صفّ الإشعار
+  /// من جدول notifications عبر notification_id (المصدر الوحيد للبيانات — كما في
   /// send-push-notification) ثم نعرض شاشة التفاصيل الكاملة. إن تعذّر الجلب
   /// (معرف ناقص/محذوف/خطأ) نلجأ إلى صفحة الإشعارات بأمان.
-  Future<void> _openBroadcastDetail(String? notificationId) async {
+  Future<void> _openNotificationDetail(String? notificationId) async {
     if (notificationId == null || notificationId.isEmpty) {
       appRouter.push('/notifications');
       return;

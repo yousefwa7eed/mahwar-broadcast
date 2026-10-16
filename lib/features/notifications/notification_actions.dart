@@ -9,10 +9,13 @@ import '../../core/services/push_notification_service.dart';
 
 /// معالج اللمس الموحّد لأي إشعار داخل قوائم التطبيق — يُستخدم من صفحة
 /// الإشعارات ومن تبويب الإشعارات في الرئيسية (العميل والمزوّد) بحيث يتصرف
-/// الطرفان بشكل متطابق. الترتيب مطابق لجدول مسارات الـ push:
+/// الطرفان بشكل متطابق. الترتيب:
 ///   deep link خارجي → يُفتح في المتصفح.
 ///   deep_link=home → الرئيسية حسب دور المستخدم.
-///   order_id → مسار الطلب حسب الدور والنوع (quote/track/provider_home/…).
+///   rating_received → شاشة تفاصيل الإشعار (محتوى التقييم + رابط المعاملة).
+///   order_id → مسار الطلب حسب الدور والنوع (quote/track/…)، مع مراعاة **حالة
+///     الطلب الحالية**: الطلب المنتهي يُفتح على شاشة التتبع (ملخّص المعاملة)
+///     بدل شاشة إجراء لم يعد لها معنى.
 ///   broadcast → شاشة تفاصيل الإشعار العام (العنوان والنص كاملين + وقت الإرسال).
 ///
 /// أي إشعار ليس له أي من هذه الوجوه (نوع غير معروف بلا order_id) → لا تنقل
@@ -43,18 +46,26 @@ Future<void> openNotificationFromList(
     return;
   }
 
+  // إشعار تقييم: شاشة التفاصيل تعرض مقدار التقييم والعميل وتاريخه ورابط
+  // «تفاصيل المعاملة». يُفحص قبل فرع order_id لأن إشعار التقييم يحمل order_id.
+  if (notification.type == 'rating_received') {
+    context.push('/notification/detail', extra: notification);
+    return;
+  }
+
   if (notification.orderId != null) {
     final role = await context.read<AuthCubit>().resolveCurrentRole();
     if (!context.mounted) return;
-    // نفس جدول مسارات الدفع الموحّد (حسب الدور ونوع الإشعار). الدور غير
-    // المعروف يُمرَّر فارغًا فيقع الجدول على شاشة التتبع الآمنة.
-    context.push(
-      PushNotificationService.orderRouteFor(
-        orderId: notification.orderId!,
-        type: notification.type,
-        role: role ?? '',
-      ),
+    // جدول مسارات الدفع الموحّد (حسب الدور ونوع الإشعار) + مراعاة حالة الطلب:
+    // الطلب المنتهي → شاشة التتبع (ملخّص المعاملة). الدور غير المعروف يُمرَّر
+    // فارغًا فيقع الجدول على شاشة التتبع الآمنة.
+    final route = await PushNotificationService.resolveOrderRoute(
+      orderId: notification.orderId!,
+      type: notification.type,
+      role: role ?? '',
     );
+    if (!context.mounted) return;
+    context.push(route);
     return;
   }
 
