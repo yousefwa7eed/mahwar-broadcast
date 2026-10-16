@@ -1321,6 +1321,249 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'حذف'**
   String get delete;
+
+  /// No description provided for @notificationTitleNewOrder.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب جديد'**
+  String get notificationTitleNewOrder;
+
+  /// No description provided for @notificationTitlePriceOffer.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض سعر جديد'**
+  String get notificationTitlePriceOffer;
+
+  /// No description provided for @notificationTitleOrderConfirmed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تأكيد الطلب'**
+  String get notificationTitleOrderConfirmed;
+
+  /// No description provided for @notificationTitleOrderRejected.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم رفض الطلب'**
+  String get notificationTitleOrderRejected;
+
+  /// No description provided for @notificationTitleOrderCancelled.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إلغاء الطلب'**
+  String get notificationTitleOrderCancelled;
+
+  /// No description provided for @notificationTitleOrderCompleted.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إتمام الطلب'**
+  String get notificationTitleOrderCompleted;
+
+  /// No description provided for @notificationTitleShiftStarted.
+  ///
+  /// In ar, this message translates to:
+  /// **'بدء ساعات العمل'**
+  String get notificationTitleShiftStarted;
+
+  /// No description provided for @notificationTitleShiftEnded.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهاء ساعات العمل'**
+  String get notificationTitleShiftEnded;
+
+  /// No description provided for @notificationTitleRatingReceived.
+  ///
+  /// In ar, this message translates to:
+  /// **'تقييم جديد'**
+  String get notificationTitleRatingReceived;
+
+  /// No description provided for @notificationTitleNewMessage.
+  ///
+  /// In ar, this message translates to:
+  /// **'رسالة جديدة'**
+  String get notificationTitleNewMessage;
+
+  /// No description provided for @notificationTitleBroadcast.
+  ///
+  /// In ar, this message translates to:
+  /// **'إشعار'**
+  String get notificationTitleBroadcast;
+
+  /// No description provided for @notificationTitleDefault.
+  ///
+  /// In ar, this message translates to:
+  /// **'إشعار جديد'**
+  String get notificationTitleDefault;
+
+  /// No description provided for @notificationBodyNewOrderWithService.
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك طلب جديد: {service}'**
+  String notificationBodyNewOrderWithService(String service);
+
+  /// No description provided for @notificationBodyNewOrder.
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك طلب جديد'**
+  String get notificationBodyNewOrder;
+
+  /// No description provided for @notificationBodyPriceOfferWithService.
+  ///
+  /// In ar, this message translates to:
+  /// **'{provider} قدم عرض سعر {price} {currency} لطلب {service}'**
+  String notificationBodyPriceOfferWithService(
+    String provider,
+    String price,
+    String currency,
+    String service,
+  );
+
+  /// No description provided for @notificationBodyPriceOffer.
+  ///
+  /// In ar, this message translates to:
+  /// **'{provider} قدم عرض سعر {price} {currency}'**
+  String notificationBodyPriceOffer(
+    String provider,
+    String price,
+    String currency,
+  );
+
+  /// No description provided for @notificationBodyPriceOfferReceived.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم استلام عرض سعر جديد'**
+  String get notificationBodyPriceOfferReceived;
+
+  /// No description provided for @notificationBodyOrderConfirmed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تأكيد طلبك بنجاح'**
+  String get notificationBodyOrderConfirmed;
+
+  /// No description provided for @notificationBodyOrderRejectedWithProvider.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم رفض الطلب من {provider}'**
+  String notificationBodyOrderRejectedWithProvider(String provider);
+
+  /// No description provided for @notificationBodyOrderRejected.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم رفض الطلب'**
+  String get notificationBodyOrderRejected;
+
+  /// No description provided for @notificationBodyOrderCancelled.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إلغاء هذا الطلب'**
+  String get notificationBodyOrderCancelled;
+
+  /// No description provided for @notificationBodyOrderCompleted.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إتمام خدمة الطلب بنجاح'**
+  String get notificationBodyOrderCompleted;
+
+  /// No description provided for @notificationBodyShiftStarted.
+  ///
+  /// In ar, this message translates to:
+  /// **'بدأت ساعات عملك — أنت الآن متاح أمام العملاء'**
+  String get notificationBodyShiftStarted;
+
+  /// No description provided for @notificationBodyShiftEnded.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت ساعات عملك — أصبحت الآن غير متاح'**
+  String get notificationBodyShiftEnded;
+
+  /// No description provided for @notificationBodyRatingWithValue.
+  ///
+  /// In ar, this message translates to:
+  /// **'حصلت على تقييم {rating} من 5'**
+  String notificationBodyRatingWithValue(String rating);
+
+  /// No description provided for @notificationBodyRating.
+  ///
+  /// In ar, this message translates to:
+  /// **'حصلت على تقييم جديد'**
+  String get notificationBodyRating;
+
+  /// No description provided for @notificationBodyNewMessage.
+  ///
+  /// In ar, this message translates to:
+  /// **'وصلتك رسالة جديدة'**
+  String get notificationBodyNewMessage;
+
+  /// No description provided for @notificationBodyDefault.
+  ///
+  /// In ar, this message translates to:
+  /// **'يوجد تحديث جديد لتطبيق محور'**
+  String get notificationBodyDefault;
+
+  /// No description provided for @notificationTimeNow.
+  ///
+  /// In ar, this message translates to:
+  /// **'الآن'**
+  String get notificationTimeNow;
+
+  /// No description provided for @notificationTimeMinutes.
+  ///
+  /// In ar, this message translates to:
+  /// **'منذ {count} دقيقة'**
+  String notificationTimeMinutes(int count);
+
+  /// No description provided for @notificationTimeHours.
+  ///
+  /// In ar, this message translates to:
+  /// **'منذ {count} ساعة'**
+  String notificationTimeHours(int count);
+
+  /// No description provided for @notificationTimeDays.
+  ///
+  /// In ar, this message translates to:
+  /// **'منذ {count} يوم'**
+  String notificationTimeDays(int count);
+
+  /// No description provided for @notificationRatingLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'تقييم'**
+  String get notificationRatingLabel;
+
+  /// No description provided for @notificationRatingOfFive.
+  ///
+  /// In ar, this message translates to:
+  /// **'{rating} من 5'**
+  String notificationRatingOfFive(String rating);
+
+  /// No description provided for @notificationFromCustomer.
+  ///
+  /// In ar, this message translates to:
+  /// **'من العميل'**
+  String get notificationFromCustomer;
+
+  /// No description provided for @notificationCustomerFallback.
+  ///
+  /// In ar, this message translates to:
+  /// **'العميل'**
+  String get notificationCustomerFallback;
+
+  /// No description provided for @notificationRatingDate.
+  ///
+  /// In ar, this message translates to:
+  /// **'تاريخ التقييم'**
+  String get notificationRatingDate;
+
+  /// No description provided for @notificationCommentLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعليق'**
+  String get notificationCommentLabel;
+
+  /// No description provided for @viewTransactionDetails.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض تفاصيل المعاملة'**
+  String get viewTransactionDetails;
 }
 
 class _AppLocalizationsDelegate

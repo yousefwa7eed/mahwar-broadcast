@@ -1122,6 +1122,8 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
             ),
           ...List.generate(state.notifications.length, (index) {
             final notification = state.notifications[index];
+            final title = notification.localizedTitle(l10n);
+            final body = notification.localizedBody(l10n);
           return GestureDetector(
             // معالج موحّد مع صفحة الإشعارات وتبويب العميل: deep link خارجي /
             // home / طلب / إشعار عام (شاشة التفاصيل).
@@ -1155,7 +1157,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          notification.title,
+                          title,
                           style: TextStyle(
                             fontFamily: 'Zain',
                             fontSize: 16,
@@ -1163,10 +1165,10 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                             color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                           ),
                         ),
-                        if (notification.body.isNotEmpty) ...[
+                        if (body.isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Text(
-                            notification.body,
+                            body,
                             style: TextStyle(
                               fontFamily: 'Cairo',
                               fontSize: 13,
@@ -1176,7 +1178,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                         ],
                         const SizedBox(height: 4),
                         Text(
-                          notification.timeAgo(ServerClock.instance.now),
+                          notification.timeAgo(ServerClock.instance.now, l10n),
                           style: TextStyle(
                             fontFamily: 'Cairo',
                             fontSize: 11,

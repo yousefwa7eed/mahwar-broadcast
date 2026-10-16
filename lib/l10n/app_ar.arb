@@ -217,5 +217,94 @@
   "changePasswordFailed": "تعذّر تغيير كلمة المرور. حاول مرة أخرى.",
   "deleteAccountPasswordPrompt": "أدخل كلمة المرور الحالية لتأكيد حذف الحساب",
   "changePasswordRateLimited": "محاولات كثيرة، حاول بعد قليل",
-  "delete": "حذف"
+  "delete": "حذف",
+  "notificationTitleNewOrder": "طلب جديد",
+  "notificationTitlePriceOffer": "عرض سعر جديد",
+  "notificationTitleOrderConfirmed": "تم تأكيد الطلب",
+  "notificationTitleOrderRejected": "تم رفض الطلب",
+  "notificationTitleOrderCancelled": "تم إلغاء الطلب",
+  "notificationTitleOrderCompleted": "تم إتمام الطلب",
+  "notificationTitleShiftStarted": "بدء ساعات العمل",
+  "notificationTitleShiftEnded": "انتهاء ساعات العمل",
+  "notificationTitleRatingReceived": "تقييم جديد",
+  "notificationTitleNewMessage": "رسالة جديدة",
+  "notificationTitleBroadcast": "إشعار",
+  "notificationTitleDefault": "إشعار جديد",
+  "notificationBodyNewOrderWithService": "لديك طلب جديد: {service}",
+  "@notificationBodyNewOrderWithService": {
+    "placeholders": {
+      "service": { "type": "String" }
+    }
+  },
+  "notificationBodyNewOrder": "لديك طلب جديد",
+  "notificationBodyPriceOfferWithService": "{provider} قدم عرض سعر {price} {currency} لطلب {service}",
+  "@notificationBodyPriceOfferWithService": {
+    "placeholders": {
+      "provider": { "type": "String" },
+      "price": { "type": "String" },
+      "currency": { "type": "String" },
+      "service": { "type": "String" }
+    }
+  },
+  "notificationBodyPriceOffer": "{provider} قدم عرض سعر {price} {currency}",
+  "@notificationBodyPriceOffer": {
+    "placeholders": {
+      "provider": { "type": "String" },
+      "price": { "type": "String" },
+      "currency": { "type": "String" }
+    }
+  },
+  "notificationBodyPriceOfferReceived": "تم استلام عرض سعر جديد",
+  "notificationBodyOrderConfirmed": "تم تأكيد طلبك بنجاح",
+  "notificationBodyOrderRejectedWithProvider": "تم رفض الطلب من {provider}",
+  "@notificationBodyOrderRejectedWithProvider": {
+    "placeholders": {
+      "provider": { "type": "String" }
+    }
+  },
+  "notificationBodyOrderRejected": "تم رفض الطلب",
+  "notificationBodyOrderCancelled": "تم إلغاء هذا الطلب",
+  "notificationBodyOrderCompleted": "تم إتمام خدمة الطلب بنجاح",
+  "notificationBodyShiftStarted": "بدأت ساعات عملك — أنت الآن متاح أمام العملاء",
+  "notificationBodyShiftEnded": "انتهت ساعات عملك — أصبحت الآن غير متاح",
+  "notificationBodyRatingWithValue": "حصلت على تقييم {rating} من 5",
+  "@notificationBodyRatingWithValue": {
+    "placeholders": {
+      "rating": { "type": "String" }
+    }
+  },
+  "notificationBodyRating": "حصلت على تقييم جديد",
+  "notificationBodyNewMessage": "وصلتك رسالة جديدة",
+  "notificationBodyDefault": "يوجد تحديث جديد لتطبيق محور",
+  "notificationTimeNow": "الآن",
+  "notificationTimeMinutes": "منذ {count} دقيقة",
+  "@notificationTimeMinutes": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "notificationTimeHours": "منذ {count} ساعة",
+  "@notificationTimeHours": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "notificationTimeDays": "منذ {count} يوم",
+  "@notificationTimeDays": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "notificationRatingLabel": "تقييم",
+  "notificationRatingOfFive": "{rating} من 5",
+  "@notificationRatingOfFive": {
+    "placeholders": {
+      "rating": { "type": "String" }
+    }
+  },
+  "notificationFromCustomer": "من العميل",
+  "notificationCustomerFallback": "العميل",
+  "notificationRatingDate": "تاريخ التقييم",
+  "notificationCommentLabel": "تعليق",
+  "viewTransactionDetails": "عرض تفاصيل المعاملة"
 }

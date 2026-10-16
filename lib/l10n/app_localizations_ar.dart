@@ -641,4 +641,150 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get delete => 'حذف';
+
+  @override
+  String get notificationTitleNewOrder => 'طلب جديد';
+
+  @override
+  String get notificationTitlePriceOffer => 'عرض سعر جديد';
+
+  @override
+  String get notificationTitleOrderConfirmed => 'تم تأكيد الطلب';
+
+  @override
+  String get notificationTitleOrderRejected => 'تم رفض الطلب';
+
+  @override
+  String get notificationTitleOrderCancelled => 'تم إلغاء الطلب';
+
+  @override
+  String get notificationTitleOrderCompleted => 'تم إتمام الطلب';
+
+  @override
+  String get notificationTitleShiftStarted => 'بدء ساعات العمل';
+
+  @override
+  String get notificationTitleShiftEnded => 'انتهاء ساعات العمل';
+
+  @override
+  String get notificationTitleRatingReceived => 'تقييم جديد';
+
+  @override
+  String get notificationTitleNewMessage => 'رسالة جديدة';
+
+  @override
+  String get notificationTitleBroadcast => 'إشعار';
+
+  @override
+  String get notificationTitleDefault => 'إشعار جديد';
+
+  @override
+  String notificationBodyNewOrderWithService(String service) {
+    return 'لديك طلب جديد: $service';
+  }
+
+  @override
+  String get notificationBodyNewOrder => 'لديك طلب جديد';
+
+  @override
+  String notificationBodyPriceOfferWithService(
+    String provider,
+    String price,
+    String currency,
+    String service,
+  ) {
+    return '$provider قدم عرض سعر $price $currency لطلب $service';
+  }
+
+  @override
+  String notificationBodyPriceOffer(
+    String provider,
+    String price,
+    String currency,
+  ) {
+    return '$provider قدم عرض سعر $price $currency';
+  }
+
+  @override
+  String get notificationBodyPriceOfferReceived => 'تم استلام عرض سعر جديد';
+
+  @override
+  String get notificationBodyOrderConfirmed => 'تم تأكيد طلبك بنجاح';
+
+  @override
+  String notificationBodyOrderRejectedWithProvider(String provider) {
+    return 'تم رفض الطلب من $provider';
+  }
+
+  @override
+  String get notificationBodyOrderRejected => 'تم رفض الطلب';
+
+  @override
+  String get notificationBodyOrderCancelled => 'تم إلغاء هذا الطلب';
+
+  @override
+  String get notificationBodyOrderCompleted => 'تم إتمام خدمة الطلب بنجاح';
+
+  @override
+  String get notificationBodyShiftStarted =>
+      'بدأت ساعات عملك — أنت الآن متاح أمام العملاء';
+
+  @override
+  String get notificationBodyShiftEnded =>
+      'انتهت ساعات عملك — أصبحت الآن غير متاح';
+
+  @override
+  String notificationBodyRatingWithValue(String rating) {
+    return 'حصلت على تقييم $rating من 5';
+  }
+
+  @override
+  String get notificationBodyRating => 'حصلت على تقييم جديد';
+
+  @override
+  String get notificationBodyNewMessage => 'وصلتك رسالة جديدة';
+
+  @override
+  String get notificationBodyDefault => 'يوجد تحديث جديد لتطبيق محور';
+
+  @override
+  String get notificationTimeNow => 'الآن';
+
+  @override
+  String notificationTimeMinutes(int count) {
+    return 'منذ $count دقيقة';
+  }
+
+  @override
+  String notificationTimeHours(int count) {
+    return 'منذ $count ساعة';
+  }
+
+  @override
+  String notificationTimeDays(int count) {
+    return 'منذ $count يوم';
+  }
+
+  @override
+  String get notificationRatingLabel => 'تقييم';
+
+  @override
+  String notificationRatingOfFive(String rating) {
+    return '$rating من 5';
+  }
+
+  @override
+  String get notificationFromCustomer => 'من العميل';
+
+  @override
+  String get notificationCustomerFallback => 'العميل';
+
+  @override
+  String get notificationRatingDate => 'تاريخ التقييم';
+
+  @override
+  String get notificationCommentLabel => 'تعليق';
+
+  @override
+  String get viewTransactionDetails => 'عرض تفاصيل المعاملة';
 }

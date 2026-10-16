@@ -112,7 +112,7 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
       case 'broadcast':
         return l10n?.notificationBroadcast ?? 'إشعار عام';
       case 'rating_received':
-        return 'تقييم';
+        return l10n?.notificationRatingLabel ?? 'تقييم';
       default:
         return l10n?.notificationDetails ?? 'تفاصيل الإشعار';
     }
@@ -242,7 +242,10 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
     Color primary,
     Color secondary,
   ) {
+    final l10n = AppLocalizations.of(context);
     final notification = widget.notification;
+    final title = notification.localizedTitle(l10n);
+    final body = notification.localizedBody(l10n);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -256,7 +259,7 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            notification.title,
+            title,
             style: TextStyle(
               fontFamily: 'Zain',
               fontSize: 22,
@@ -264,10 +267,10 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
               color: primary,
             ),
           ),
-          if (notification.body.isNotEmpty) ...[
+          if (body.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(
-              notification.body,
+              body,
               style: TextStyle(
                 fontFamily: 'Cairo',
                 fontSize: 15,
@@ -289,6 +292,7 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
     Color primary,
     Color secondary,
   ) {
+    final l10n = AppLocalizations.of(context);
     final notification = widget.notification;
     final orderId = notification.orderId;
 
@@ -305,7 +309,7 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            notification.title,
+            notification.localizedTitle(l10n),
             style: TextStyle(
               fontFamily: 'Zain',
               fontSize: 22,
@@ -345,7 +349,10 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
             const SizedBox(height: 8),
             Center(
               child: Text(
-                _rating != null ? '$_rating من 5' : 'تقييم جديد',
+                _rating != null
+                    ? (l10n?.notificationRatingOfFive('$_rating') ??
+                        '$_rating من 5')
+                    : (l10n?.notificationTitleRatingReceived ?? 'تقييم جديد'),
                 style: TextStyle(
                   fontFamily: 'Zain',
                   fontSize: 22,
@@ -359,15 +366,15 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
             const SizedBox(height: 16),
             _infoRow(
               Icons.person_rounded,
-              'من العميل',
-              _customerName ?? 'العميل',
+              l10n?.notificationFromCustomer ?? 'من العميل',
+              _customerName ?? (l10n?.notificationCustomerFallback ?? 'العميل'),
               primary,
               secondary,
             ),
             const SizedBox(height: 12),
             _infoRow(
               Icons.event_rounded,
-              'تاريخ التقييم',
+              l10n?.notificationRatingDate ?? 'تاريخ التقييم',
               _ratedAt != null
                   ? _dateTimeLabel(context, _ratedAt!, '')
                       .trim()
@@ -383,7 +390,7 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
               const SizedBox(height: 12),
               _infoRow(
                 Icons.comment_rounded,
-                'تعليق',
+                l10n?.notificationCommentLabel ?? 'تعليق',
                 _comment!.trim(),
                 primary,
                 secondary,
@@ -399,9 +406,9 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
                     context.push('/request/track?orderId=$orderId'),
                 icon: const Icon(Icons.receipt_long_rounded,
                     color: Colors.white, size: 20),
-                label: const Text(
-                  'عرض تفاصيل المعاملة',
-                  style: TextStyle(
+                label: Text(
+                  l10n?.viewTransactionDetails ?? 'عرض تفاصيل المعاملة',
+                  style: const TextStyle(
                     fontFamily: 'Zain',
                     fontSize: 17,
                     fontWeight: FontWeight.bold,

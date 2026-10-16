@@ -9,9 +9,11 @@ import 'core/config/app_config.dart';
 import 'core/auth/auth_cubit.dart';
 import 'core/auth/profile_cubit.dart';
 import 'core/auth/secure_local_storage.dart';
+import 'core/models/notification_model.dart';
 import 'core/notifications/notification_cubit.dart';
 import 'core/services/app_messenger.dart';
 import 'core/services/push_notification_service.dart';
+import 'core/services/service_type_directory.dart';
 import 'core/settings/app_settings_cubit.dart';
 import 'core/settings/app_settings_state.dart';
 import 'core/theme/app_theme.dart';
@@ -47,6 +49,13 @@ void main() async {
       localStorage: SecureLocalStorage(),
     ),
   );
+
+  // اسم الخدمة داخل الإشعارات بلغة العارض (service_types.name_ar/name_en)
+  // بدل الاسم العربي المحفوظ لحظة إنشاء الإشعار. يُحمَّل مرة واحدة في الخلفية،
+  // وعند فشله نرجع تلقائيًا إلى metadata.service_name.
+  NotificationModel.serviceTypeNameResolver =
+      (id, isArabic) => ServiceTypeDirectory.instance.nameFor(id, isArabic);
+  ServiceTypeDirectory.instance.ensureLoaded();
 
   // مصدر واحد للإشعارات: يربطنا الـ PushNotificationService بالـ cubit
   // ليقدر يحدّث القائمة/الجرس بمجرد استلام إشعار دفع.

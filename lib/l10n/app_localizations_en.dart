@@ -649,4 +649,153 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get delete => 'Delete';
+
+  @override
+  String get notificationTitleNewOrder => 'New order';
+
+  @override
+  String get notificationTitlePriceOffer => 'New price offer';
+
+  @override
+  String get notificationTitleOrderConfirmed => 'Order confirmed';
+
+  @override
+  String get notificationTitleOrderRejected => 'Order rejected';
+
+  @override
+  String get notificationTitleOrderCancelled => 'Order cancelled';
+
+  @override
+  String get notificationTitleOrderCompleted => 'Order completed';
+
+  @override
+  String get notificationTitleShiftStarted => 'Work hours started';
+
+  @override
+  String get notificationTitleShiftEnded => 'Work hours ended';
+
+  @override
+  String get notificationTitleRatingReceived => 'New rating';
+
+  @override
+  String get notificationTitleNewMessage => 'New message';
+
+  @override
+  String get notificationTitleBroadcast => 'Notification';
+
+  @override
+  String get notificationTitleDefault => 'New notification';
+
+  @override
+  String notificationBodyNewOrderWithService(String service) {
+    return 'You have a new order: $service';
+  }
+
+  @override
+  String get notificationBodyNewOrder => 'You have a new order';
+
+  @override
+  String notificationBodyPriceOfferWithService(
+    String provider,
+    String price,
+    String currency,
+    String service,
+  ) {
+    return '$provider offered a price of $price $currency for $service';
+  }
+
+  @override
+  String notificationBodyPriceOffer(
+    String provider,
+    String price,
+    String currency,
+  ) {
+    return '$provider offered a price of $price $currency';
+  }
+
+  @override
+  String get notificationBodyPriceOfferReceived =>
+      'A new price offer was received';
+
+  @override
+  String get notificationBodyOrderConfirmed =>
+      'Your order was confirmed successfully';
+
+  @override
+  String notificationBodyOrderRejectedWithProvider(String provider) {
+    return 'The order was rejected by $provider';
+  }
+
+  @override
+  String get notificationBodyOrderRejected => 'The order was rejected';
+
+  @override
+  String get notificationBodyOrderCancelled => 'This order was cancelled';
+
+  @override
+  String get notificationBodyOrderCompleted =>
+      'The order service was completed successfully';
+
+  @override
+  String get notificationBodyShiftStarted =>
+      'Your working hours have started — you are now available to customers';
+
+  @override
+  String get notificationBodyShiftEnded =>
+      'Your working hours have ended — you are now unavailable';
+
+  @override
+  String notificationBodyRatingWithValue(String rating) {
+    return 'You received a rating of $rating out of 5';
+  }
+
+  @override
+  String get notificationBodyRating => 'You received a new rating';
+
+  @override
+  String get notificationBodyNewMessage => 'You received a new message';
+
+  @override
+  String get notificationBodyDefault => 'There is a new update for Mahwar';
+
+  @override
+  String get notificationTimeNow => 'Just now';
+
+  @override
+  String notificationTimeMinutes(int count) {
+    return '$count minutes ago';
+  }
+
+  @override
+  String notificationTimeHours(int count) {
+    return '$count hours ago';
+  }
+
+  @override
+  String notificationTimeDays(int count) {
+    return '$count days ago';
+  }
+
+  @override
+  String get notificationRatingLabel => 'Rating';
+
+  @override
+  String notificationRatingOfFive(String rating) {
+    return '$rating out of 5';
+  }
+
+  @override
+  String get notificationFromCustomer => 'From customer';
+
+  @override
+  String get notificationCustomerFallback => 'Customer';
+
+  @override
+  String get notificationRatingDate => 'Rating date';
+
+  @override
+  String get notificationCommentLabel => 'Comment';
+
+  @override
+  String get viewTransactionDetails => 'View transaction details';
 }

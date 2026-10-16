@@ -194,8 +194,8 @@ void main() {
 
       expect(notification.orderId, isNull);
       expect(notification.type, 'broadcast');
-      expect(notification.title, 'صيانة مجدولة');
-      expect(notification.body, 'نص الإشعار العام الكامل');
+      expect(notification.localizedTitle(null), 'صيانة مجدولة');
+      expect(notification.localizedBody(null), 'نص الإشعار العام الكامل');
     });
   });
 

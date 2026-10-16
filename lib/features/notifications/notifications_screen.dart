@@ -92,7 +92,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () => context.read<NotificationCubit>().loadNotifications(),
-                    child: const Text('إعادة المحاولة'),
+                    child: Text(l10n?.retry ?? 'إعادة المحاولة'),
                   ),
                 ],
               ),
@@ -131,6 +131,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               itemCount: state.notifications.length,
               itemBuilder: (context, index) {
                 final notification = state.notifications[index];
+                final title = notification.localizedTitle(l10n);
+                final body = notification.localizedBody(l10n);
                 return GestureDetector(
                   // معالج موحّد مع تبويبي الرئيسية: deep link خارجي / home /
                   // طلب / إشعار عام (شاشة التفاصيل).
@@ -200,7 +202,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  notification.title,
+                                  title,
                                   style: TextStyle(
                                     fontFamily: 'Zain',
                                     fontSize: 16,
@@ -208,10 +210,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                     color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                                   ),
                                 ),
-                                if (notification.body.isNotEmpty) ...[
+                                if (body.isNotEmpty) ...[
                                   const SizedBox(height: 4),
                                   Text(
-                                    notification.body,
+                                    body,
                                     style: TextStyle(
                                       fontFamily: 'Cairo',
                                       fontSize: 13,
@@ -221,7 +223,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 ],
                                 const SizedBox(height: 4),
                                 Text(
-                                  notification.timeAgo(ServerClock.instance.now),
+                                  notification.timeAgo(ServerClock.instance.now, l10n),
                                   style: TextStyle(
                                     fontFamily: 'Cairo',
                                     fontSize: 11,
