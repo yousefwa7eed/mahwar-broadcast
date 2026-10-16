@@ -1,4 +1,5 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { buildTitleBody, normalizeLanguage } from "./notification_text.ts";
 
 /**
  * يرسل إشعار دفع (FCM HTTP v1) لأي إشعار داخل التطبيق.
@@ -116,68 +117,9 @@ async function getAccessToken(sa: Record<string, string>): Promise<string> {
 }
 
 // -----------------------------------------------------------------------------
-// بناء نص الإشعار بالعربية (مطابق لعناصر التطبيق)
+// نص الإشعار (عربي/إنجليزي) انتقل إلى notification_text.ts ليخضع لاختبارات
+// الوحدة (notification_text_test.ts) بدون اعتماد على أي واجهة Deno.
 // -----------------------------------------------------------------------------
-function buildTitleBody(type: string, metadata: Record<string, unknown>): { title: string; body: string } {
-  const serviceName = metadata["service_name"] as string | undefined;
-  const providerName = metadata["provider_name"] as string | undefined;
-  const price = metadata["price"];
-  const rating = metadata["rating"];
-
-  switch (type) {
-    case "new_order":
-      return {
-        title: "طلب جديد",
-        body: serviceName ? `لديك طلب جديد: ${serviceName}` : "لديك طلب جديد",
-      };
-    case "price_offer":
-      return {
-        title: "عرض سعر جديد",
-        body: providerName && price != null
-          ? `${providerName} قدم عرض سعر ${price} ج.م${serviceName ? ` لطلب ${serviceName}` : ""}`
-          : "تم استلام عرض سعر جديد",
-      };
-    case "order_confirmed":
-      return { title: "تم تأكيد الطلب", body: "تم تأكيد طلبك بنجاح" };
-    case "order_rejected":
-      return {
-        title: "تم رفض الطلب",
-        body: providerName ? `تم رفض الطلب من ${providerName}` : "تم رفض الطلب",
-      };
-    case "order_cancelled":
-      return { title: "تم إلغاء الطلب", body: "تم إلغاء هذا الطلب" };
-    case "order_completed":
-      return { title: "تم إتمام الطلب", body: "تم إتمام خدمة الطلب بنجاح" };
-    case "shift_started":
-      return {
-        title: "بدء ساعات العمل",
-        body: "بدأت ساعات عملك — أنت الآن متاح أمام العملاء",
-      };
-    case "shift_ended":
-      return {
-        title: "انتهاء ساعات العمل",
-        body: "انتهت ساعات عملك — أصبحت الآن غير متاح",
-      };
-    case "rating_received":
-      return {
-        title: "تقييم جديد",
-        body: rating != null ? `حصلت على تقييم ${rating} من 5` : "حصلت على تقييم جديد",
-      };
-    case "new_message":
-      return { title: "رسالة جديدة", body: "وصلتك رسالة جديدة" };
-    case "broadcast": {
-      // إشعار عام: العنوان والنص يأتيان مباشرة من metadata (محددان من المالك).
-      const t = metadata["title"];
-      const b = metadata["body"];
-      return {
-        title: typeof t === "string" && t.trim() ? t : "إشعار",
-        body: typeof b === "string" && b.trim() ? b : "",
-      };
-    }
-    default:
-      return { title: "إشعار جديد", body: "يوجد تحديث جديد لتطبيق محور" };
-  }
-}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -222,10 +164,10 @@ Deno.serve(async (req: Request) => {
     return json({ ok: true, skipped: "notification_not_found" });
   }
 
-  // 2) resolve المتلقي + التوكن + الدور
+  // 2) resolve المتلقي + التوكن + الدور + اللغة المفضّلة
   const { data: profile } = await supabase
     .from("profiles")
-    .select("fcm_token, role")
+    .select("fcm_token, role, language")
     .eq("id", notif.user_id)
     .maybeSingle();
 
@@ -238,6 +180,8 @@ Deno.serve(async (req: Request) => {
 
   const fcmToken = profile.fcm_token as string;
   const role = (profile.role as string | null) ?? "car_owner";
+  // لغة المستقبِل (profiles.language) — أي قيمة غير "en" تُعامل كعربية.
+  const language = normalizeLanguage(profile.language);
 
   // 3) تأكد أن FCM مُهيّأ (env فقط — بدون env نُقصي بأمان)
   if (!FCM_SERVICE_ACCOUNT_JSON) {
@@ -253,7 +197,25 @@ Deno.serve(async (req: Request) => {
   }
 
   const metadata = (notif.metadata ?? {}) as Record<string, unknown>;
-  const { title, body } = buildTitleBody(notif.type, metadata);
+
+  // اسم الخدمة المعروض: يُقرأ من service_types عبر metadata.service_type_id
+  // بلغة المستقبِل (name_en/name_ar)؛ وإن تعذّر نرجع إلى metadata.service_name،
+  // وإن غاب كلاهما تُحذف لاحقة اسم الخدمة من النص (داخل buildTitleBody).
+  let serviceNameFromDb: string | null = null;
+  const serviceTypeId = metadata["service_type_id"];
+  if (typeof serviceTypeId === "string" && serviceTypeId.trim()) {
+    const { data: serviceType } = await supabase
+      .from("service_types")
+      .select("name_ar, name_en")
+      .eq("id", serviceTypeId)
+      .maybeSingle();
+    if (serviceType) {
+      const name = language === "en" ? serviceType.name_en : serviceType.name_ar;
+      serviceNameFromDb = typeof name === "string" && name.trim() ? name : null;
+    }
+  }
+
+  const { title, body } = buildTitleBody(notif.type, metadata, language, serviceNameFromDb);
 
   // صورة الإشعار (إن وُجدت) — تُعرض داخل الإشعار نفسه (rich/large image على Android)
   const imageUrl =
