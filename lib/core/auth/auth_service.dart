@@ -291,33 +291,35 @@ class SupabaseAuthService extends AuthService {
   }
 
   /// مهلة قصيرة لكل خطوة من تنظيف الخروج الخلفي، حتى لا تُعلّق العملية
-  /// بلا فائدة عند بطء الشبكة/انقطاعها (كل خطوة تُنتظَر مع مهلة).
+  /// بلا فائدة عند بطء الشبكة/انقطاعها (العملية خلفية بلا انتظار أصلاً).
   static const Duration _backgroundStepTimeout = Duration(seconds: 3);
 
   @override
   Future<void> signOutInBackground(String? oldUserId) async {
     // بداية متزامنة قبل أي await — طالما الجلسة المحلية القديمة ما زالت
-    // قائمة يلتقط gotrue توكنها متزامنًا (انظر أدناه). كل خطوة تُنتظَر
-    // ووراءها مهلة حتى لا تُعلّق العملية عند بطء الشبكة/انقطاعها.
+    // قائمة يلتقط gotrue توكنها متزامنًا (انظر أدناه). كل خطوة وراء
+    // مهلة حتى لا تُعلّق العملية (الخلفية لا تُنتظَر من منسّق الخروج).
     //
     // 1) مسح fcm_token + device_id لصفّ المستخدم القديم: يقرأ
     //    Postgrest/AuthHttpClient توكن الجلسة الحالية متزامنًا لحظة إطلاق
-    //    الطلب، فيلتقط التوكن الصالح قبل أي مسح محلي. فشله يُسجَّل فقط
+    //    الطلب، فيلتقط التوكن الصالح قبل أي مسح محلي. الطلب يبدأ بلا انتظار
+    //    (unawaited) فيبقى التوكن صالحًا لحظة إنشائه؛ فشله يُسجَّل فقط
     //    (لا يمنع الخروج المحلي).
     if (oldUserId != null) {
-      try {
-        await _client
+      unawaited(
+        _client
             .from('profiles')
             .update({'fcm_token': null, 'device_id': null})
             .eq('id', oldUserId)
-            .timeout(_backgroundStepTimeout);
-      } catch (e) {
-        AuthService.fcmTokenClearFailureCount++;
-        debugPrint(
-          '[AuthService] background FCM_TOKEN_CLEAR_FAILED '
-          '(count=${AuthService.fcmTokenClearFailureCount}, userId=$oldUserId): $e',
-        );
-      }
+            .timeout(_backgroundStepTimeout)
+            .catchError((Object e) {
+          AuthService.fcmTokenClearFailureCount++;
+          debugPrint(
+            '[AuthService] background FCM_TOKEN_CLEAR_FAILED '
+            '(count=${AuthService.fcmTokenClearFailureCount}, userId=$oldUserId): $e',
+          );
+        }),
+      );
     }
     // 2) إبطال الجلسة القديمة لدى الخادم: `signOut(scope: global)` يقرأ
     //    `currentSession` متزامنًا في أول سطر له، فيلتقط توكن الجلسة
