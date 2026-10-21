@@ -84,5 +84,8 @@ build
 *firebase-adminsdk*.json
 serviceAccountKey.json
 
+# Debug scratch dumps (flutter test console output)
+gate_*.txt
+
    # Dry-run hook test
    /dryrun_otp_test.ps1
