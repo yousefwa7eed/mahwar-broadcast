@@ -63,6 +63,10 @@ void showErrorDialog(BuildContext context, String message) {
 String _friendlyMessage(String message, AppLocalizations? l10n) {
   final lower = message.toLowerCase();
 
+  if (lower.contains('banned')) {
+    return l10n?.errUserBanned ??
+        'تم حظرك من استخدام تطبيق محور. إذا كنت تعتقد أن هذا خطأ، يرجى التواصل مع الدعم الفني.';
+  }
   if (lower.contains('unexpected_error')) {
     return l10n?.authErrorUnexpected ?? 'حدث خطأ غير متوقع، حاول مرة أخرى.';
   }

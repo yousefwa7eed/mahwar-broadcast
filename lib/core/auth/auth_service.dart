@@ -137,6 +137,18 @@ abstract class AuthService {
 
   /// يزامن الرقم المؤكَّد محليًا في جدول profiles.
   Future<void> syncPhoneToProfile(String localPhone);
+
+  /// هل أُبطِلت جلسة [uid] من جهة الخادم (حظر أدمن ضبط `session_revoked_at`)؟
+  ///
+  /// تُرجع `null` عند تعذّر القراءة (فشل شبكة) — فالفشل لا يعني الإبطال، ولا
+  /// يجوز أن يُخرج مستخدمًا بسبب انقطاع عابر.
+  Future<bool?> isSessionRevoked(String uid);
+
+  /// يبثّ `true` لحظة تحديث صف [uid] في `public.profiles` بإشارة إبطال جلسة.
+  ///
+  /// هذا هو «قاطع الجلسة» الفوري: يصل حدث Realtime خلال لحظات من الحظر عوض
+  /// انتظار انتهاء صلاحية الـ JWT. إلغاء الاشتراك يُغلق قناة Realtime التابعة.
+  Stream<bool> watchSessionRevoked(String uid);
 }
 
 class SupabaseAuthService extends AuthService {
@@ -190,6 +202,53 @@ class SupabaseAuthService extends AuthService {
   Future<bool> getMyPhoneVerified() async {
     final res = await _client.rpc('get_my_phone_verified');
     return res == true;
+  }
+
+  @override
+  Future<bool?> isSessionRevoked(String uid) async {
+    try {
+      final row = await _client
+          .from('profiles')
+          .select('session_revoked_at')
+          .eq('id', uid)
+          .maybeSingle();
+      return row?['session_revoked_at'] != null;
+    } catch (e) {
+      debugPrint('[AuthService] session revocation check failed: $e');
+      return null;
+    }
+  }
+
+  @override
+  Stream<bool> watchSessionRevoked(String uid) {
+    final channel = _client.realtime.channel('session-watch:$uid');
+    final controller = StreamController<bool>();
+
+    channel.onPostgresChanges(
+      event: PostgresChangeEvent.update,
+      schema: 'public',
+      table: 'profiles',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'id',
+        value: uid,
+      ),
+      callback: (payload) {
+        if (payload.newRecord['session_revoked_at'] == null) return;
+        if (!controller.isClosed) controller.add(true);
+      },
+    );
+
+    controller.onCancel = () async {
+      // القناة قد تكون مغلقة مسبقًا — الإلغاء لا يجوز أن يرمي.
+      try {
+        channel.unsubscribe();
+      } catch (_) {}
+      await controller.close();
+    };
+
+    channel.subscribe();
+    return controller.stream;
   }
 
   @override

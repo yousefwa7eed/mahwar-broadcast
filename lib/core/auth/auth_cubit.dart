@@ -109,8 +109,35 @@ class AuthCubit extends Cubit<AuthState> {
   /// موثوقة واحدة بلا سؤال الخادم عند كل تنقّل.
   bool? _phoneVerified;
 
-  AuthCubit({AuthService? service})
-      : _authService = service ?? SupabaseAuthService(),
+  /// اشتراك «قاطع الجلسة» (Realtime kill switch) — يصغي لتحديثات
+  /// `session_revoked_at` على صف المستخدم. عندما يحظر الأدمن المستخدم فجأة
+  /// (عبر admin_ban_user) يصل الحدث خلال لحظات ويسجّل خروجًا فوريًا — عوض
+  /// الاعتماد على انتهاء صلاحية الـ JWT أو محاولة refresh لاحقًا (حتى خمسين
+  /// دقيقة). يُلغى عند الخروج أو عند تبديل الحساب.
+  ///
+  /// القناة نفسها خلف [AuthService.watchSessionRevoked] حتى يبقى الـ cubit
+  /// قابلًا للاختبار عبر [FakeAuthService] بلا Supabase مُهيّأ.
+  StreamSubscription<bool>? _sessionWatch;
+  String? _sessionWatchFor;
+
+  /// صمام أمان دوري (Resumption Safeguard): قناة Realtime قد تقع أحيانًا
+  /// (شبكة ضعيفة/إيقاف مؤقت للنظام) — فحص الإشارة كل [revocationPollInterval]
+  /// يضمن إنهاء الجلسة حتى لو فات حدث القناة. استعلام خفيف جدًا على صف واحد.
+  ///
+  /// يعمل فقط أثناء وجود جلسة؛ بلا مستخدم مسجّل لا مؤقّت إطلاقًا.
+  ///
+  /// [revocationPollInterval] = null يُعطّل المؤقّت تمامًا، وهو الافتراضي:
+  /// المؤقّت الدوري أثرٌ جانبي على مستوى العملية يخصّ تركيب التطبيق، فيُشغّله
+  /// `main()` صراحةً (نفس نمط `ScreenTimeService.start`). الاختبارات تُنشئ
+  /// الـ cubit عشرات المرات بلا إغلاق، فمؤقّت يبدأ تلقائيًا يسرّب
+  /// «pending timer» إلى كل اختبار widget يمرّ بجلسة مسجّلة.
+  Timer? _revocationPoll;
+  final Duration? revocationPollInterval;
+
+  AuthCubit({
+    AuthService? service,
+    this.revocationPollInterval,
+  })  : _authService = service ?? SupabaseAuthService(),
         super(const AuthInitial()) {
     _init();
   }
@@ -120,6 +147,7 @@ class AuthCubit extends Cubit<AuthState> {
     final user = _authService.currentUser;
     if (user != null) {
       emit(AuthAuthenticated(user));
+      _beginSessionGuard(user.id);
     } else {
       emit(const AuthUnauthenticated());
     }
@@ -135,14 +163,98 @@ class AuthCubit extends Cubit<AuthState> {
         // جلسة جديدة (أو تبديل حساب) → حالة التوثيق المخزّنة لا تصحّ لها.
         _phoneVerified = null;
         emit(AuthAuthenticated(session.user));
+        // حراسة الجلسة للمعرف الجديد (يشترك على قناة معرف المستخدم الحالي).
+        _beginSessionGuard(session.user.id);
         // عمل غير حرج بعد الدخول — لا يُنتظر حتى لا يؤخّر التوجيه/الرفض.
         unawaited(_saveFcmToken(session.user.id));
         unawaited(_subscribeToRoleTopic(session.user));
       } else if (event == AuthChangeEvent.signedOut) {
         _phoneVerified = null;
+        _endSessionGuard();
         emit(const AuthUnauthenticated());
       }
     });
+  }
+
+  /// يبدأ حراسة جلسة [uid]: فحص فوري للإشارة (يغطي حالة الحظر أثناء إغلاق
+  /// التطبيق حيث لم يصل حدث Realtime)، ثم فتح القناة، ثم المؤقّت الدوري.
+  void _beginSessionGuard(String uid) {
+    unawaited(_checkAndApplyRevokedSession(uid));
+    _startSessionWatch(uid);
+    _startRevocationPoll();
+  }
+
+  /// يوقف كل حراسة للجلسة — عند الخروج أو إغلاق الـ cubit.
+  void _endSessionGuard() {
+    _stopSessionWatch();
+    _stopRevocationPoll();
+  }
+
+  /// يشترك على قناة الإبطال لمعرّف واحد. تُستبدل القناة عند تبديل الحساب أو
+  /// إعادة الاشتراك القسري ([forceResubscribe] عند الرجوع من الخلفية، لضمان
+  /// اتصال حي).
+  void _startSessionWatch(String uid, {bool forceResubscribe = false}) {
+    if (!forceResubscribe && _sessionWatchFor == uid && _sessionWatch != null) {
+      return;
+    }
+    _stopSessionWatch();
+    _sessionWatchFor = uid;
+    _sessionWatch = _authService.watchSessionRevoked(uid).listen((_) {
+      unawaited(_enforceSignOutOnRevokedSession());
+    });
+  }
+
+  /// يقرأ الإشارة المخزنية — [AuthService.isSessionRevoked] يبتلع فشل الشبكة
+  /// ويعيد null، فلا يُخرج المستخدم انقطاعٌ عابر (الحارس الحقيقي هو بوابة
+  /// الخادم عند كل طلب).
+  Future<void> _checkAndApplyRevokedSession(String uid) async {
+    if (await _authService.isSessionRevoked(uid) == true) {
+      await _enforceSignOutOnRevokedSession();
+    }
+  }
+
+  /// يوقع الخروج عند الإشارة المحفوظة: تسجيل خروج محلي (محتوى جلسة). الخروج
+  /// يبعث signedOut عبر المستمع — لا حاجة إلى emit يدوي هنا.
+  Future<void> _enforceSignOutOnRevokedSession() async {
+    try {
+      await _authService.signOut();
+    } catch (e) {
+      debugPrint('[AuthCubit] revocation signOut failed: $e');
+    }
+  }
+
+  /// يلغي الاشتراك في قناة «قاطع الجلسة» (عند الخروج/إغلاق الـ cubit/تبديل حساب).
+  void _stopSessionWatch() {
+    unawaited(_sessionWatch?.cancel());
+    _sessionWatch = null;
+    _sessionWatchFor = null;
+  }
+
+  void _startRevocationPoll() {
+    final interval = revocationPollInterval;
+    if (interval == null || _revocationPoll != null) return;
+    _revocationPoll = Timer.periodic(interval, (_) {
+      final u = _authService.currentUser;
+      if (u != null) unawaited(_checkAndApplyRevokedSession(u.id));
+    });
+  }
+
+  void _stopRevocationPoll() {
+    _revocationPoll?.cancel();
+    _revocationPoll = null;
+  }
+
+  /// يعيد التحقق من الجلسة عند رجوع التطبيق من الخلفية: أثناء تعليق النظام
+  /// للتطبيق قد يسقط socket الـ Realtime فتفوت أحداث الحظر — نعيد إنشاء القناة
+  /// ونتفقّد الإشارة مباشرة، فيتم الخروج لحظة العودة بدل انتظار المؤقّت الدوري.
+  ///
+  /// يُستدعى من مراقب دورة حياة في `main.dart`؛ الـ cubit نفسه لا يراقب
+  /// `WidgetsBinding` حتى يبقى قابلًا للبناء في اختبارات الوحدة بلا binding.
+  void revalidateSessionOnResume() {
+    final u = _authService.currentUser;
+    if (u == null) return;
+    _startSessionWatch(u.id, forceResubscribe: true);
+    unawaited(_checkAndApplyRevokedSession(u.id));
   }
 
   /// يلغي الاشتراك في تدفق المصادقة قبل إغلاق الـ cubit — وإلّا ظل المستمع
@@ -151,6 +263,7 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> close() async {
     await _authSub?.cancel();
     _authSub = null;
+    _endSessionGuard();
     return super.close();
   }
 

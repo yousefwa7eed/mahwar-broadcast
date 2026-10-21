@@ -67,7 +67,14 @@ void main() async {
     MultiBlocProvider(
       providers: [
         BlocProvider(create: (_) => AppSettingsCubit()),
-        BlocProvider(create: (_) => AuthCubit()),
+        // مؤقّت الإبطال الدوري أثرٌ جانبي على مستوى العملية، فيُشغَّل هنا
+        // صراحةً بدل أن يبدأ تلقائيًا داخل كل AuthCubit (يبقى الـ cubit خاليًا
+        // من المؤقّتات في الاختبارات).
+        BlocProvider(
+          create: (_) => AuthCubit(
+            revocationPollInterval: const Duration(seconds: 90),
+          ),
+        ),
         BlocProvider(create: (_) => ProfileCubit()..loadProfile()),
         BlocProvider(create: (_) => notificationCubit),
       ],
@@ -83,10 +90,11 @@ class MahwarApp extends StatefulWidget {
   State<MahwarApp> createState() => _MahwarAppState();
 }
 
-class _MahwarAppState extends State<MahwarApp> {
+class _MahwarAppState extends State<MahwarApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // رسالة ضغط فتح بها التطبيق وهو مغلق → يتوجه مباشرة للطلب/الإشعارات.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       PushNotificationService.instance.handleInitialMessage();
@@ -94,6 +102,22 @@ class _MahwarAppState extends State<MahwarApp> {
       // (حتى لا يبقى جهاز بلا إشعارات بعد مسح خارجي للتوكن).
       PushNotificationService.instance.ensureTokenSavedOnStart();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// الرجوع من الخلفية: تعليق النظام للتطبيق قد يكون أسقط socket الـ Realtime
+  /// ففات حدث حظر. نُعيد AuthCubit إلى التحقق من إشارة إبطال الجلسة فورًا بدل
+  /// انتظار مؤقّته الدوري. المراقبة هنا لا داخل الـ cubit نفسه حتى يبقى
+  /// AuthCubit قابلًا للبناء في اختبارات الوحدة بلا WidgetsBinding.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    context.read<AuthCubit>().revalidateSessionOnResume();
   }
 
   @override

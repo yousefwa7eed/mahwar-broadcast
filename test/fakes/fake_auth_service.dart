@@ -177,6 +177,28 @@ class FakeAuthService extends AuthService {
     return phoneVerified;
   }
 
+  /// قيمة `isSessionRevoked` المعلّبة: true = محظور، false = سليم،
+  /// null = فشل شبكة (لا يجوز أن يُخرج المستخدم). الافتراضي سليم.
+  bool? sessionRevoked = false;
+  int sessionRevokedCount = 0;
+
+  /// يُبثّ عبره حدث الحظر الفوري لمحاكاة قناة Realtime.
+  final StreamController<bool> sessionRevokedController =
+      StreamController<bool>.broadcast();
+  int watchSessionRevokedCount = 0;
+
+  @override
+  Future<bool?> isSessionRevoked(String uid) async {
+    sessionRevokedCount++;
+    return sessionRevoked;
+  }
+
+  @override
+  Stream<bool> watchSessionRevoked(String uid) {
+    watchSessionRevokedCount++;
+    return sessionRevokedController.stream;
+  }
+
   @override
   Future<AuthResponse> signUpWithEmail({
     required String email,

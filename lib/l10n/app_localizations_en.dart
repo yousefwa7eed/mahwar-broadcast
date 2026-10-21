@@ -1683,6 +1683,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Incorrect email or password. Please check your details and try again.';
 
   @override
+  String get errUserBanned =>
+      'You have been banned from using Mahwar. If you believe this is a mistake, please contact support.';
+
+  @override
   String get errEmailNotConfirmed =>
       'Your email has not been confirmed yet. Please check your inbox and click the confirmation link.';
 

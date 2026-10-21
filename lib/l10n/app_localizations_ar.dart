@@ -1647,6 +1647,10 @@ class AppLocalizationsAr extends AppLocalizations {
       'البريد الإلكتروني أو كلمة المرور غير صحيحة. يرجى التحقق من البيانات والمحاولة مرة أخرى.';
 
   @override
+  String get errUserBanned =>
+      'تم حظرك من استخدام تطبيق محور. إذا كنت تعتقد أن هذا خطأ، يرجى التواصل مع الدعم الفني.';
+
+  @override
   String get errEmailNotConfirmed =>
       'لم يتم تأكيد البريد الإلكتروني بعد. يرجى التحقق من بريدك الإلكتروني والضغط على رابط التأكيد.';
 

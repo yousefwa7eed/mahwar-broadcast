@@ -3119,6 +3119,12 @@ abstract class AppLocalizations {
   /// **'البريد الإلكتروني أو كلمة المرور غير صحيحة. يرجى التحقق من البيانات والمحاولة مرة أخرى.'**
   String get errInvalidCredentials;
 
+  /// No description provided for @errUserBanned.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم حظرك من استخدام تطبيق محور. إذا كنت تعتقد أن هذا خطأ، يرجى التواصل مع الدعم الفني.'**
+  String get errUserBanned;
+
   /// No description provided for @errEmailNotConfirmed.
   ///
   /// In ar, this message translates to:

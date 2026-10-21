@@ -551,6 +551,7 @@
   "errNationalIdDuplicate": "This national ID is already registered to another account. If you already have an account, please sign in to it.",
   "errEmailDuplicate": "This email is already registered to another account. Please sign in to the existing account or use a different email.",
   "errInvalidCredentials": "Incorrect email or password. Please check your details and try again.",
+  "errUserBanned": "You have been banned from using Mahwar. If you believe this is a mistake, please contact support.",
   "errEmailNotConfirmed": "Your email has not been confirmed yet. Please check your inbox and click the confirmation link.",
   "errTooManyRequests": "You have exceeded the allowed number of attempts. Please wait a moment and try again.",
   "errUserNotFound": "No account is linked to this email. Please sign up first.",
