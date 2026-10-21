@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../config/app_config.dart';
+import '../services/screen_time_service.dart';
 import '../../core/auth/auth_cubit.dart';
 import '../../core/auth/role_gate.dart';
 import '../../core/models/notification_model.dart';
@@ -80,6 +81,8 @@ Future<String?> phoneVerificationRedirect(
 final GoRouter appRouter = GoRouter(
   initialLocation: '/splash',
   redirect: phoneVerificationRedirect,
+  // تسجيل مسار المستخدم (شاشة/مدة/من→إلى) للوحلة الإدارية.
+  observers: <NavigatorObserver>[ScreenTimeService.instance],
   routes: [
     GoRoute(
       path: '/splash',

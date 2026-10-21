@@ -13,6 +13,7 @@ import 'core/models/notification_model.dart';
 import 'core/notifications/notification_cubit.dart';
 import 'core/services/app_messenger.dart';
 import 'core/services/push_notification_service.dart';
+import 'core/services/screen_time_service.dart';
 import 'core/services/service_type_directory.dart';
 import 'core/settings/app_settings_cubit.dart';
 import 'core/settings/app_settings_state.dart';
@@ -62,6 +63,10 @@ void main() async {
   final notificationCubit = NotificationCubit();
   PushNotificationService.instance.attach(notificationCubit);
   PushNotificationService.instance.initialize();
+
+  // تتبّع الشاشات لجدول page_views. يُشغَّل هنا (لا من داخل الـ observer نفسه)
+  // حتى تبقى الخدمة خاملة في اختبارات الـ widget التي تمرّر appRouter.
+  ScreenTimeService.instance.start();
 
   runApp(
     MultiBlocProvider(
