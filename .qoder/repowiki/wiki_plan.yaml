@@ -1,0 +1,395 @@
+version: 1
+
+repowiki:
+  template: architecture
+
+  notes:
+    - text: >-
+        Treat lib/l10n/app_ar.arb as the source of truth: Arabic is the l10n template per
+        l10n.yaml, and the generated app_localizations*.dart files are committed to git rather
+        than ignored.
+      author: agent
+    - text: >-
+        The timestamp in a supabase/migrations/ filename is when that SQL was applied to the live
+        Supabase project, not when the file was authored. The project is not linked to the
+        Supabase CLI, so there is no local migration state to read.
+      author: agent
+    - text: >-
+        Only four Cubits exist (AuthCubit, ProfileCubit, NotificationCubit, AppSettingsCubit) and
+        there are zero Bloc classes. Do not describe this app as clean architecture and do not
+        claim a repository layer exists.
+      author: agent
+    - text: >-
+        Feature screens call Supabase.instance.client directly; all business logic lives in
+        SECURITY DEFINER Postgres functions invoked through .rpc(). Document the SQL as the
+        business layer, not the Dart code.
+      author: agent
+    - text: >-
+        Push notification text is defined twice and must agree: server-side in
+        supabase/functions/send-push-notification/notification_text.ts and client-side in the ARB
+        keys rendered by lib/core/models/notification_model.dart. Document the mapping as a
+        two-sided contract.
+      author: agent
+    - text: >-
+        The owner's phone number reaches a provider only after an order is confirmed and only
+        through the get_order_contact RPC. Present this as a hard security invariant, not an
+        implementation detail.
+      author: agent
+    - text: >-
+        Signup and password-recovery errors are deliberately vague to prevent account
+        enumeration: signup may reveal only an existing account's role, never a phone number or
+        national ID. Do not document these as gaps.
+      author: agent
+    - text: >-
+        Admin tables (admins, admin_audit_log) use RLS enabled plus FORCE with zero policies and
+        all grants revoked from anon and authenticated; they are reachable only through SECURITY
+        DEFINER functions.
+      author: agent
+    - text: >-
+        Admin MFA is temporarily disabled via BUILD_SKIP_MFA in admin-dashboard/src/main.ts, and
+        the re-hardening migration it references does not exist in supabase/migrations/ yet.
+        Document this as an open security TODO.
+      author: agent
+    - text: >-
+        admin-dashboard/ is a separate deployable Vite 7 plus TypeScript app with no UI framework
+        (hand-written DOM in src/main.ts). It reaches Supabase only through read-only admin RPCs
+        guarded server-side by is_admin().
+      author: agent
+    - text: >-
+        Ignore ECC/ and broadcast-tool/ entirely: both are nested git repositories committed as
+        gitlinks with no .gitmodules, holding third-party AI agent tooling unrelated to the
+        product.
+      author: agent
+    - text: >-
+        Ignore the gate_*.txt files at the repository root; they are stale flutter test console
+        dumps left over from a past debugging session.
+      author: agent
+    - text: >-
+        The maintainer's own prior analyses are docs/security_audit_report_ar.md and
+        docs/diagnostics_report_ar.md. Several P0 and P1 items listed there are already fixed, so
+        verify against current code before restating any finding as open.
+      author: agent
+    - text: >-
+        There is no CI pipeline; flutter analyze and flutter test are the only automated gates.
+        patrol_test/test_bundle.dart is generated and must not be treated as source.
+      author: agent
+    - text: >-
+        Backend secrets (ORDER_EVENT_SECRET, SUPABASE_SERVICE_ROLE_KEY, FCM_SERVICE_ACCOUNT_JSON,
+        ZADX SMS credentials, SMS_HOOK_SIGNING_SECRET) live only in Edge Function environment
+        variables. Name them where relevant but never reproduce a value.
+      author: agent
+
+  documents:
+    - title: Project Overview
+      parent: ""
+      goal: >-
+        Explain what Mahwar is (an Arabic-first roadside-assistance marketplace where a car owner
+        requests a service, nearby providers bid a price, the owner confirms, and the order is
+        tracked, completed and rated) and orient the reader across the three codebases in this
+        repository: the Flutter client, the Supabase backend, and the admin console. Cover the
+        runtime prerequisites and the exact commands to build, analyze, test and run each part.
+      hints: >-
+        Read README.md, AGENTS.md, pubspec.yaml, analysis_options.yaml, l10n.yaml,
+        supabase/config.toml and admin-dashboard/package.json. State that the live Supabase
+        project ref is trgesfzojaoirutkkfcs and that there is no CI.
+
+    - title: Flutter Client Architecture
+      parent: ""
+      goal: >-
+        Describe how lib/ is organized and why: a feature-first but deliberately flat layout with
+        a shared core/ layer, no clean-architecture folders, and screens that own their own data
+        fetching. Explain the bootstrap sequence in lib/main.dart including Firebase init,
+        Supabase.initialize with SecureLocalStorage, and the MultiBlocProvider that registers the
+        global cubits.
+      hints: >-
+        Read lib/main.dart, then survey lib/core/* and lib/features/* directory shapes. Note that
+        lib/core/bloc/ and lib/features/shared_widgets/ are empty leftovers, and that there is no
+        freezed or other model codegen despite the stale .freebuff/ directory at the repo root.
+
+    - title: Feature Layout and Shared Core
+      parent: Flutter Client Architecture
+      goal: >-
+        Document the per-feature file convention (<feature>/<name>_screen.dart plus an optional
+        <feature>/widgets/ folder) across all 16 features, and catalogue what lib/core/ provides:
+        auth, router, services, models, errors, notifications, settings, theme, constants, utils
+        and shared widgets.
+      hints: >-
+        Use lib/features/provider_offer_price/ and lib/features/orders/ as the representative
+        examples of the screen plus widgets pattern. For core, cover lib/core/widgets/
+        (confirm_dialog, delete_account_dialog, shimmer_box, image_viewer, attachments_gallery,
+        profile_name_text) as the shared UI vocabulary.
+
+    - title: State Management - The Four Cubits
+      parent: Flutter Client Architecture
+      goal: >-
+        Explain the entire state-management surface: AuthCubit, ProfileCubit, NotificationCubit
+        and AppSettingsCubit. Document each one's states and events as plain Equatable classes,
+        how they are provided globally, and how screens consume them with context.read and
+        context.watch. Make explicit that no Bloc classes exist and that feature screens manage
+        their own local state as StatefulWidgets calling Supabase directly.
+      hints: >-
+        Read lib/core/auth/auth_cubit.dart, lib/core/auth/profile_cubit.dart,
+        lib/core/notifications/notification_cubit.dart, lib/core/settings/app_settings_cubit.dart
+        and lib/core/settings/app_settings_state.dart. Also cover
+        lib/core/auth/logout_coordinator.dart and lib/core/auth/home_route.dart as the auth
+        transition helpers.
+
+    - title: Routing, Role Gating and the Phone Verification Gate
+      parent: Flutter Client Architecture
+      goal: >-
+        Document the single global GoRouter in lib/core/router/app_router.dart: the flat route
+        list, the convention that every GoRoute carries both a path and a kebab-case name, and
+        how parameters travel via query parameters or extra. Then explain the two gating layers -
+        the global phone-verification redirect with its public-path whitelist and fail-open
+        behaviour, and the per-route role gating that bounces a mismatched role query parameter.
+        Cover the ScreenTimeService navigator observer that records screen visits for the admin
+        console.
+      hints: >-
+        Read lib/core/router/app_router.dart together with lib/core/auth/role_gate.dart. Emphasize
+        the AppRole.tryParse invariant that an unknown role returns null and must never default to
+        car_owner. Mention AppConfig.otpBypass and how the gate is skipped in debug builds only.
+
+    - title: Domain Models and RPC Error Translation
+      parent: Flutter Client Architecture
+      goal: >-
+        Catalogue the core models (order, provider_model, provider_details, user_profile,
+        notification_model, service_type, car_detail) and then document the error-handling
+        contract end to end: the server raises CODE: message, the token before the first colon is
+        the code, the client maps known codes to localized strings and never renders raw server
+        text, and every mapper ends in a generic fallback.
+      hints: >-
+        Read lib/core/models/*, lib/core/errors/rpc_error_translator.dart (note the _knownCodes
+        whitelist and the PostgREST 23505 handling), lib/core/auth/signup_error_mapper.dart
+        (handle_new_user trigger codes plus the ACCOUNT_EXISTS_AS:<role> format) and
+        lib/core/auth/otp_error_mapper.dart (GoTrue codes, the deliberately neutral recovery-send
+        mapping, and the TOO_MANY_LOOKUPS throttle).
+
+    - title: Client Services Layer
+      parent: Flutter Client Architecture
+      goal: >-
+        Document the singleton services that back the app's device-facing behaviour: push
+        notification registration and handling, location acquisition and provider location
+        writes, device identity, server clock and skew handling, image compression, service type
+        directory, the global messenger, and screen-time tracking.
+      hints: >-
+        Read lib/core/services/*.dart. For location, also cover lib/core/utils/distance.dart and
+        distance_format.dart, and note the provider heartbeat scheduler that writes
+        provider_heartbeat and exposes location_updated_at.
+
+    - title: Theme, Typography and RTL Support
+      parent: Flutter Client Architecture
+      goal: >-
+        Explain the lightweight design-token approach: static const color and typography classes
+        feeding Material 3 light and dark themes, with Cairo set as the global font family.
+        Document the three bundled fonts and their intended roles, and how right-to-left layout is
+        achieved through the locale rather than manual directionality, including where explicit
+        EdgeInsetsDirectional or Directionality is still required.
+      hints: >-
+        Read lib/core/theme/app_theme.dart, lib/core/constants/app_colors.dart,
+        lib/core/constants/app_typography.dart, lib/core/constants/avatar_config.dart and the
+        fonts and assets sections of pubspec.yaml. Locale persistence lives in AppSettingsCubit
+        under the SharedPreferences key app_locale.
+
+    - title: Bilingual Localization System
+      parent: ""
+      goal: >-
+        Document the ARB-based localization pipeline in full: why Arabic is the template, the
+        requirement to add every key to both app_ar.arb and app_en.arb, the regeneration command,
+        and the fact that the generated Dart files are committed. Then document the nullable
+        access pattern with a hardcoded Arabic fallback and why it exists. Finally cover the
+        non-UI text path - recipient language stored in profiles.language, mirrored from the
+        client, and consumed server-side to build push text.
+      hints: >-
+        Read l10n.yaml, lib/l10n/*.arb, lib/core/models/notification_model.dart and
+        supabase/functions/send-push-notification/notification_text.ts, whose header comment holds
+        the authoritative edge-branch to ARB-key mapping table. Mention
+        test/notification_localization_test.dart as the guard, and the currency rendering
+        convention (EGP in English, its Arabic abbreviation otherwise).
+
+    - title: Supabase Backend
+      parent: ""
+      goal: >-
+        Give an overview of the backend: all business logic is expressed as Postgres functions and
+        triggers rather than application code, protected by RLS, with Deno Edge Functions handling
+        the side effects that SQL cannot (FCM push, SMS delivery, storage cleanup, scheduled
+        expiry). Explain how the client reaches it and where the trust boundaries sit.
+      hints: >-
+        Read supabase/config.toml and survey supabase/migrations/ (88+ files) and
+        supabase/functions/. Note that the project is not linked to the Supabase CLI and that
+        migrations are applied live first, then committed under their real applied timestamp.
+
+    - title: Migration Workflow and Conventions
+      parent: Supabase Backend
+      goal: >-
+        Document the exact migration lifecycle used by this project, which differs from the
+        standard CLI flow: write the SQL, apply and verify it against the live project, then
+        commit the file named with the timestamp it was actually applied under, recording that
+        version in the commit message. Cover the filename format, the inline-RLS convention, and
+        the heavily commented mixed Arabic and English style that documents the threat model
+        inside each migration.
+      hints: >-
+        Cite supabase/migrations/20261016015236_add_profiles_language.sql and
+        20261013183544_otp_verification_gate.sql as representative examples of the header-comment
+        style. Note the known duplicate-timestamp collisions and that some Storage policies exist
+        only in the dashboard, which is documented drift that new rules must not extend.
+
+    - title: Row Level Security Model
+      parent: Supabase Backend
+      goal: >-
+        Explain the two RLS strategies in use side by side. First, ordinary domain tables
+        (profiles, orders, notifications, provider schedules) enable RLS with inline policies
+        scoped to auth.uid(). Second, admin tables enable RLS with FORCE, define zero policies,
+        revoke all grants from anon and authenticated, and are reachable only through SECURITY
+        DEFINER functions. Cover the phone-privacy hardening and why direct table reads of contact
+        data are forbidden.
+      hints: >-
+        Read the migrations containing create policy and enable row level security, especially
+        20261013231450_add_get_order_contact_and_harden_phone.sql,
+        20261017000000_admins_is_admin_audit_log.sql, 20260916130000_provider_schedules.sql and
+        20261013000000_order_attachments_storage_hardening.sql.
+
+    - title: RPC Function Catalog
+      parent: Supabase Backend
+      goal: >-
+        Produce a reference of the SECURITY DEFINER functions the client calls, grouped by domain:
+        order lifecycle (create_order_for_provider, provider_set_price, owner_accept_price,
+        owner_reject_price, owner_cancel_order, provider_reject_order, provider_complete_order,
+        rate_provider), discovery (get_nearest_providers, get_provider_details,
+        get_public_profile), contact (get_order_contact), auth and profile (get_my_phone_verified,
+        update_auth_email), infrastructure (server_now), and the admin read RPCs. For each, state
+        its purpose, its caller in Dart, and the error codes it raises.
+      hints: >-
+        Cross-reference the function definitions in supabase/migrations/ against the .rpc() call
+        sites in lib/. Pair each raised CODE with its entry in the _knownCodes whitelist of
+        lib/core/errors/rpc_error_translator.dart, and flag any code that is raised but not
+        mapped.
+
+    - title: Order Lifecycle
+      parent: ""
+      goal: >-
+        Trace one order end to end across both the client and the database: creation by the owner,
+        discovery and assignment of nearby providers, the provider price offer, owner accept or
+        reject, confirmation and the point at which contact details become visible, shift start,
+        completion, cancellation with its deadlines, attachment cleanup, and finally rating.
+        Show which screen and which RPC owns each transition, and which notification is emitted.
+      hints: >-
+        Follow lib/features/service_request/, provider_selection/, provider_offer_price/,
+        request_tracking/, orders/, orders_history/ and owner_home/ against the order-related
+        migrations and the expire-pending-orders function. Note the respond_deadline and
+        auto-cancel fields, which were a past P0 defect and are now set at assignment time.
+
+    - title: Edge Functions
+      parent: Supabase Backend
+      goal: >-
+        Document each Deno function in supabase/functions/: what triggers it (database trigger via
+        pg_net, pg_cron schedule, GoTrue SMS hook, or manual admin call), which environment
+        variables it requires, how it authenticates the caller, and what it does on failure. Note
+        the two import styles in use and which functions still carry the older one.
+      hints: >-
+        Cover send-push-notification (plus its notification_text.ts module and its unit test),
+        send-broadcast-notification, delete-order-attachments, expire-pending-orders,
+        delete-account and send-sms-hook. Record that send-sms-hook must never return 429 or 503
+        in order to avoid GoTrue retry storms, and that a single shared ORDER_EVENT_SECRET guards
+        every sensitive function. Mention supabase/send-broadcast.ps1 and the root
+        dryrun_otp_test.ps1 as the manual helpers.
+
+    - title: OTP and SMS Pipeline
+      parent: Supabase Backend
+      goal: >-
+        Explain the phone-verification path as a whole system: the GoTrue send-SMS HTTP hook
+        against the ZADX provider for Egyptian numbers, the signing-secret verification, the
+        budget caps held in the sms_cap_config table, the dry-run mode, the database-side OTP
+        verification gate that blocks protected routes, and the client-side screens and error
+        mapping that complete the flow.
+      hints: >-
+        Read supabase/functions/send-sms-hook/index.ts, the otp-related migrations including
+        20261013183544_otp_verification_gate.sql, lib/core/auth/otp_error_mapper.dart,
+        lib/features/auth/ and the phoneVerificationRedirect in lib/core/router/app_router.dart.
+        Cover AppConfig.otpBypass and why it cannot activate in a release build.
+
+    - title: Security Invariants and Audit Status
+      parent: ""
+      goal: >-
+        Consolidate the security posture into a single reference: the invariants that must never
+        be broken, the accepted risks with their rationale, and the currently open findings. Distinguish
+        clearly between what is already fixed and what remains open, since the maintainer's earlier
+        reports predate several fixes.
+      hints: >-
+        Base this on docs/security_audit_report_ar.md and docs/diagnostics_report_ar.md, verified
+        against current code. The invariants to state are owner-phone disclosure only via
+        get_order_contact after confirmation, role sourced only from profiles.role with no
+        default, anti-enumeration in signup and recovery errors, secrets confined to Edge Function
+        environment variables, and no direct policies on admin tables. Open items include the
+        disabled admin MFA with its missing re-hardening migration, pre-order provider contact
+        visibility, Storage policy drift, the shared ORDER_EVENT_SECRET, and absent certificate
+        pinning.
+
+    - title: Admin Dashboard
+      parent: ""
+      goal: >-
+        Document admin-dashboard/ as its own deployable product: the Vite 7 plus TypeScript stack
+        with no UI framework, the single hand-written main.ts that builds the DOM and inlines its
+        icon set, the Arabic RTL interface, how it authenticates an administrator, and the roughly
+        twenty read-only admin RPCs it consumes. Cover local development, the build, and the
+        documented Vercel deployment with its two public environment variables.
+      hints: >-
+        Read admin-dashboard/README.md, package.json, vite.config.ts, tsconfig.json, .env.example
+        and src/main.ts. Pair it with the admin migrations from 20261017000000 through
+        20261017040000 (audit log, read RPCs, unmasking for a sole admin, notification activity,
+        recent activity, ban and targeted messages, orders RPCs, ban session and notify, session
+        revocation, ban duration and history, analytics, page views and admin paths). Flag
+        BUILD_SKIP_MFA as the temporary build-phase relaxation and note that the migration its
+        comment references does not exist yet.
+
+    - title: Testing Strategy
+      parent: ""
+      goal: >-
+        Describe how the project is tested today and where the coverage concentrates: roughly 36
+        unit and widget test files with over 300 test cases, weighted toward the error mappers,
+        auth transitions, route gating and RPC parameter shapes. Explain the FakeAuthService
+        seam, why patrol integration tests need real credentials and a debug define, and the
+        absence of CI.
+      hints: >-
+        Read the test/ tree including test/fakes/fake_auth_service.dart, then
+        integration_test/app_test.dart, integration_test/skew_verify_test.dart and
+        patrol_test/test_bundle.dart (generated). Note that AuthService is the only service
+        abstracted for testability, and that supabase/functions/send-push-notification/ has its
+        own notification_text_test.ts.
+
+knowledgecard:
+  notes:
+    - text: >-
+        Split modules first by deployable: the Flutter client (lib/), the Supabase backend
+        (supabase/) and the admin console (admin-dashboard/). These ship and fail independently.
+      author: agent
+    - text: >-
+        Within lib/, treat lib/core/ as one shared module and each directory under lib/features/
+        as its own feature module. Do not merge owner_home, provider_home and provider_offer_price
+        into a single module - they serve different user roles.
+      author: agent
+    - text: >-
+        Treat supabase/migrations/ and supabase/functions/ as separate modules: migrations own
+        schema, RLS policies and RPC definitions, while functions own Deno runtime behaviour and
+        external integrations (FCM, ZADX SMS, storage).
+      author: agent
+    - text: >-
+        Keep lib/l10n/ as its own module even though it is small, because it is one half of a
+        contract whose other half lives in
+        supabase/functions/send-push-notification/notification_text.ts.
+      author: agent
+    - text: >-
+        The four cubits in lib/core/auth/, lib/core/notifications/ and lib/core/settings/ are the
+        app's only shared state; group them as one state-management module rather than attaching
+        each to a feature.
+      author: agent
+    - text: >-
+        Exclude from module discovery: ECC/ and broadcast-tool/ (nested third-party git
+        repositories), build/, node_modules/, .dart_tool/, gate_*.txt scratch dumps, the one-off
+        root scripts add_keys2.py and fix_owner.py, and the generated patrol_test/test_bundle.dart.
+      author: agent
+    - text: >-
+        Coding conventions to record per module: Arabic is the l10n template and generated
+        localizations are committed; feature screens call Supabase.instance.client directly with
+        no repository layer; server errors use the CODE: message format and are mapped client-side
+        to localized strings with a generic fallback.
+      author: agent
