@@ -20,9 +20,9 @@ const simpleCases: Array<[string, string, string, string, string]> = [
   [
     "order_confirmed",
     "تم تأكيد الطلب",
-    "تم تأكيد طلبك بنجاح",
+    "وافق العميل على عرضك — يمكنك بدء التنفيذ",
     "Order confirmed",
-    "Your order was confirmed successfully",
+    "The customer accepted your offer — you can start the job",
   ],
   [
     "order_cancelled",
@@ -84,10 +84,12 @@ const originalArabicCases: Array<[string, Record<string, unknown>, string, strin
     "عرض سعر جديد",
     "أحمد قدم عرض سعر 150 ج.م لطلب كهرباء",
   ],
-  ["order_confirmed", {}, "تم تأكيد الطلب", "تم تأكيد طلبك بنجاح"],
+  ["order_confirmed", {}, "تم تأكيد الطلب", "وافق العميل على عرضك — يمكنك بدء التنفيذ"],
   ["order_rejected", {}, "تم رفض الطلب", "تم رفض الطلب"],
   ["order_rejected", { provider_name: "خالد" }, "تم رفض الطلب", "تم رفض الطلب من خالد"],
+  ["order_rejected", { by: "owner" }, "تم رفض عرضك", "رفض العميل عرضك"],
   ["order_cancelled", {}, "تم إلغاء الطلب", "تم إلغاء هذا الطلب"],
+  ["order_cancelled", { by: "owner" }, "تم إلغاء الطلب", "قام العميل بإلغاء الطلب"],
   ["order_completed", {}, "تم إتمام الطلب", "تم إتمام خدمة الطلب بنجاح"],
   ["shift_started", {}, "بدء ساعات العمل", "بدأت ساعات عملك — أنت الآن متاح أمام العملاء"],
   ["shift_ended", {}, "انتهاء ساعات العمل", "انتهت ساعات عملك — أصبحت الآن غير متاح"],
@@ -182,6 +184,20 @@ test("order_rejected with and without provider", () => {
     title: "Order rejected",
     body: "The order was rejected",
   });
+});
+
+test("owner-caused transitions read as customer messages for the provider", () => {
+  assert.deepEqual(buildTitleBody("order_rejected", { by: "owner" }, "en"), {
+    title: "Your offer was rejected",
+    body: "The customer rejected your offer",
+  });
+  assert.deepEqual(buildTitleBody("order_cancelled", { by: "owner" }, "en"), {
+    title: "Order cancelled",
+    body: "The customer cancelled the order",
+  });
+  // by=provider / by=timeout must keep the owner-facing wording.
+  assert.equal(buildTitleBody("order_rejected", { by: "provider" }, "ar").title, "تم رفض الطلب");
+  assert.equal(buildTitleBody("order_cancelled", { by: "timeout" }, "ar").body, "تم إلغاء هذا الطلب");
 });
 
 test("rating_received with and without value (including 0)", () => {

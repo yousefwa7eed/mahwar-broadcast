@@ -17,11 +17,13 @@
 //                   body  → notificationBodyPriceOfferWithService / notificationBodyPriceOffer
 //                           / notificationBodyPriceOfferReceived
 //   order_confirmed title → notificationTitleOrderConfirmed
-//                   body  → notificationBodyOrderConfirmed
-//   order_rejected  title → notificationTitleOrderRejected
+//                   body  → notificationBodyOrderConfirmedForProvider
+//   order_rejected  title → notificationTitleOrderRejected | notificationTitleOrderRejectedForProvider
 //                   body  → notificationBodyOrderRejectedWithProvider / notificationBodyOrderRejected
+//                           / notificationBodyOrderRejectedForProvider (metadata.by = "owner")
 //   order_cancelled title → notificationTitleOrderCancelled
 //                   body  → notificationBodyOrderCancelled
+//                           / notificationBodyOrderCancelledForProvider (metadata.by = "owner")
 //   order_completed title → notificationTitleOrderCompleted
 //                   body  → notificationBodyOrderCompleted
 //   shift_started   title → notificationTitleShiftStarted
@@ -86,6 +88,9 @@ export function buildTitleBody(
   const en = lang === "en";
   const serviceName = resolveServiceName(metadata, serviceNameFromDb);
   const providerName = nonEmptyString(metadata["provider_name"]);
+  // actor who caused the transition — only `by: "owner"` notifications are
+  // addressed to the provider (see the SQL RPCs that insert them).
+  const by = nonEmptyString(metadata["by"]);
   const price = metadata["price"];
   const rating = metadata["rating"];
   const currency = CURRENCY[lang];
@@ -114,11 +119,21 @@ export function buildTitleBody(
       };
     }
     case "order_confirmed":
+      // Owner accepted the provider's price — this notification only ever
+      // targets the provider, so it must not read like an owner-facing message.
       return {
         title: en ? "Order confirmed" : "تم تأكيد الطلب",
-        body: en ? "Your order was confirmed successfully" : "تم تأكيد طلبك بنجاح",
+        body: en
+          ? "The customer accepted your offer — you can start the job"
+          : "وافق العميل على عرضك — يمكنك بدء التنفيذ",
       };
     case "order_rejected":
+      if (by === "owner") {
+        return {
+          title: en ? "Your offer was rejected" : "تم رفض عرضك",
+          body: en ? "The customer rejected your offer" : "رفض العميل عرضك",
+        };
+      }
       return {
         title: en ? "Order rejected" : "تم رفض الطلب",
         body: providerName
@@ -128,7 +143,9 @@ export function buildTitleBody(
     case "order_cancelled":
       return {
         title: en ? "Order cancelled" : "تم إلغاء الطلب",
-        body: en ? "This order was cancelled" : "تم إلغاء هذا الطلب",
+        body: by === "owner"
+          ? (en ? "The customer cancelled the order" : "قام العميل بإلغاء الطلب")
+          : (en ? "This order was cancelled" : "تم إلغاء هذا الطلب"),
       };
     case "order_completed":
       return {

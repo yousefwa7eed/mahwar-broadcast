@@ -36,6 +36,27 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+// توكن ميت = FCM يرفضه بشكل نهائي (التطبيق حُذف أو أُعيد تثبيته). التمييز
+// مقصود: رفض عابر (429 / 5xx) لا يجوز أن يحذف توكنًا صالحًا.
+function isDeadTokenResponse(rawBody: string): boolean {
+  try {
+    const body = JSON.parse(rawBody);
+    const fcmStatus = body?.error?.status ?? "";
+    const details: Array<Record<string, unknown>> = body?.error?.details ?? [];
+    const hasUnregistered = details.some((d) => d?.errorCode === "UNREGISTERED");
+    const tokenFieldViolated = details
+      .flatMap((d) =>
+        Array.isArray(d?.fieldViolations)
+          ? (d?.fieldViolations as Array<{ field?: unknown }>)
+          : [],
+      )
+      .some((v) => v?.field === "message.token");
+    return hasUnregistered || (fcmStatus === "INVALID_ARGUMENT" && tokenFieldViolated);
+  } catch {
+    return false;
+  }
+}
+
 // -----------------------------------------------------------------------------
 // JWT (RS256) + OAuth2 token للـ Service Account
 // -----------------------------------------------------------------------------
@@ -164,24 +185,48 @@ Deno.serve(async (req: Request) => {
     return json({ ok: true, skipped: "notification_not_found" });
   }
 
-  // 2) resolve المتلقي + التوكن + الدور + اللغة المفضّلة
+  // 2) resolve المتلقي + كل توكنات أجهزته + الدور + اللغة المفضّلة.
+  //    التوكنات في device_tokens (صف لكل جهاز) لا في profiles.fcm_token:
+  //    الحساب قد يكون مسجّلًا على أكثر من جهاز، والجهاز الواحد قد يحمل أكثر
+  //    من حساب — والعمود الأحادي كان يُبقي واحدًا فقط (سبب skipped:no_token).
   const { data: profile } = await supabase
     .from("profiles")
-    .select("fcm_token, role, language")
+    .select("role, language")
     .eq("id", notif.user_id)
     .maybeSingle();
 
-  if (!profile?.fcm_token) {
+  const { data: tokenRows, error: tokenErr } = await supabase
+    .from("device_tokens")
+    .select("device_id, token")
+    .eq("user_id", notif.user_id);
+
+  if (tokenErr) {
+    console.error(
+      `[send-push-notification] device_tokens fetch error for ${notif.user_id}:`,
+      tokenErr,
+    );
+  }
+
+  // صفوف قديمة (device_id سابق أو محو تخزين) قد تحمل نفس التوكن، فنزيل
+  // التكرار حتى لا يصل الإشعار مرتين إلى الجهاز نفسه.
+  const fcmTokens = [
+    ...new Set(
+      (tokenRows ?? [])
+        .map((row) => String(row.token ?? "").trim())
+        .filter((t) => t.length > 0),
+    ),
+  ];
+
+  if (fcmTokens.length === 0) {
     console.log(
-      `[send-push-notification] skip ${notif.id} type=${notif.type} reason=no_token user=${notif.user_id ?? "null"}`,
+      `[send-push-notification] skip ${notif.id} type=${notif.type} reason=no_token user=${notif.user_id}`,
     );
     return json({ ok: true, skipped: "no_token" });
   }
 
-  const fcmToken = profile.fcm_token as string;
-  const role = (profile.role as string | null) ?? "car_owner";
+  const role = (profile?.role as string | null) ?? "car_owner";
   // لغة المستقبِل (profiles.language) — أي قيمة غير "en" تُعامل كعربية.
-  const language = normalizeLanguage(profile.language);
+  const language = normalizeLanguage(profile?.language);
 
   // 3) تأكد أن FCM مُهيّأ (env فقط — بدون env نُقصي بأمان)
   if (!FCM_SERVICE_ACCOUNT_JSON) {
@@ -291,62 +336,67 @@ Deno.serve(async (req: Request) => {
       .notification as Record<string, unknown>;
     androidNotif.image = imageUrl;
   }
-  base.token = fcmToken;
-
-  // 5) إرسال
+  // 5) إرسال لكل أجهزة المستقبِل — فشل جهاز لا يمنع البقية. التوكن الميت
+  //    يُحذف من device_tokens (وليس من profiles: العمود أصبح مُهملًا)،
+  //    وللمستخدم وحده لأن نفس التوكن قد يخص مستخدمًا آخر على نفس الجهاز.
+  const deadTokens: string[] = [];
+  let sentCount = 0;
+  let failedCount = 0;
   try {
     const accessToken = await getAccessToken(sa);
-    const res = await fetch(`${FCM_SEND_URL}${sa.project_id}/messages:send`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ message: base }),
-    });
-    if (!res.ok) {
+    for (const fcmToken of fcmTokens) {
+      base.token = fcmToken;
+      const res = await fetch(`${FCM_SEND_URL}${sa.project_id}/messages:send`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: base }),
+      });
+      if (res.ok) {
+        sentCount++;
+        continue;
+      }
       const text = await res.text();
-      let deadToken = false;
-      try {
-        const body = JSON.parse(text);
-        const fcmStatus = body?.error?.status ?? "";
-        const details: Array<Record<string, unknown>> = body?.error?.details ?? [];
-        const hasUnregistered = details.some(
-          (d) => d?.errorCode === "UNREGISTERED",
-        );
-        const tokenFieldViolated = details
-          .flatMap((d) =>
-            Array.isArray(d?.fieldViolations)
-              ? (d?.fieldViolations as Array<{ field?: unknown }>)
-              : [],
-          )
-          .some((v) => v?.field === "message.token");
-        deadToken =
-          hasUnregistered ||
-          (fcmStatus === "INVALID_ARGUMENT" && tokenFieldViolated);
-      } catch {
-        deadToken = false;
+      if (isDeadTokenResponse(text)) {
+        deadTokens.push(fcmToken);
+        continue;
       }
-      if (deadToken && notif.user_id && fcmToken) {
-        await supabase
-          .from("profiles")
-          .update({ fcm_token: null })
-          .eq("id", notif.user_id)
-          .eq("fcm_token", fcmToken);
-        console.log(
-          `[send-push-notification] dead token cleared for user ${notif.user_id} (notification ${notif.id}, type=${notif.type}, fcm_status=${res.status})`,
-        );
-        return json({ ok: true, recovered: "dead_token" });
-      }
+      failedCount++;
       console.error(
         `[send-push-notification] FCM send FAILED (${res.status}) for ${notif.id} (${notif.type}): ${text}`,
       );
-      return json({ error: "fcm_send_failed", detail: res.status }, 502);
+    }
+
+    if (deadTokens.length > 0) {
+      await supabase
+        .from("device_tokens")
+        .delete()
+        .eq("user_id", notif.user_id)
+        .in("token", deadTokens);
+      console.log(
+        `[send-push-notification] removed ${deadTokens.length} dead token(s) for user ${notif.user_id} (notification ${notif.id}, type=${notif.type})`,
+      );
+    }
+
+    if (sentCount === 0 && failedCount === 0) {
+      // كل الأجهزة ماتت — نفس استجابة المسار القديم حتى لا تتغير المراقبة.
+      return json({ ok: true, recovered: "dead_token" });
+    }
+    if (sentCount === 0) {
+      return json({ error: "fcm_send_failed", failed: failedCount }, 502);
     }
     console.log(
-      `[send-push-notification] sent "${notif.type}" to token (notification ${notif.id})`,
+      `[send-push-notification] sent "${notif.type}" to ${sentCount}/${fcmTokens.length} device(s) (notification ${notif.id})`,
     );
-    return json({ ok: true, sent: true });
+    return json({
+      ok: true,
+      sent: sentCount,
+      devices: fcmTokens.length,
+      failed: failedCount,
+      dead_removed: deadTokens.length,
+    });
   } catch (e) {
     console.error(`[send-push-notification] exception for ${notif.id}:`, e);
     return json({ error: "internal", message: String(e) }, 500);
