@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/errors/rpc_error_translator.dart';
+import '../../../core/services/sound_effects_service.dart';
 import '../../../l10n/app_localizations.dart';
 
 /// نافذة تقييم المزوّد — تُعرض تلقائياً للعميل لحظة اكتمال الطلب.
@@ -58,6 +61,10 @@ class _ProviderRatingDialogState extends State<ProviderRatingDialog> {
             ? null
             : _commentController.text.trim(),
       });
+
+      unawaited(
+        SoundEffectsService.instance.play(SoundEffect.ratingSubmitted),
+      );
 
       if (mounted) {
         final messenger = ScaffoldMessenger.of(context);

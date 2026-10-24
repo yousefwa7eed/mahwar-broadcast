@@ -11,6 +11,7 @@ import '../../../core/auth/national_id_utils.dart';
 import '../../../core/errors/rpc_error_translator.dart';
 import '../../../core/models/car_detail.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/services/sound_effects_service.dart';
 import '../../../l10n/app_localizations.dart';
 import 'widgets/location_picker_widget.dart';
 import 'widgets/car_selector_widget.dart';
@@ -552,6 +553,9 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
       // توفّر المسودة في شاشة المزوّد حتى لو انتقل المستخدم بسرعة.
       await _saveDraft();
 
+      unawaited(
+        SoundEffectsService.instance.play(SoundEffect.requestSubmitted),
+      );
       if (!mounted) return;
 
       setState(() => _isSubmitting = false);

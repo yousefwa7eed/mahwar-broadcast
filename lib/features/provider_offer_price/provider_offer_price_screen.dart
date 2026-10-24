@@ -1,4 +1,5 @@
-﻿import 'dart:io';
+﻿import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +11,7 @@ import '../../core/constants/app_colors.dart';
 import 'widgets/location_map_card.dart';
 import '../../core/errors/rpc_error_translator.dart';
 import '../../core/models/order.dart';
+import '../../core/services/sound_effects_service.dart';
 import '../../core/widgets/attachments_gallery.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -292,6 +294,12 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
         'p_attachments': providerImageUrls.isEmpty ? null : providerImageUrls,
       });
 
+      unawaited(SoundEffectsService.instance.playOrderStatus(
+        widget.orderId,
+        OrderStatus.priced,
+        forProvider: true,
+      ));
+
       if (mounted) {
         setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -366,6 +374,12 @@ class _ProviderOfferPriceScreenState extends State<ProviderOfferPriceScreen> {
       await _client.rpc('provider_reject_order', params: {
         'p_order_id': widget.orderId,
       });
+
+      unawaited(SoundEffectsService.instance.playOrderStatus(
+        widget.orderId,
+        OrderStatus.rejectedByProvider,
+        forProvider: true,
+      ));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

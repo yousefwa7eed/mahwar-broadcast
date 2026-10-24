@@ -1,4 +1,5 @@
-﻿import 'dart:io';
+﻿import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +10,7 @@ import '../../core/constants/avatar_config.dart';
 import '../../core/errors/rpc_error_translator.dart';
 import '../../core/models/provider_details.dart';
 import '../../core/services/image_compression_service.dart';
+import '../../core/services/sound_effects_service.dart';
 import '../../features/service_request/service_request_draft.dart';
 import '../../l10n/app_localizations.dart';
 import 'order_rpc_params.dart';
@@ -157,6 +159,7 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
 
       await _draftStore.clear();
 
+      unawaited(SoundEffectsService.instance.play(SoundEffect.requestSent));
       if (!mounted) return;
       setState(() => _isSending = false);
       // الانتقال إلى شاشة التتبّع عبر push — يحفظ المكدّس (قائمة المزوّدين

@@ -54,6 +54,7 @@ dependencies:
   path: ^1.9.1
   patrol: ^4.9.0
   flutter_secure_storage: ^11.2.0
+  audioplayers: ^6.8.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -85,6 +86,7 @@ flutter:
     - assets/fonts/Poppins/
     - assets/fonts/Zain/
     - assets/onboarding/
+    - assets/sounds/
 
   fonts:
     - family: Cairo
