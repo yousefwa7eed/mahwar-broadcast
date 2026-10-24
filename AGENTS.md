@@ -100,6 +100,24 @@ first, then committed.
 - Migrations are heavily commented in mixed Arabic/English explaining the threat model. Match that
   style — the comments are the security documentation.
 
+## Live database access (Supabase MCP)
+
+Two MCP servers are configured in Qoder:
+
+| Server | Endpoint | Scope |
+|---|---|---|
+| `plugin:supabase:supabase` | `https://mcp.supabase.com/mcp?features=docs` | docs only — its single tool is `search_docs` |
+| `supabase_live` (custom, user scope) | `https://mcp.supabase.com/mcp?project_ref=trgesfzojaoirutkkfcs` | full read/write on the live project |
+
+`supabase_live` authenticates via Supabase OAuth as the project owner and exposes `list_tables`,
+`execute_sql`, `apply_migration`, `deploy_edge_function`, `get_advisors`, `list_migrations`,
+`query_logs`, `generate_typescript_types` and branching tools. Its token is bound to
+`trgesfzojaoirutkkfcs` alone.
+
+- Schema reads, `list_migrations`, `get_advisors` and read-only `execute_sql` are always fine.
+- `apply_migration`, and `execute_sql` containing DML or DDL, **write to production** and fall under
+  the "ask first" rule in the working agreement.
+
 ## Security invariants — do not break these
 
 - **Owner phone privacy (Stage B).** The owner's phone number reaches a provider **only after the
@@ -163,6 +181,14 @@ in the same change.
   `20261017020099_restore_admin_security.sql` is **referenced in that comment but does not exist in
   `supabase/migrations/`**. Re-hardening means writing that migration *and* flipping the flag.
 - Storage policy drift (see migrations section).
+- **Migration file/DB drift (measured 2026-10-21 against `supabase_migrations.schema_migrations`).**
+  92 migrations are applied live; `supabase/migrations/` holds 88 files. Only 19 filenames carry the
+  real applied version. 61 files have the right description but a synthetic round timestamp
+  (`…000000`, `…120000`), 14 applied migrations have no file at all
+  (`build_phase_relax_is_admin_temp`, `admin_rpc_require_admin_hotfix`, `fix_admin_page_paths_*`, …),
+  and 8 files have no applied migration by name. Two description pairs are duplicated in the repo
+  (`harden_order_state_transitions`, `role_locked_entrypoints`). Reconcile against
+  `select version, name from supabase_migrations.schema_migrations` before renaming anything.
 - `delete-account` still uses the older `deno.land/std@0.224.0` + `esm.sh` import style while every
   other function uses `Deno.serve` + `jsr:@supabase/supabase-js@2`.
 - No certificate pinning.
