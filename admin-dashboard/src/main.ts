@@ -14,10 +14,10 @@ const sb = createClient(SB_URL, SB_KEY, {
   auth: { persistSession: true, autoRefreshToken: true },
 });
 
-// TEMP (build phase, 2026-10-17): TOTP screens skipped while the dashboard is
-// under construction. is_admin() on the server is relaxed the same way.
-// RE-HARDEN: flip to false AND apply 20261017020099_restore_admin_security.sql.
-const BUILD_SKIP_MFA = true;
+// MFA is never skipped in production: the flag is read only in dev and must be
+// opted into explicitly (VITE_SKIP_MFA=true). `import.meta.env.DEV` is
+// statically false in `vite build`, so this condition folds to false.
+const SKIP_MFA = import.meta.env.DEV && import.meta.env.VITE_SKIP_MFA === 'true';
 
 const app = document.getElementById('app')!;
 
@@ -74,45 +74,49 @@ const ICONS = {
 async function boot() {
   app.innerHTML = '<div class="auth-wrap"><div class="auth-card">جارٍ التحميل…</div></div>';
 
-  const { data: sessData } = await sb.auth.getSession();
-  const session = sessData?.session;
-
-  if (!session) {
-    showAuth();
-    return;
-  }
-
-  let st: SessionState;
   try {
-    st = await rpcSilent<SessionState>('admin_session_state');
-  } catch (e: any) {
-    await sb.auth.signOut();
-    showAuth('انتهت صلاحية الجلسة، سجل الدخول من جديد');
-    return;
-  }
+    const { data: sessData } = await sb.auth.getSession();
+    const session = sessData?.session;
 
-  if (!st.is_admin_row) {
-    showUnauthorized();
-    return;
-  }
+    if (!session) {
+      showAuth();
+      return;
+    }
 
-  if (BUILD_SKIP_MFA) {
+    let st: SessionState;
+    try {
+      st = await rpcSilent<SessionState>('admin_session_state');
+    } catch (e: any) {
+      await sb.auth.signOut();
+      showAuth('انتهت صلاحية الجلسة، سجل الدخول من جديد');
+      return;
+    }
+
+    if (!st.is_admin_row) {
+      showUnauthorized();
+      return;
+    }
+
+    if (SKIP_MFA) {
+      showDashboard();
+      return;
+    }
+
+    if (!st.mfa_enrolled) {
+      await showEnroll();
+      return;
+    }
+
+    const aal = st.aal;
+    if (aal !== 'aal2') {
+      await showAalVerify();
+      return;
+    }
+
     showDashboard();
-    return;
+  } catch (e: any) {
+    showLoadError(e?.message ?? String(e), boot);
   }
-
-  if (!st.mfa_enrolled) {
-    await showEnroll();
-    return;
-  }
-
-  const aal = st.aal;
-  if (aal !== 'aal2') {
-    await showAalVerify();
-    return;
-  }
-
-  showDashboard();
 }
 
 // ---------------------------------------------------------------------------
@@ -233,12 +237,53 @@ function showUnauthorized() {
   };
 }
 
+// شاشة خطأ موحّدة لمسارات التحقق: تعرض السبب مع إعادة محاولة أو خروج،
+// بدل التعليق على رسالة تحميل أو توجيه المستخدم للتفعيل عند خطأ قراءة.
+function showLoadError(message: string, retry: () => void) {
+  app.innerHTML = '';
+  const wrap = appEl();
+  wrap.className = 'auth-wrap';
+  wrap.innerHTML = `
+    <div class="auth-card">
+      <h1>تعذّر إكمال التحقق</h1>
+      <div class="msg err show">${esc(message)}</div>
+      <button id="retry" style="width:100%">إعادة المحاولة</button>
+      <button class="linklike" id="out">تسجيل الخروج</button>
+    </div>`;
+  app.appendChild(wrap);
+  (wrap.querySelector('#retry') as HTMLButtonElement).onclick = () => retry();
+  (wrap.querySelector('#out') as HTMLButtonElement).onclick = async () => {
+    await sb.auth.signOut();
+    showAuth();
+  };
+}
+
 // ---------------------------------------------------------------------------
-// TOTP enrollment (first time). Only reachable when BUILD_SKIP_MFA = false.
+// TOTP enrollment (first time). Only reachable when SKIP_MFA = false.
 // ---------------------------------------------------------------------------
 async function showEnroll(shellMsg?: string) {
   app.innerHTML =
     '<div class="auth-wrap"><div class="auth-card">جارٍ تجهيز التحقق بخطوة إضافية…</div></div>';
+
+  // التفعيل المهجور يُنشئ عاملًا غير موثّق في كل محاولة؛ ننظّفها قبل الإنشاء
+  // حتى لا تتراكم عوامل يتيمة على الحساب.
+  const { data: factorsData, error: listError } = await (sb as any).mfa.listFactors();
+  if (listError) {
+    showLoadError(listError.message ?? String(listError), showEnroll);
+    return;
+  }
+  const pendingFactors = ((factorsData?.all ?? []) as any[]).filter(
+    (f) => f.status !== 'verified',
+  );
+  for (const pending of pendingFactors) {
+    const { error: unenrollError } = await (sb as any).mfa.unenroll({
+      factorId: pending.id,
+    });
+    if (unenrollError) {
+      showLoadError(unenrollError.message ?? String(unenrollError), showEnroll);
+      return;
+    }
+  }
 
   const { data, error } = await (sb as any).mfa.enroll({
     factorType: 'totp',
@@ -319,8 +364,16 @@ async function showEnroll(shellMsg?: string) {
 // ---------------------------------------------------------------------------
 async function showAalVerify() {
   app.innerHTML = '<div class="auth-wrap"><div class="auth-card">جارٍ الفحص…</div></div>';
-  const { data: factorsData } = await (sb as any).mfa.listFactors();
-  const factor = (factorsData?.find((f: any) => f.status === 'verified') ?? null) as any;
+  const { data: factorsData, error } = await (sb as any).mfa.listFactors();
+  if (error) {
+    // خطأ في القراءة لا يعني عدم وجود عامل: لا نوجّه إلى شاشة التفعيل.
+    showLoadError(error.message ?? String(error), showAalVerify);
+    return;
+  }
+  const factors = ((factorsData?.all ?? []) as any[]).filter(
+    (f) => f.factor_type === 'totp' && f.status === 'verified',
+  );
+  const factor = (factors[0] ?? null) as any;
   if (!factor) {
     await showEnroll();
     return;
@@ -626,8 +679,8 @@ async function renderOverview(v: HTMLElement) {
     // ---- system state -------------------------------------------------------
     (v.querySelector('#ov-system') as HTMLElement).innerHTML = `
       <div class="list-item">${ICONS.shield} <span>قائمة الأدمن: <b>1 حساب</b> (حسابك)</span></div>
-      ${BUILD_SKIP_MFA
-        ? '<div class="list-item warn-item">الحماية بخطوة إضافية مؤقتًا مفكوكة (مرحلة البناء). هترجع آخر خطوة قبل النشر.</div>'
+      ${SKIP_MFA
+        ? '<div class="list-item warn-item">التحقق بخطوة إضافية معطّل في وضع التطوير المحلي فقط (VITE_SKIP_MFA=true).</div>'
         : '<div class="list-item">الحماية بخطوة إضافية مفعّلة</div>'}
       <div class="list-item">الاتصال: مشروع <code dir="ltr" class="tiny">trgesfzoj</code> · البيانات حية من قاعدة البيانات</div>`;
   } catch (e: any) {
