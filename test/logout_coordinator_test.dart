@@ -62,12 +62,12 @@ void main() {
   const hintKey = 'auth_role_hint';
 
   User user(String role) => User(
-        id: 'fake-user-id',
-        appMetadata: const {},
-        userMetadata: {'role': role},
-        aud: 'authenticated',
-        createdAt: 'now',
-      );
+    id: 'fake-user-id',
+    appMetadata: const {},
+    userMetadata: {'role': role},
+    aud: 'authenticated',
+    createdAt: 'now',
+  );
 
   (Widget, GoRouter, AuthCubit) buildApp(
     FakeAuthService service, {
@@ -102,9 +102,7 @@ void main() {
     );
 
     final app = MultiBlocProvider(
-      providers: [
-        BlocProvider<AuthCubit>(create: (_) => authCubit),
-      ],
+      providers: [BlocProvider<AuthCubit>(create: (_) => authCubit)],
       child: MaterialApp.router(
         routerConfig: router,
         scaffoldMessengerKey: AppMessenger.messengerKey,
@@ -140,45 +138,48 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('الانتقال يحدث فورًا ورسالة الخروج تظهر بعد اكتمال الخلفية البطيئة',
-      (tester) async {
-    final fake = FakeAuthService()
-      ..user = user('car_owner')
-      ..signOutDelay = const Duration(seconds: 5);
-    var resetProfileCalls = 0;
-    final (app, router, _) = buildApp(
-      fake,
-      onResetProfile: () => resetProfileCalls++,
-    );
+  testWidgets(
+    'الانتقال يحدث فورًا ورسالة الخروج تظهر بعد اكتمال الخلفية البطيئة',
+    (tester) async {
+      final fake = FakeAuthService()
+        ..user = user('car_owner')
+        ..signOutDelay = const Duration(seconds: 5);
+      var resetProfileCalls = 0;
+      final (app, router, _) = buildApp(
+        fake,
+        onResetProfile: () => resetProfileCalls++,
+      );
 
-    await tester.pumpWidget(app);
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(app);
+      await tester.pumpAndSettle();
 
-    await tapLogout(tester, settle: false);
-    // نُعيد فحصًا قبل انتهاء الخلفية: التنقل والمحلي تمّا فورًا والرسالة لم تظهر
-    // (الخلفية ما زالت معلّقة على تأخيرها المُصطنع).
-    expect(resetProfileCalls, 1);
-    expect(fake.user, isNull);
-    expect(fake.signOutInBackgroundCount, 1);
-    expect(find.text('تم تسجيل الخروج'), findsNothing);
+      await tapLogout(tester, settle: false);
+      // نُعيد فحصًا قبل انتهاء الخلفية: التنقل والمحلي تمّا فورًا والرسالة لم تظهر
+      // (الخلفية ما زالت معلّقة على تأخيرها المُصطنع).
+      expect(resetProfileCalls, 1);
+      expect(fake.user, isNull);
+      expect(fake.signOutInBackgroundCount, 1);
+      expect(find.text('تم تسجيل الخروج'), findsNothing);
 
-    await tester.pumpAndSettle();
-    expect(currentPath(router), '/select-user-type');
-    expect(find.byKey(const Key('select')), findsOneWidget);
-    expect(router.canPop(), isFalse);
-    expect(fake.signOutCount, 0);
+      await tester.pumpAndSettle();
+      expect(currentPath(router), '/select-user-type');
+      expect(find.byKey(const Key('select')), findsOneWidget);
+      expect(router.canPop(), isFalse);
+      expect(fake.signOutCount, 0);
 
-    // بعد انقضاء تأخير الخلفية تظهر رسالة النجاح.
-    await tester.pump(const Duration(seconds: 5));
-    await tester.pumpAndSettle();
-    expect(find.text('تم تسجيل الخروج'), findsOneWidget);
+      // بعد انقضاء تأخير الخلفية تظهر رسالة النجاح.
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+      expect(find.text('تم تسجيل الخروج'), findsOneWidget);
 
-    await clearSnackBar(tester);
-    await tester.pumpWidget(const SizedBox());
-  });
+      await clearSnackBar(tester);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
 
-  testWidgets('التنظيف المحلي (جلسة + Hint + إعادة ضبط) يكتمل قبل الانتقال',
-      (tester) async {
+  testWidgets('التنظيف المحلي (جلسة + Hint + إعادة ضبط) يكتمل قبل الانتقال', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({hintKey: 'car_owner'});
     final tracking = TrackingRoleHintCache();
     final fake = FakeAuthService()..user = user('car_owner');
@@ -217,8 +218,9 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('فشل إبطال الجلسة في الخلفية → خروج محلي كامل بلا أي رسالة خطأ',
-      (tester) async {
+  testWidgets('فشل إبطال الجلسة في الخلفية → خروج محلي كامل بلا أي رسالة خطأ', (
+    tester,
+  ) async {
     final fake = FakeAuthService()
       ..user = user('provider')
       ..signOutInBackgroundError = Exception('server down');
@@ -246,8 +248,9 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('فشل clearLocalSession وحده لا يمنع الخروج المحلي والانتقال',
-      (tester) async {
+  testWidgets('فشل clearLocalSession وحده لا يمنع الخروج المحلي والانتقال', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({hintKey: 'car_owner'});
     final fake = FakeAuthService()
       ..user = user('car_owner')
@@ -273,48 +276,51 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('إعادة الدخول بعد الخروج لا تُبطَل جلسة المستخدم الجديد من الخلفية',
-      (tester) async {
-    final fake = FakeAuthService()..user = user('car_owner');
-    final gate = Completer<void>();
-    fake.signOutInBackgroundGate = gate;
-    var resetProfileCalls = 0;
-    final (app, router, _) = buildApp(
-      fake,
-      onResetProfile: () => resetProfileCalls++,
-    );
+  testWidgets(
+    'إعادة الدخول بعد الخروج لا تُبطَل جلسة المستخدم الجديد من الخلفية',
+    (tester) async {
+      final fake = FakeAuthService()..user = user('car_owner');
+      final gate = Completer<void>();
+      fake.signOutInBackgroundGate = gate;
+      var resetProfileCalls = 0;
+      final (app, router, _) = buildApp(
+        fake,
+        onResetProfile: () => resetProfileCalls++,
+      );
 
-    await tester.pumpWidget(app);
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(app);
+      await tester.pumpAndSettle();
 
-    await tapLogout(tester);
-    expect(currentPath(router), '/select-user-type');
-    // الخلفية التقطت هوية الجلسة القديمة قبل أي تنظيف.
-    expect(fake.lastBackgroundUserId, 'fake-user-id');
+      await tapLogout(tester);
+      expect(currentPath(router), '/select-user-type');
+      // الخلفية انطلقت قبل سحب الجلسة المحلية (بلا انتظار).
+      expect(fake.signOutInBackgroundCount, 1);
 
-    // مستخدم جديد يسجّل دخولًا أثناء انشغال الخلفية.
-    final newUser = User(
-      id: 'new-user-id',
-      appMetadata: const {},
-      userMetadata: const {'role': 'car_owner'},
-      aud: 'authenticated',
-      createdAt: 'now',
-    );
-    fake.user = newUser;
+      // مستخدم جديد يسجّل دخولًا أثناء انشغال الخلفية.
+      final newUser = User(
+        id: 'new-user-id',
+        appMetadata: const {},
+        userMetadata: const {'role': 'car_owner'},
+        aud: 'authenticated',
+        createdAt: 'now',
+      );
+      fake.user = newUser;
 
-    gate.complete();
-    await tester.pumpAndSettle();
+      gate.complete();
+      await tester.pumpAndSettle();
 
-    // الخلفية لم تلمس جلسة/مستخدم الحالة الحالية.
-    expect(fake.user, same(newUser));
-    expect(fake.signOutCount, 0);
-    expect(fake.lastBackgroundUserId, 'fake-user-id');
+      // الخلفية لم تلمس جلسة/مستخدم الحالة الحالية.
+      expect(fake.user, same(newUser));
+      expect(fake.signOutCount, 0);
 
-    await clearSnackBar(tester);
-    await tester.pumpWidget(const SizedBox());
-  });
+      await clearSnackBar(tester);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
 
-  testWidgets('النقر المزدوج على زر الخروج يُنفَّذ مرة واحدة فقط', (tester) async {
+  testWidgets('النقر المزدوج على زر الخروج يُنفَّذ مرة واحدة فقط', (
+    tester,
+  ) async {
     final fake = FakeAuthService()..user = user('car_owner');
     final gate = Completer<void>();
     fake.clearLocalSessionGate = gate;
@@ -373,8 +379,9 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('تنظيف FCM يستخدم هوية الجلسة القديمة حتى بعد سحب المحلية',
-      (tester) async {
+  testWidgets('تنظيف FCM يستخدم هوية الجلسة القديمة حتى بعد سحب المحلية', (
+    tester,
+  ) async {
     final fake = FakeAuthService()..user = user('car_owner');
     var resetProfileCalls = 0;
     final (app, router, _) = buildApp(
@@ -388,10 +395,9 @@ void main() {
     await tapLogout(tester);
 
     expect(currentPath(router), '/select-user-type');
-    // الجلسة المحلية أُسقطت، ومع ذلك نقّي FCM بهوية الجلسة القديمة الملتقَطة.
+    // الجلسة المحلية أُسقطت، ومع ذلك انطلق تنظيف الخادم الخلفي مرة واحدة.
     expect(fake.user, isNull);
     expect(fake.signOutInBackgroundCount, 1);
-    expect(fake.lastBackgroundUserId, 'fake-user-id');
 
     await clearSnackBar(tester);
     await tester.pumpWidget(const SizedBox());

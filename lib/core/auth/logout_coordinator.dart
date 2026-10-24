@@ -15,11 +15,11 @@ import 'role_hint_cache.dart';
 /// مباشرة وتكرر نفس منطق الفشل والانتقال.
 ///
 /// القواعد (خروج فوري أولًا محليًا):
-/// 1) تنظيف الخادم (مسح fcm_token + device_id وفصل FCM + إبطال الجلسة القديمة
-///    عبر `signOut` غلوبال يلتقط توكنها متزامنًا) يبدأ في الخلفية فورًا وبلا
-///    انتظار، قبل سحب الجلسة المحلية، حتى يلتقط طلب fcm_token رمز الوصول
-///    الصالح. تُعرض رسالة نجاح الخروج فقط عند اكتمال ذلك بنجاح؛ أي فشل خلفي
-///    يُبتلع بلا رسالة خطأ (الخروج المحلي تم فعلًا).
+/// 1) تنظيف الخادم (فصل مواضيع FCM + إبطال الجلسة القديمة عبر `signOut`
+///    غلوبال يلتقط توكنها متزامنًا) يبدأ في الخلفية فورًا وبلا انتظار، قبل
+///    سحب الجلسة المحلية، حتى يلتقط الطلب رمز الوصول الصالح. تُعرض رسالة
+///    نجاح الخروج فقط عند اكتمال ذلك بنجاح؛ أي فشل خلفي يُبتلع بلا رسالة
+///    خطأ (الخروج المحلي تم فعلًا). توكن الدفع يبقى مسجّلاً للحساب.
 /// 2) التنظيف المحلي يحدث فورًا ولا ينتظر الشبكة إطلاقًا: سحب الجلسة المحلية
 ///    احتياطيًا، تفريغ [RoleHintCache]، إعادة ضبط حالة الملف عبر [resetProfile]،
 ///    وبثّ [AuthUnauthenticated] — ثم الانتقال فورًا إلى `/select-user-type`.
@@ -40,11 +40,9 @@ class LogoutCoordinator {
   /// لم تعد تُنتظر الشبكة، فتبقى مُفعَّلة لزمن الانتقال المحلي الفوري فقط.
   static final ValueNotifier<bool> isRunning = ValueNotifier(false);
 
-  LogoutCoordinator({
-    AuthService? authService,
-    RoleHintCache? roleHintCache,
-  })  : _authService = authService ?? SupabaseAuthService(),
-        _roleHintCache = roleHintCache ?? RoleHintCache();
+  LogoutCoordinator({AuthService? authService, RoleHintCache? roleHintCache})
+    : _authService = authService ?? SupabaseAuthService(),
+      _roleHintCache = roleHintCache ?? RoleHintCache();
 
   Future<void> logout({
     required BuildContext context,
@@ -55,20 +53,21 @@ class LogoutCoordinator {
     isRunning.value = true;
     final l10n = AppLocalizations.of(context);
     try {
-      // نلتقط هوية الجلسة القديمة قبل أي تنظيف — يذهب إلى الخلفية ويبقى
-      // صالحًا لتنظيف FCM حتى بعد سحب الجلسة محليًا.
-      final oldUserId = _authService.currentUser?.id;
       final authCubit = context.read<AuthCubit>();
 
       // 1) الخلفية بلا انتظار — تُستدعى أولًا (قبل سحب الجلسة المحلية) حتى
-      //    يلتقط طلب fcm_token رمز الوصول الصالح. رسالة الخروج تُعرض فقط عند
-      //    اكتمال ناجح؛ أي فشل يُبتلع بصمت لأن الخروج المحلي تم فعلًا.
+      //    يلتقط إبطال الجلسة لدى الخادم رمز الوصول الصالح. رسالة الخروج
+      //    تُعرض فقط عند اكتمال ناجح؛ أي فشل يُبتلع بصمت لأن الخروج المحلي
+      //    تم فعلًا. توكن الدفع لا يُمسح (يبقى الحساب قابلاً للاستقبال على
+      //    هذا الجهاز).
       unawaited(
         _authService
-            .signOutInBackground(oldUserId)
-            .then((_) => AppMessenger.showText(
-                  l10n?.signOutSuccess ?? 'تم تسجيل الخروج',
-                ))
+            .signOutInBackground()
+            .then(
+              (_) => AppMessenger.showText(
+                l10n?.signOutSuccess ?? 'تم تسجيل الخروج',
+              ),
+            )
             .catchError((Object _) {}),
       );
 

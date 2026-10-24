@@ -68,7 +68,6 @@ class FakeAuthService extends AuthService {
   Session? session;
 
   int signOutInBackgroundCount = 0;
-  String? lastBackgroundUserId;
 
   /// إن كان مضبوطًا فإن `signOutInBackground` يرميه بعد الانتظار —
   /// لمحاكاة فشل الخادم في إبطال الجلسة القديمة.
@@ -278,7 +277,9 @@ class FakeAuthService extends AuthService {
     if (value.contains('@')) return normalizeEmail(value);
     if (resolveEmailError != null) throw resolveEmailError!;
     final phone = value.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-    return emailByPhone[phone.startsWith('0') ? phone : '0${phone.substring(3)}'];
+    return emailByPhone[phone.startsWith('0')
+        ? phone
+        : '0${phone.substring(3)}'];
   }
 
   @override
@@ -288,8 +289,10 @@ class FakeAuthService extends AuthService {
     // محاكاة رد GoTrue signInWithOtp(shouldCreateUser: false): الرقم غير
     // المسجّل مرفوض برمز user_not_found قبل إرسال أي SMS.
     if (!confirmedPhones.contains(localPhone)) {
-      throw AuthApiException('No user found for this phone',
-          code: 'user_not_found');
+      throw AuthApiException(
+        'No user found for this phone',
+        code: 'user_not_found',
+      );
     }
     lastForgotOtpPhone = localPhone;
   }
@@ -313,8 +316,10 @@ class FakeAuthService extends AuthService {
     forgotResendCount++;
     if (forgotResendError != null) throw forgotResendError!;
     if (!confirmedPhones.contains(localPhone)) {
-      throw AuthApiException('No user found for this phone',
-          code: 'user_not_found');
+      throw AuthApiException(
+        'No user found for this phone',
+        code: 'user_not_found',
+      );
     }
     lastForgotResendPhone = localPhone;
   }
@@ -382,9 +387,8 @@ class FakeAuthService extends AuthService {
   }
 
   @override
-  Future<void> signOutInBackground(String? oldUserId) async {
+  Future<void> signOutInBackground() async {
     signOutInBackgroundCount++;
-    lastBackgroundUserId = oldUserId;
     if (signOutDelay != null) await Future<void>.delayed(signOutDelay!);
     if (signOutInBackgroundGate != null) await signOutInBackgroundGate!.future;
     if (signOutInBackgroundError != null) throw signOutInBackgroundError!;

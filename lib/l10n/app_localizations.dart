@@ -866,6 +866,12 @@ abstract class AppLocalizations {
   /// **'الإشعارات'**
   String get notifications;
 
+  /// No description provided for @notificationsPermissionDenied.
+  ///
+  /// In ar, this message translates to:
+  /// **'إشعارات النظام معطّلة — فعّلها من إعدادات التطبيق حتى تصلك تنبيهات الطلبات'**
+  String get notificationsPermissionDenied;
+
   /// No description provided for @settings.
   ///
   /// In ar, this message translates to:
@@ -1820,6 +1826,12 @@ abstract class AppLocalizations {
   /// **'تم رفض الطلب'**
   String get notificationTitleOrderRejected;
 
+  /// No description provided for @notificationTitleOrderRejectedForProvider.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم رفض عرضك'**
+  String get notificationTitleOrderRejectedForProvider;
+
   /// No description provided for @notificationTitleOrderCancelled.
   ///
   /// In ar, this message translates to:
@@ -1907,11 +1919,11 @@ abstract class AppLocalizations {
   /// **'تم استلام عرض سعر جديد'**
   String get notificationBodyPriceOfferReceived;
 
-  /// No description provided for @notificationBodyOrderConfirmed.
+  /// No description provided for @notificationBodyOrderConfirmedForProvider.
   ///
   /// In ar, this message translates to:
-  /// **'تم تأكيد طلبك بنجاح'**
-  String get notificationBodyOrderConfirmed;
+  /// **'وافق العميل على عرضك — يمكنك بدء التنفيذ'**
+  String get notificationBodyOrderConfirmedForProvider;
 
   /// No description provided for @notificationBodyOrderRejectedWithProvider.
   ///
@@ -1925,11 +1937,23 @@ abstract class AppLocalizations {
   /// **'تم رفض الطلب'**
   String get notificationBodyOrderRejected;
 
+  /// No description provided for @notificationBodyOrderRejectedForProvider.
+  ///
+  /// In ar, this message translates to:
+  /// **'رفض العميل عرضك'**
+  String get notificationBodyOrderRejectedForProvider;
+
   /// No description provided for @notificationBodyOrderCancelled.
   ///
   /// In ar, this message translates to:
   /// **'تم إلغاء هذا الطلب'**
   String get notificationBodyOrderCancelled;
+
+  /// No description provided for @notificationBodyOrderCancelledForProvider.
+  ///
+  /// In ar, this message translates to:
+  /// **'قام العميل بإلغاء الطلب'**
+  String get notificationBodyOrderCancelledForProvider;
 
   /// No description provided for @notificationBodyOrderCompleted.
   ///

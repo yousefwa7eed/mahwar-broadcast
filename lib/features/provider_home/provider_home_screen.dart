@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -14,6 +14,7 @@ import '../../core/models/order.dart';
 import '../../core/notifications/notification_cubit.dart';
 import '../../core/services/location_service.dart';
 import '../../core/services/server_clock.dart';
+import '../../core/services/sound_effects_service.dart';
 import '../../core/settings/app_settings_cubit.dart';
 import '../../core/utils/distance.dart';
 import '../../core/widgets/confirm_dialog.dart';
@@ -74,6 +75,10 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
   final Map<String, String> _ownerAvatarIds = {};
   final Map<String, String> _ownerAvatarUrls = {};
 
+  /// آخر حالة شُغّل لها صوت لكل طلب — يمنع تكرار الصوت عند تحديثات متتالية
+  /// لا تغيّر الحالة.
+  final Map<String, String> _lastSoundStatus = {};
+
   // سجل طلبات المزوّد (تبويب الطلبات)
   List<Order> _providerOrders = [];
   bool _isLoadingOrders = true;
@@ -125,6 +130,21 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     switch (state) {
       case AppLifecycleState.resumed:
         _heartbeat.setForeground(true);
+        if (!mounted) return;
+        // Realtime لا يعيد بثّ ما فاته أثناء التعليق، لذا نعيد الاشتراك
+        // والجلب عند العودة حتى لا تبقى الشاشة على حالة طلب قديمة.
+        _channel?.unsubscribe();
+        _channel = null;
+        _providerChannel?.unsubscribe();
+        _providerChannel = null;
+        _subscribeToOrderChanges();
+        _subscribeToProviderChanges();
+        _loadProviderData();
+        _loadActiveOrders();
+        _loadProviderOrders();
+        final cubit = context.read<NotificationCubit>();
+        cubit.loadNotifications();
+        cubit.subscribeToNotifications();
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
       case AppLifecycleState.inactive:
@@ -174,7 +194,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
       _addressText = '';
     });
 
-    final address = await LocationService.instance.getCurrentAddress(forceRefresh: true);
+    final address = await LocationService.instance.getCurrentAddress(
+      forceRefresh: true,
+    );
 
     if (mounted) {
       setState(() {
@@ -186,7 +208,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
 
   Future<void> _loadServiceNames() async {
     try {
-      final response = await _client.from('service_types').select('id, name_ar');
+      final response = await _client
+          .from('service_types')
+          .select('id, name_ar');
       _serviceNames = {
         for (final row in response)
           row['id'] as String: row['name_ar'] as String? ?? row['id'] as String,
@@ -242,9 +266,10 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     for (final id in ownerIds) {
       if (_ownerNames.containsKey(id)) continue;
       try {
-        final res = await _client.rpc('get_public_profile', params: {
-          'p_user_id': id,
-        });
+        final res = await _client.rpc(
+          'get_public_profile',
+          params: {'p_user_id': id},
+        );
         final rows = res as List;
         if (rows.isNotEmpty) {
           final row = rows.first as Map;
@@ -271,7 +296,8 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     for (final order in orders) {
       if (_orderAddresses.containsKey(order.id)) continue;
       final stored = order.addressText?.trim() ?? '';
-      final isCoords = stored.isNotEmpty &&
+      final isCoords =
+          stored.isNotEmpty &&
           stored.contains(',') &&
           stored.split(',').every((p) => double.tryParse(p.trim()) != null);
       if (stored.isNotEmpty && !isCoords) {
@@ -322,20 +348,54 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     _channel = _client
         .channel('provider-orders-$userId')
         .onPostgresChanges(
-      event: PostgresChangeEvent.all,
-      schema: 'public',
-      table: 'orders',
-      filter: PostgresChangeFilter(
-        type: PostgresChangeFilterType.eq,
-        column: 'provider_id',
-        value: userId,
-      ),
-      callback: (payload) {
-        _loadActiveOrders();
-        _loadProviderOrders();
-      },
-    )
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'orders',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'provider_id',
+            value: userId,
+          ),
+          callback: (payload) {
+            _playOrderEventSound(payload);
+            _loadActiveOrders();
+            _loadProviderOrders();
+          },
+        )
         .subscribe();
+  }
+
+  /// صوت فوري لأحداث الطلب القادمة عبر Realtime: طلب جديد، أو انتقال حالة
+  /// قرّره الطرف الآخر (قبول/رفض/إلغاء). أفعال المزوّد نفسه تُصوَّت محلياً بعد
+  /// نجاح الـ RPC، ومنع التكرار في الخدمة يوحّد المصدرين.
+  void _playOrderEventSound(PostgresChangePayload payload) {
+    final record = payload.newRecord;
+    final id = record['id'] as String?;
+    final statusName = record['status'] as String?;
+    final status = statusName == null ? null : Order.tryParseStatus(statusName);
+    if (id == null || status == null) return;
+
+    if (payload.eventType == PostgresChangeEvent.insert) {
+      _lastSoundStatus[id] = status.name;
+      unawaited(
+        SoundEffectsService.instance.playOrderStatus(
+          id,
+          status,
+          forProvider: true,
+        ),
+      );
+      return;
+    }
+
+    if (_lastSoundStatus[id] == status.name) return;
+    _lastSoundStatus[id] = status.name;
+    unawaited(
+      SoundEffectsService.instance.playOrderStatus(
+        id,
+        status,
+        forProvider: true,
+      ),
+    );
   }
 
   // يبقي مفتاح التوفّر منسجماً مع is_online في قاعدة البيانات أثناء بقاء
@@ -349,33 +409,33 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     _providerChannel = _client
         .channel('provider-self-$userId')
         .onPostgresChanges(
-      event: PostgresChangeEvent.update,
-      schema: 'public',
-      table: 'providers',
-      filter: PostgresChangeFilter(
-        type: PostgresChangeFilterType.eq,
-        column: 'id',
-        value: userId,
-      ),
-      callback: (payload) {
-        // نعتمد على is_online وavailability_override من السجل الجديد (الحقيقة
-        // في قاعدة البيانات). أي تقليب خارجي — cron عند حدود الجدول، أو تغيير
-        // من جهاز/جلسة أخرى — ينعكس هنا فوراً.
-        final online = (payload.newRecord['is_online'] ?? false) == true;
-        final override =
-            payload.newRecord['availability_override'] as String? ?? 'auto';
-        if (!mounted ||
-            (online == _isOnline && override == _availabilityOverride)) {
-          return;
-        }
-        setState(() {
-          _isOnline = online;
-          _availabilityOverride = override;
-        });
-        // تقليب خارجي للتوفّر => نواكب جدولة النبضة (بدء/إيقاف) فوراً.
-        _heartbeat.setOnline(online);
-      },
-    )
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'providers',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: userId,
+          ),
+          callback: (payload) {
+            // نعتمد على is_online وavailability_override من السجل الجديد (الحقيقة
+            // في قاعدة البيانات). أي تقليب خارجي — cron عند حدود الجدول، أو تغيير
+            // من جهاز/جلسة أخرى — ينعكس هنا فوراً.
+            final online = (payload.newRecord['is_online'] ?? false) == true;
+            final override =
+                payload.newRecord['availability_override'] as String? ?? 'auto';
+            if (!mounted ||
+                (online == _isOnline && override == _availabilityOverride)) {
+              return;
+            }
+            setState(() {
+              _isOnline = online;
+              _availabilityOverride = override;
+            });
+            // تقليب خارجي للتوفّر => نواكب جدولة النبضة (بدء/إيقاف) فوراً.
+            _heartbeat.setOnline(online);
+          },
+        )
         .subscribe();
   }
 
@@ -403,10 +463,10 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     });
 
     try {
-      await _client.from('providers').update({
-        'is_online': val,
-        'availability_override': ?override,
-      }).eq('id', userId);
+      await _client
+          .from('providers')
+          .update({'is_online': val, 'availability_override': ?override})
+          .eq('id', userId);
     } catch (_) {
       if (mounted) {
         setState(() {
@@ -484,8 +544,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
       final userId = _client.auth.currentUser?.id;
       if (userId == null) return;
 
-      final position = await LocationService.instance
-          .getCurrentPosition(forceRefresh: true);
+      final position = await LocationService.instance.getCurrentPosition(
+        forceRefresh: true,
+      );
       if (position == null) return;
 
       await _client.rpc(
@@ -515,7 +576,8 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     final confirmed = await showConfirmDialog(
       context,
       title: l10n?.providerRejectOrderConfirmTitle ?? 'رفض الطلب؟',
-      message: l10n?.providerRejectOrderConfirmBody ??
+      message:
+          l10n?.providerRejectOrderConfirmBody ??
           'سيتم إخطار العميل وإلغاء هذا الطلب.',
       confirmLabel: l10n?.providerRejectOrderConfirmLabel ?? 'نعم، رفض الطلب',
       confirmColor: AppColors.error,
@@ -523,9 +585,18 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     if (confirmed != true || !mounted) return;
 
     try {
-      await _client.rpc('provider_reject_order', params: {
-        'p_order_id': orderId,
-      });
+      await _client.rpc(
+        'provider_reject_order',
+        params: {'p_order_id': orderId},
+      );
+
+      unawaited(
+        SoundEffectsService.instance.playOrderStatus(
+          orderId,
+          OrderStatus.rejectedByProvider,
+          forProvider: true,
+        ),
+      );
 
       if (mounted) {
         setState(() {
@@ -542,8 +613,10 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n?.providerOrderNoLongerAvailable ??
-                'هذا الطلب لم يعد متاحاً (ربما انتهت مدته)'),
+            content: Text(
+              l10n?.providerOrderNoLongerAvailable ??
+                  'هذا الطلب لم يعد متاحاً (ربما انتهت مدته)',
+            ),
             backgroundColor: AppColors.warning,
           ),
         );
@@ -563,7 +636,8 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     final confirmed = await showConfirmDialog(
       context,
       title: l10n?.completeOrderTitle ?? 'إتمام الطلب؟',
-      message: l10n?.completeOrderConfirmBody ??
+      message:
+          l10n?.completeOrderConfirmBody ??
           'ستُعتبر الخدمة مكتملة وسيتمكّن العميل من تقييمك بعدها.',
       confirmLabel: l10n?.completeOrder ?? 'إتمام الطلب',
       confirmColor: AppColors.success,
@@ -571,9 +645,18 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     if (confirmed != true || !mounted) return;
 
     try {
-      await _client.rpc('provider_complete_order', params: {
-        'p_order_id': orderId,
-      });
+      await _client.rpc(
+        'provider_complete_order',
+        params: {'p_order_id': orderId},
+      );
+
+      unawaited(
+        SoundEffectsService.instance.playOrderStatus(
+          orderId,
+          OrderStatus.completed,
+          forProvider: true,
+        ),
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -603,7 +686,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     final l10n = AppLocalizations.of(context);
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor: isDark
+          ? AppColors.darkBackground
+          : AppColors.lightBackground,
       body: SafeArea(
         child: IndexedStack(
           index: _currentIndex,
@@ -619,7 +704,11 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     );
   }
 
-  Widget _buildDashboardTab(BuildContext context, bool isDark, AppLocalizations? l10n) {
+  Widget _buildDashboardTab(
+    BuildContext context,
+    bool isDark,
+    AppLocalizations? l10n,
+  ) {
     final profileState = context.watch<ProfileCubit>().state;
     final profile = profileState is ProfileLoaded ? profileState.profile : null;
 
@@ -639,11 +728,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                         size: 44,
                         photoUrl: profile.avatarUrl,
                       )
-                    : const ShimmerBox(
-                        width: 44,
-                        height: 44,
-                        circle: true,
-                      ),
+                    : const ShimmerBox(width: 44, height: 44, circle: true),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -656,7 +741,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                         fontFamily: 'Zain',
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.lightTextPrimary,
                       ),
                     ),
                     // أثناء تحميل الملف الشخصي نعرض شيمر مكان الاسم، ولا
@@ -690,12 +777,15 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                             Flexible(
                               child: Text(
                                 _isLocatingAddress
-                                    ? (l10n?.locatingLocation ?? 'جاري تحديد الموقع...')
+                                    ? (l10n?.locatingLocation ??
+                                          'جاري تحديد الموقع...')
                                     : _addressText,
                                 style: TextStyle(
                                   fontFamily: 'Cairo',
                                   fontSize: 13,
-                                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                                  color: isDark
+                                      ? AppColors.darkTextSecondary
+                                      : AppColors.lightTextSecondary,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -711,17 +801,16 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                 onPressed: () => setState(() => _currentIndex = 2),
                 icon: Icon(
                   Icons.notifications_outlined,
-                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                  color: isDark
+                      ? AppColors.darkTextPrimary
+                      : AppColors.lightTextPrimary,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 20),
 
-          AvailabilityToggle(
-            isOnline: _isOnline,
-            onToggle: _toggleOnline,
-          ),
+          AvailabilityToggle(isOnline: _isOnline, onToggle: _toggleOnline),
           const SizedBox(height: 24),
 
           Row(
@@ -732,13 +821,18 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                   fontFamily: 'Zain',
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                  color: isDark
+                      ? AppColors.darkTextPrimary
+                      : AppColors.lightTextPrimary,
                 ),
               ),
               const SizedBox(width: 8),
               if (_activeOrders.isNotEmpty)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.orangePrimary,
                     borderRadius: BorderRadius.circular(10),
@@ -763,7 +857,11 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
             child: _isLoadingRequests
                 ? const Padding(
                     padding: EdgeInsets.all(24),
-                    child: Center(child: CircularProgressIndicator(color: AppColors.orangePrimary)),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.orangePrimary,
+                      ),
+                    ),
                   )
                 : _activeOrders.isEmpty
                 ? Container(
@@ -778,15 +876,20 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                         Icon(
                           Icons.inbox_outlined,
                           size: 48,
-                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.lightTextSecondary,
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          l10n?.noNearbyRequests ?? 'لا توجد طلبات معيّنة لك حالياً',
+                          l10n?.noNearbyRequests ??
+                              'لا توجد طلبات معيّنة لك حالياً',
                           style: TextStyle(
                             fontFamily: 'Cairo',
                             fontSize: 16,
-                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                            color: isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.lightTextSecondary,
                           ),
                         ),
                       ],
@@ -807,8 +910,10 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                       );
                       return order.status == OrderStatus.pending
                           ? NearbyRequestCard(
-                              customerName: _ownerNames[order.carOwnerId] ??
-                                  (l10n?.notificationCustomerFallback ?? 'العميل'),
+                              customerName:
+                                  _ownerNames[order.carOwnerId] ??
+                                  (l10n?.notificationCustomerFallback ??
+                                      'العميل'),
                               carMake: order.carMake,
                               carModel: order.carModel,
                               carYear: order.carYear,
@@ -819,14 +924,19 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                               deadline: order.respondDeadline,
                               onAccept: () => _acceptOrder(order.id),
                               onReject: () => _rejectOrder(order.id),
-                              onLocationTap: () =>
-                                  context.push('/request/map?orderId=${order.id}'),
-                              customerAvatarId: _ownerAvatarIds[order.carOwnerId],
-                              customerAvatarUrl: _ownerAvatarUrls[order.carOwnerId],
+                              onLocationTap: () => context.push(
+                                '/request/map?orderId=${order.id}',
+                              ),
+                              customerAvatarId:
+                                  _ownerAvatarIds[order.carOwnerId],
+                              customerAvatarUrl:
+                                  _ownerAvatarUrls[order.carOwnerId],
                             )
                           : ActiveOrderCard(
-                              customerName: _ownerNames[order.carOwnerId] ??
-                                  (l10n?.notificationCustomerFallback ?? 'العميل'),
+                              customerName:
+                                  _ownerNames[order.carOwnerId] ??
+                                  (l10n?.notificationCustomerFallback ??
+                                      'العميل'),
                               carMake: order.carMake,
                               carModel: order.carModel,
                               carYear: order.carYear,
@@ -841,8 +951,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                               onComplete: order.status == OrderStatus.confirmed
                                   ? () => _completeOrder(order.id)
                                   : null,
-                              onLocationTap: () =>
-                                  context.push('/request/map?orderId=${order.id}'),
+                              onLocationTap: () => context.push(
+                                '/request/map?orderId=${order.id}',
+                              ),
                             );
                     },
                   ),
@@ -852,9 +963,15 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     );
   }
 
-  Widget _buildOrdersTab(BuildContext context, bool isDark, AppLocalizations? l10n) {
+  Widget _buildOrdersTab(
+    BuildContext context,
+    bool isDark,
+    AppLocalizations? l10n,
+  ) {
     if (_isLoadingOrders) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.orangePrimary));
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.orangePrimary),
+      );
     }
 
     if (_providerOrders.isEmpty) {
@@ -865,7 +982,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
             Icon(
               Icons.receipt_long_rounded,
               size: 64,
-              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+              color: isDark
+                  ? AppColors.darkTextSecondary
+                  : AppColors.lightTextSecondary,
             ),
             const SizedBox(height: 16),
             Text(
@@ -873,7 +992,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
               style: TextStyle(
                 fontFamily: 'Cairo',
                 fontSize: 14,
-                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                color: isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.lightTextSecondary,
               ),
             ),
           ],
@@ -887,13 +1008,17 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
       child: ListView.builder(
         padding: const EdgeInsets.all(20),
         itemCount: _providerOrders.length,
-        itemBuilder: (context, index) => _buildProviderOrderCard(
-            context, isDark, _providerOrders[index]),
+        itemBuilder: (context, index) =>
+            _buildProviderOrderCard(context, isDark, _providerOrders[index]),
       ),
     );
   }
 
-  Widget _buildProviderOrderCard(BuildContext context, bool isDark, Order order) {
+  Widget _buildProviderOrderCard(
+    BuildContext context,
+    bool isDark,
+    Order order,
+  ) {
     final l10n = AppLocalizations.of(context);
     final statusColor = _orderStatusColor(order.status);
 
@@ -913,7 +1038,10 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
@@ -935,7 +1063,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                   style: TextStyle(
                     fontFamily: 'Cairo',
                     fontSize: 12,
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.lightTextSecondary,
                   ),
                 ),
               if (order.offeredPrice != null) ...[
@@ -959,7 +1089,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
               fontFamily: 'Cairo',
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+              color: isDark
+                  ? AppColors.darkTextPrimary
+                  : AppColors.lightTextPrimary,
             ),
           ),
           const SizedBox(height: 4),
@@ -968,7 +1100,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
             style: TextStyle(
               fontFamily: 'Cairo',
               fontSize: 13,
-              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+              color: isDark
+                  ? AppColors.darkTextSecondary
+                  : AppColors.lightTextSecondary,
             ),
           ),
           const SizedBox(height: 12),
@@ -1077,11 +1211,17 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     return '$day • $time';
   }
 
-  Widget _buildNotificationsTab(BuildContext context, bool isDark, AppLocalizations? l10n) {
+  Widget _buildNotificationsTab(
+    BuildContext context,
+    bool isDark,
+    AppLocalizations? l10n,
+  ) {
     final state = context.watch<NotificationCubit>().state;
 
     if (state.isLoading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.orangePrimary));
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.orangePrimary),
+      );
     }
 
     if (state.notifications.isEmpty) {
@@ -1092,7 +1232,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
             Icon(
               Icons.notifications_off_outlined,
               size: 64,
-              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+              color: isDark
+                  ? AppColors.darkTextSecondary
+                  : AppColors.lightTextSecondary,
             ),
             const SizedBox(height: 16),
             Text(
@@ -1100,7 +1242,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
               style: TextStyle(
                 fontFamily: 'Cairo',
                 fontSize: 14,
-                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                color: isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.lightTextSecondary,
               ),
             ),
           ],
@@ -1118,7 +1262,8 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
             Align(
               alignment: AlignmentDirectional.centerEnd,
               child: TextButton.icon(
-                onPressed: () => context.read<NotificationCubit>().markAllAsRead(),
+                onPressed: () =>
+                    context.read<NotificationCubit>().markAllAsRead(),
                 icon: const Icon(Icons.mark_email_read_outlined, size: 20),
                 label: Text(
                   l10n?.markAllRead ?? 'تعيين الكل كمقروء',
@@ -1133,90 +1278,109 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
             final notification = state.notifications[index];
             final title = notification.localizedTitle(l10n);
             final body = notification.localizedBody(l10n);
-          return GestureDetector(
-            // معالج موحّد مع صفحة الإشعارات وتبويب العميل: deep link خارجي /
-            // home / طلب / إشعار عام (شاشة التفاصيل).
-            onTap: () => openNotificationFromList(context, notification),
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.darkCard : AppColors.lightCard,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: notification.isRead
-                      ? (isDark ? AppColors.darkBorder : AppColors.lightBorder)
-                      : notification.color.withValues(alpha: 0.35),
-                ),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: notification.color.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(notification.icon, color: notification.color, size: 22),
+            return GestureDetector(
+              // معالج موحّد مع صفحة الإشعارات وتبويب العميل: deep link خارجي /
+              // home / طلب / إشعار عام (شاشة التفاصيل).
+              onTap: () => openNotificationFromList(context, notification),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: notification.isRead
+                        ? (isDark
+                              ? AppColors.darkBorder
+                              : AppColors.lightBorder)
+                        : notification.color.withValues(alpha: 0.35),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: TextStyle(
-                            fontFamily: 'Zain',
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: notification.color.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        notification.icon,
+                        color: notification.color,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: TextStyle(
+                              fontFamily: 'Zain',
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: isDark
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.lightTextPrimary,
+                            ),
                           ),
-                        ),
-                        if (body.isNotEmpty) ...[
+                          if (body.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              body,
+                              style: TextStyle(
+                                fontFamily: 'Cairo',
+                                fontSize: 13,
+                                color: isDark
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.lightTextSecondary,
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 4),
                           Text(
-                            body,
+                            notification.timeAgo(
+                              ServerClock.instance.now,
+                              l10n,
+                            ),
                             style: TextStyle(
                               fontFamily: 'Cairo',
-                              fontSize: 13,
-                              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                              fontSize: 11,
+                              color: isDark
+                                  ? AppColors.darkTextSecondary
+                                  : AppColors.lightTextSecondary,
                             ),
                           ),
                         ],
-                        const SizedBox(height: 4),
-                        Text(
-                          notification.timeAgo(ServerClock.instance.now, l10n),
-                          style: TextStyle(
-                            fontFamily: 'Cairo',
-                            fontSize: 11,
-                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (!notification.isRead)
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: notification.color,
-                        shape: BoxShape.circle,
                       ),
                     ),
-                ],
+                    if (!notification.isRead)
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: notification.color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
-          );
-        }),
+            );
+          }),
         ],
       ),
     );
   }
 
-  Widget _buildProfileTab(BuildContext context, bool isDark, AppLocalizations? l10n) {
+  Widget _buildProfileTab(
+    BuildContext context,
+    bool isDark,
+    AppLocalizations? l10n,
+  ) {
     final settingsCubit = context.watch<AppSettingsCubit>();
     final isArabic = settingsCubit.state.locale.languageCode == 'ar';
 
@@ -1228,7 +1392,11 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
           CircleAvatar(
             radius: 50,
             backgroundColor: AppColors.orangePrimary.withValues(alpha: 0.15),
-            child: const Icon(Icons.business_rounded, size: 50, color: AppColors.orangePrimary),
+            child: const Icon(
+              Icons.business_rounded,
+              size: 50,
+              color: AppColors.orangePrimary,
+            ),
           ),
           const SizedBox(height: 16),
           // اسم الورشة أولوية؛ وعند غيابه (أو أثناء تحميل الملف الشخصي)
@@ -1240,7 +1408,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                 fontFamily: 'Zain',
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                color: isDark
+                    ? AppColors.darkTextPrimary
+                    : AppColors.lightTextPrimary,
               ),
             )
           else
@@ -1251,7 +1421,9 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                 fontFamily: 'Zain',
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                color: isDark
+                    ? AppColors.darkTextPrimary
+                    : AppColors.lightTextPrimary,
               ),
             ),
           const SizedBox(height: 32),
@@ -1289,14 +1461,17 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
           _buildProfileOption(
             context,
             icon: Icons.language_rounded,
-            title: '${l10n?.languageLabel ?? 'اللغة'}: ${l10n?.currentLanguage ?? (isArabic ? 'العربية' : 'English')}',
+            title:
+                '${l10n?.languageLabel ?? 'اللغة'}: ${l10n?.currentLanguage ?? (isArabic ? 'العربية' : 'English')}',
             isDark: isDark,
             onTap: () => settingsCubit.toggleLocale(),
           ),
           _buildProfileOption(
             context,
             icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-            title: isArabic ? (l10n?.lightMode ?? 'الوضع الفاتح') : (l10n?.darkMode ?? 'الوضع الداكن'),
+            title: isArabic
+                ? (l10n?.lightMode ?? 'الوضع الفاتح')
+                : (l10n?.darkMode ?? 'الوضع الداكن'),
             isDark: isDark,
             onTap: () => settingsCubit.toggleTheme(),
           ),
@@ -1310,10 +1485,10 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                 onPressed: LogoutCoordinator.isRunning.value
                     ? null
                     : () => LogoutCoordinator().logout(
-                          context: context,
-                          resetProfile:
-                              () => context.read<ProfileCubit>().reset(),
-                        ),
+                        context: context,
+                        resetProfile: () =>
+                            context.read<ProfileCubit>().reset(),
+                      ),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: AppColors.error),
                   shape: RoundedRectangleBorder(
@@ -1374,13 +1549,17 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
           style: TextStyle(
             fontFamily: 'Cairo',
             fontSize: 16,
-            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+            color: isDark
+                ? AppColors.darkTextPrimary
+                : AppColors.lightTextPrimary,
           ),
         ),
         trailing: Icon(
           Icons.arrow_forward_ios_rounded,
           size: 16,
-          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+          color: isDark
+              ? AppColors.darkTextSecondary
+              : AppColors.lightTextSecondary,
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         tileColor: isDark ? AppColors.darkCard : AppColors.lightCard,
@@ -1399,7 +1578,11 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     }
   }
 
-  Widget _buildBottomNav(BuildContext context, bool isDark, AppLocalizations? l10n) {
+  Widget _buildBottomNav(
+    BuildContext context,
+    bool isDark,
+    AppLocalizations? l10n,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface : Colors.white,
@@ -1426,9 +1609,18 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
         backgroundColor: Colors.transparent,
         elevation: 0,
         selectedItemColor: AppColors.orangePrimary,
-        unselectedItemColor: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-        selectedLabelStyle: const TextStyle(fontFamily: 'Cairo', fontSize: 11, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: const TextStyle(fontFamily: 'Cairo', fontSize: 11),
+        unselectedItemColor: isDark
+            ? AppColors.darkTextSecondary
+            : AppColors.lightTextSecondary,
+        selectedLabelStyle: const TextStyle(
+          fontFamily: 'Cairo',
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontFamily: 'Cairo',
+          fontSize: 11,
+        ),
         items: [
           BottomNavigationBarItem(
             icon: const Icon(Icons.dashboard_outlined),

@@ -142,6 +142,7 @@
   "home": "الرئيسية",
   "services": "الخدمات",
   "notifications": "الإشعارات",
+  "notificationsPermissionDenied": "إشعارات النظام معطّلة — فعّلها من إعدادات التطبيق حتى تصلك تنبيهات الطلبات",
   "settings": "الإعدادات",
   "history": "سجل الطلبات",
   "aboutApp": "عن التطبيق",
@@ -301,6 +302,7 @@
   "notificationTitlePriceOffer": "عرض سعر جديد",
   "notificationTitleOrderConfirmed": "تم تأكيد الطلب",
   "notificationTitleOrderRejected": "تم رفض الطلب",
+  "notificationTitleOrderRejectedForProvider": "تم رفض عرضك",
   "notificationTitleOrderCancelled": "تم إلغاء الطلب",
   "notificationTitleOrderCompleted": "تم إتمام الطلب",
   "notificationTitleShiftStarted": "بدء ساعات العمل",
@@ -350,7 +352,7 @@
     }
   },
   "notificationBodyPriceOfferReceived": "تم استلام عرض سعر جديد",
-  "notificationBodyOrderConfirmed": "تم تأكيد طلبك بنجاح",
+  "notificationBodyOrderConfirmedForProvider": "وافق العميل على عرضك — يمكنك بدء التنفيذ",
   "notificationBodyOrderRejectedWithProvider": "تم رفض الطلب من {provider}",
   "@notificationBodyOrderRejectedWithProvider": {
     "placeholders": {
@@ -360,7 +362,9 @@
     }
   },
   "notificationBodyOrderRejected": "تم رفض الطلب",
+  "notificationBodyOrderRejectedForProvider": "رفض العميل عرضك",
   "notificationBodyOrderCancelled": "تم إلغاء هذا الطلب",
+  "notificationBodyOrderCancelledForProvider": "قام العميل بإلغاء الطلب",
   "notificationBodyOrderCompleted": "تم إتمام خدمة الطلب بنجاح",
   "notificationBodyShiftStarted": "بدأت ساعات عملك — أنت الآن متاح أمام العملاء",
   "notificationBodyShiftEnded": "انتهت ساعات عملك — أصبحت الآن غير متاح",

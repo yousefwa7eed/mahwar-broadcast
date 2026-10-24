@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +9,7 @@ import '../../../core/errors/rpc_error_translator.dart';
 import '../../../core/models/order.dart';
 import '../../../core/models/provider_details.dart';
 import '../../../core/services/server_clock.dart';
+import '../../../core/services/sound_effects_service.dart';
 import '../../../core/utils/distance.dart';
 import '../../../l10n/app_localizations.dart';
 import 'widgets/order_status_indicator.dart';
@@ -24,7 +25,8 @@ class RequestTrackingScreen extends StatefulWidget {
   State<RequestTrackingScreen> createState() => _RequestTrackingScreenState();
 }
 
-class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
+class _RequestTrackingScreenState extends State<RequestTrackingScreen>
+    with WidgetsBindingObserver {
   final SupabaseClient _client = Supabase.instance.client;
 
   Order? _order;
@@ -52,18 +54,39 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadOrder();
     _subscribeToOrderChanges();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _channel?.unsubscribe();
     _ratingCommentController.dispose();
     super.dispose();
   }
 
+  /// العودة من الخلفية: Realtime **لا يعيد بثّ** الأحداث التي فاتت أثناء
+  /// تعليق النظام أو انقطاع الشبكة، فتبقى الشاشة على حالة قديمة (رفض/قبول/
+  /// إلغاء وقع والتطبيق مغلق). المرجع هو الخادم: نعيد الجلب ونعيد الاشتراك
+  /// الحي، وأي انتقال فائت يُكتشف هنا فيُحدّث الشاشة ويُشغّل مؤثره.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    _channel?.unsubscribe();
+    _channel = null;
+    _subscribeToOrderChanges();
+    _refreshFromServer();
+  }
+
+  /// إعادة الجلب من الخادم (سحب التحديث أو العودة من الخلفية).
+  Future<void> _refreshFromServer() async {
+    await _loadOrder();
+  }
+
   Future<void> _loadOrder() async {
+    final previousStatus = _order?.status;
     try {
       final response = await _client
           .from('orders')
@@ -84,13 +107,28 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
         setState(() {
           _order = order;
           _isLoading = false;
+          _error = null;
         });
+      }
+
+      // انتقال فاته Realtime → يُصوَّت عند اكتشافه من الخادم. أول تحميل
+      // (previousStatus == null) مرجع بلا صوت، والخدمة تمنع التكرار إن كان
+      // الحدث نفسه وصل حيّاً قبل لحظات.
+      if (previousStatus != null && previousStatus != order.status) {
+        unawaited(
+          SoundEffectsService.instance.playOrderStatus(order.id, order.status),
+        );
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = AppLocalizations.of(context)?.orderLoadFailed ??
-              'تعذّر تحميل بيانات الطلب';
+          // فشل تحديث لا يمحو طلباً معروضاً: نُبقي آخر حالة نعرفها بدل شاشة
+          // خطأ فارغة — المستخدم يفضّل بيانات متأخرة على لا شيء.
+          if (_order == null) {
+            _error =
+                AppLocalizations.of(context)?.orderLoadFailed ??
+                'تعذّر تحميل بيانات الطلب';
+          }
           _isLoading = false;
         });
       }
@@ -98,17 +136,21 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
   }
 
   /// يجيب بيانات المزوّد المرتبط بالطلب عبر RPC آمن (profiles مخفي بالـ RLS)
-  bool _isOwner(Order order) => _client.auth.currentUser?.id == order.carOwnerId;
+  bool _isOwner(Order order) =>
+      _client.auth.currentUser?.id == order.carOwnerId;
 
   Future<void> _loadProviderInfo(String providerId) async {
     try {
-      final response = await _client.rpc('get_provider_details', params: {
-        'p_provider_id': providerId,
-      });
+      final response = await _client.rpc(
+        'get_provider_details',
+        params: {'p_provider_id': providerId},
+      );
 
       final rows = response as List;
       if (rows.isNotEmpty) {
-        final p = ProviderDetails.fromJson(Map<String, dynamic>.from(rows.first as Map));
+        final p = ProviderDetails.fromJson(
+          Map<String, dynamic>.from(rows.first as Map),
+        );
         _providerName = p.fullName.isEmpty ? p.workshopName : p.fullName;
         _workshopName = p.workshopName;
         _providerPhone = p.phoneNumber;
@@ -153,31 +195,43 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
     _channel = _client
         .channel('order-${widget.orderId}')
         .onPostgresChanges(
-      event: PostgresChangeEvent.update,
-      schema: 'public',
-      table: 'orders',
-      filter: PostgresChangeFilter(
-        type: PostgresChangeFilterType.eq,
-        column: 'id',
-        value: widget.orderId,
-      ),
-      callback: (payload) async {
-        final updatedOrder = Order.fromJson(payload.newRecord);
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'orders',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: widget.orderId,
+          ),
+          callback: (payload) async {
+            final updatedOrder = Order.fromJson(payload.newRecord);
 
-        if (updatedOrder.providerId != null &&
-            updatedOrder.providerId != _order?.providerId) {
-          await _loadProviderInfo(updatedOrder.providerId!);
-        }
-        if (updatedOrder.status == OrderStatus.completed &&
-            _order?.status != OrderStatus.completed) {
-          await _loadRatingState();
-        }
+            // انتقال حقيقي في قاعدة البيانات → صوت الحالة. قد تكون شاشة بيت
+            // المالك مفتوحة تحت هذه الشاشة وتستقبل نفس الحدث، والخدمة تمنع
+            // تشغيل المؤثر مرتين لنفس (الطلب، الحالة).
+            if (_order != null && _order!.status != updatedOrder.status) {
+              unawaited(
+                SoundEffectsService.instance.playOrderStatus(
+                  widget.orderId,
+                  updatedOrder.status,
+                ),
+              );
+            }
 
-        if (mounted) {
-          setState(() => _order = updatedOrder);
-        }
-      },
-    )
+            if (updatedOrder.providerId != null &&
+                updatedOrder.providerId != _order?.providerId) {
+              await _loadProviderInfo(updatedOrder.providerId!);
+            }
+            if (updatedOrder.status == OrderStatus.completed &&
+                _order?.status != OrderStatus.completed) {
+              await _loadRatingState();
+            }
+
+            if (mounted) {
+              setState(() => _order = updatedOrder);
+            }
+          },
+        )
         .subscribe();
   }
 
@@ -187,9 +241,17 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
     setState(() => _isActing = true);
 
     try {
-      await _client.rpc('owner_accept_price', params: {
-        'p_order_id': widget.orderId,
-      });
+      await _client.rpc(
+        'owner_accept_price',
+        params: {'p_order_id': widget.orderId},
+      );
+
+      unawaited(
+        SoundEffectsService.instance.playOrderStatus(
+          widget.orderId,
+          OrderStatus.confirmed,
+        ),
+      );
 
       if (mounted) {
         setState(() => _isActing = false);
@@ -221,9 +283,17 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
     setState(() => _isActing = true);
 
     try {
-      await _client.rpc('owner_reject_price', params: {
-        'p_order_id': widget.orderId,
-      });
+      await _client.rpc(
+        'owner_reject_price',
+        params: {'p_order_id': widget.orderId},
+      );
+
+      unawaited(
+        SoundEffectsService.instance.playOrderStatus(
+          widget.orderId,
+          OrderStatus.rejectedByOwner,
+        ),
+      );
 
       if (mounted) {
         setState(() => _isActing = false);
@@ -254,11 +324,14 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(AppLocalizations.of(context)?.cancelOrderConfirmTitle ??
-            'إلغاء الطلب؟'),
+        title: Text(
+          AppLocalizations.of(context)?.cancelOrderConfirmTitle ??
+              'إلغاء الطلب؟',
+        ),
         content: Text(
-            AppLocalizations.of(context)?.cancelOrderConfirmBody ??
-                'سيتم إلغاء الطلب الحالي وإخطار المزوّد (إن تم إسناده).'),
+          AppLocalizations.of(context)?.cancelOrderConfirmBody ??
+              'سيتم إلغاء الطلب الحالي وإخطار المزوّد (إن تم إسناده).',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -266,8 +339,9 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child:
-                Text(AppLocalizations.of(context)?.cancelOrder ?? 'إلغاء الطلب'),
+            child: Text(
+              AppLocalizations.of(context)?.cancelOrder ?? 'إلغاء الطلب',
+            ),
           ),
         ],
       ),
@@ -276,15 +350,23 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
 
     setState(() => _isActing = true);
     try {
-      await _client.rpc('owner_cancel_order', params: {
-        'p_order_id': widget.orderId,
-      });
+      await _client.rpc(
+        'owner_cancel_order',
+        params: {'p_order_id': widget.orderId},
+      );
+      unawaited(
+        SoundEffectsService.instance.playOrderStatus(
+          widget.orderId,
+          OrderStatus.cancelled,
+        ),
+      );
       if (mounted) {
         setState(() => _isActing = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                AppLocalizations.of(context)?.orderCancelled ?? 'تم إلغاء الطلب'),
+              AppLocalizations.of(context)?.orderCancelled ?? 'تم إلغاء الطلب',
+            ),
             backgroundColor: AppColors.success,
           ),
         );
@@ -309,8 +391,10 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
     if (phone == null || phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(AppLocalizations.of(context)?.providerPhoneUnavailable ??
-              'رقم المزوّد غير متاح'),
+          content: Text(
+            AppLocalizations.of(context)?.providerPhoneUnavailable ??
+                'رقم المزوّد غير متاح',
+          ),
           backgroundColor: AppColors.error,
         ),
       );
@@ -327,8 +411,10 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
     if (_rating == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(AppLocalizations.of(context)?.selectRatingPrompt ??
-              'يرجى اختيار تقييم من 1 إلى 5'),
+          content: Text(
+            AppLocalizations.of(context)?.selectRatingPrompt ??
+                'يرجى اختيار تقييم من 1 إلى 5',
+          ),
           backgroundColor: AppColors.error,
         ),
       );
@@ -338,13 +424,18 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
     setState(() => _isSubmittingRating = true);
 
     try {
-      await _client.rpc('rate_provider', params: {
-        'p_order_id': widget.orderId,
-        'p_rating': _rating,
-        'p_comment': _ratingCommentController.text.trim().isEmpty
-            ? null
-            : _ratingCommentController.text.trim(),
-      });
+      await _client.rpc(
+        'rate_provider',
+        params: {
+          'p_order_id': widget.orderId,
+          'p_rating': _rating,
+          'p_comment': _ratingCommentController.text.trim().isEmpty
+              ? null
+              : _ratingCommentController.text.trim(),
+        },
+      );
+
+      unawaited(SoundEffectsService.instance.play(SoundEffect.ratingSubmitted));
 
       if (mounted) {
         setState(() {
@@ -353,8 +444,10 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(AppLocalizations.of(context)?.ratingSubmittedThanks ??
-                'شكراً لك! تم إرسال تقييمك'),
+            content: Text(
+              AppLocalizations.of(context)?.ratingSubmittedThanks ??
+                  'شكراً لك! تم إرسال تقييمك',
+            ),
             backgroundColor: AppColors.success,
           ),
         );
@@ -379,14 +472,18 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor: isDark
+          ? AppColors.darkBackground
+          : AppColors.lightBackground,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back_ios_rounded,
-            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+            color: isDark
+                ? AppColors.darkTextPrimary
+                : AppColors.lightTextPrimary,
           ),
           onPressed: () {
             if (context.canPop()) {
@@ -406,13 +503,17 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
             fontFamily: 'Zain',
             fontSize: 22,
             fontWeight: FontWeight.bold,
-            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+            color: isDark
+                ? AppColors.darkTextPrimary
+                : AppColors.lightTextPrimary,
           ),
         ),
         centerTitle: true,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.orangePrimary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.orangePrimary),
+            )
           : _error != null
           ? _buildError(context, isDark)
           : _buildContent(context, isDark),
@@ -445,184 +546,196 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
       _providerLng,
     );
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          // Status Indicator - حالة حقيقية من قاعدة البيانات
-          OrderStatusIndicator(status: order.status),
-          // عدّاد الإلغاء التلقائي (قرار العميل: 5 دقائق)
-          if (order.status == OrderStatus.pending &&
-              order.autoCancel &&
-              order.respondDeadline != null) ...[
-            const SizedBox(height: 12),
-            _AutoCancelCountdown(deadline: order.respondDeadline!),
-          ],
-          const SizedBox(height: 24),
-
-          // Provider Offer Card (تظهر لما يكون فيه سعر معروض)
-          if (order.status == OrderStatus.priced && order.offeredPrice != null)
-            ProviderOfferCard(
-              providerName: _providerName ?? '',
-              workshopName: _workshopName ?? '',
-              distanceMeters: offerDistanceMeters,
-              price: order.offeredPrice!,
-              currency: order.currency,
-              estimatedMinutes: order.etaMinutes ?? 0,
-              providerNotes: order.providerNotes,
-              attachments: order.providerAttachments ?? const [],
-              // أزرار القبول/الرفض للمالك فقط — المزوّد المشاهد لا يملك الحالة.
-              onAccept: _isOwner(order) && !_isActing ? _acceptPrice : null,
-              onReject: _isOwner(order) && !_isActing ? _rejectPrice : null,
-              avatarId: _providerAvatarId,
-              avatarUrl: _providerAvatarUrl,
-            ),
-
-          // Confirmed - Show contact options
-          if (order.status == OrderStatus.confirmed && order.offeredPrice != null)
-            ProviderOfferCard(
-              providerName: _providerName ?? '',
-              workshopName: _workshopName ?? '',
-              distanceMeters: offerDistanceMeters,
-              price: order.offeredPrice!,
-              currency: order.currency,
-              estimatedMinutes: order.etaMinutes ?? 0,
-              providerNotes: order.providerNotes,
-              attachments: order.providerAttachments ?? const [],
-              onCall: _callProvider,
-              avatarId: _providerAvatarId,
-              avatarUrl: _providerAvatarUrl,
-            ),
-
-          // ملخّص المعاملة للطلبات المنتهية: تاريخ المعاملة، اسم المزوّد،
-          // مسار الأحداث (اكتمال أو فشل مع توضيح الجهة الرافضة).
-          if (order.isFinalized) ...[
+    return RefreshIndicator(
+      onRefresh: _refreshFromServer,
+      color: AppColors.orangePrimary,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          children: [
+            // Status Indicator - حالة حقيقية من قاعدة البيانات
+            OrderStatusIndicator(status: order.status),
+            // عدّاد الإلغاء التلقائي (قرار العميل: 5 دقائق)
+            if (order.status == OrderStatus.pending &&
+                order.autoCancel &&
+                order.respondDeadline != null) ...[
+              const SizedBox(height: 12),
+              _AutoCancelCountdown(deadline: order.respondDeadline!),
+            ],
             const SizedBox(height: 24),
-            TransactionSummaryCard(
-              order: order,
-              providerName: _providerName ?? '',
-              workshopName: _workshopName ?? '',
-              avatarId: _providerAvatarId,
-              avatarUrl: _providerAvatarUrl,
-            ),
-          ],
 
-          // Completed - التقييم
-          if (order.status == OrderStatus.completed) ...[
-            const SizedBox(height: 24),
-            _isLoadingRating
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: CircularProgressIndicator(color: AppColors.orangePrimary),
-                    ),
-                  )
-                : _isRated
-                ? _buildRatedCard(context, isDark)
-                : _buildRatingForm(context, isDark),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: () => context.go(
-                  _isOwner(order) ? '/home/owner' : '/home/provider',
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.orangePrimary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: Text(
-                  l10n?.backToHome ?? 'العودة للرئيسية',
-                  style: TextStyle(
-                    fontFamily: 'Zain',
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
+            // Provider Offer Card (تظهر لما يكون فيه سعر معروض)
+            if (order.status == OrderStatus.priced &&
+                order.offeredPrice != null)
+              ProviderOfferCard(
+                providerName: _providerName ?? '',
+                workshopName: _workshopName ?? '',
+                distanceMeters: offerDistanceMeters,
+                price: order.offeredPrice!,
+                currency: order.currency,
+                estimatedMinutes: order.etaMinutes ?? 0,
+                providerNotes: order.providerNotes,
+                attachments: order.providerAttachments ?? const [],
+                // أزرار القبول/الرفض للمالك فقط — المزوّد المشاهد لا يملك الحالة.
+                onAccept: _isOwner(order) && !_isActing ? _acceptPrice : null,
+                onReject: _isOwner(order) && !_isActing ? _rejectPrice : null,
+                avatarId: _providerAvatarId,
+                avatarUrl: _providerAvatarUrl,
               ),
-            ),
-          ],
 
-          if (order.status == OrderStatus.pending) ...[
-            const SizedBox(height: 40),
-            Text(
-              l10n?.searchingProvider ?? 'جاري إرسال الطلب إلى المزوّد المختار...',
-              style: TextStyle(
-                fontFamily: 'Cairo',
-                fontSize: 16,
-                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+            // Confirmed - Show contact options
+            if (order.status == OrderStatus.confirmed &&
+                order.offeredPrice != null)
+              ProviderOfferCard(
+                providerName: _providerName ?? '',
+                workshopName: _workshopName ?? '',
+                distanceMeters: offerDistanceMeters,
+                price: order.offeredPrice!,
+                currency: order.currency,
+                estimatedMinutes: order.etaMinutes ?? 0,
+                providerNotes: order.providerNotes,
+                attachments: order.providerAttachments ?? const [],
+                onCall: _callProvider,
+                avatarId: _providerAvatarId,
+                avatarUrl: _providerAvatarUrl,
               ),
-            ),
-            if (_client.auth.currentUser?.id == order.carOwnerId) ...[
+
+            // ملخّص المعاملة للطلبات المنتهية: تاريخ المعاملة، اسم المزوّد،
+            // مسار الأحداث (اكتمال أو فشل مع توضيح الجهة الرافضة).
+            if (order.isFinalized) ...[
+              const SizedBox(height: 24),
+              TransactionSummaryCard(
+                order: order,
+                providerName: _providerName ?? '',
+                workshopName: _workshopName ?? '',
+                avatarId: _providerAvatarId,
+                avatarUrl: _providerAvatarUrl,
+              ),
+            ],
+
+            // Completed - التقييم
+            if (order.status == OrderStatus.completed) ...[
+              const SizedBox(height: 24),
+              _isLoadingRating
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: CircularProgressIndicator(
+                          color: AppColors.orangePrimary,
+                        ),
+                      ),
+                    )
+                  : _isRated
+                  ? _buildRatedCard(context, isDark)
+                  : _buildRatingForm(context, isDark),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 height: 52,
-                child: OutlinedButton(
-                  onPressed: _isActing ? null : _cancelOrder,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.error,
-                    side: const BorderSide(color: AppColors.error),
+                child: ElevatedButton(
+                  onPressed: () => context.go(
+                    _isOwner(order) ? '/home/owner' : '/home/provider',
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.orangePrimary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: _isActing
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.error,
+                  child: Text(
+                    l10n?.backToHome ?? 'العودة للرئيسية',
+                    style: TextStyle(
+                      fontFamily: 'Zain',
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+
+            if (order.status == OrderStatus.pending) ...[
+              const SizedBox(height: 40),
+              Text(
+                l10n?.searchingProvider ??
+                    'جاري إرسال الطلب إلى المزوّد المختار...',
+                style: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 16,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.lightTextSecondary,
+                ),
+              ),
+              if (_client.auth.currentUser?.id == order.carOwnerId) ...[
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: OutlinedButton(
+                    onPressed: _isActing ? null : _cancelOrder,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      side: const BorderSide(color: AppColors.error),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: _isActing
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.error,
+                            ),
+                          )
+                        : Text(
+                            l10n?.cancelOrder ?? 'إلغاء الطلب',
+                            style: const TextStyle(
+                              fontFamily: 'Zain',
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        )
-                      : Text(
-                          l10n?.cancelOrder ?? 'إلغاء الطلب',
-                          style: const TextStyle(
-                            fontFamily: 'Zain',
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                  ),
+                ),
+              ],
+            ],
+
+            if (order.status == OrderStatus.rejectedByOwner ||
+                order.status == OrderStatus.rejectedByProvider ||
+                order.status == OrderStatus.cancelled) ...[
+              const SizedBox(height: 40),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: () => context.go(
+                    _isOwner(order) ? '/home/owner' : '/home/provider',
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.orangePrimary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: Text(
+                    l10n?.backToHome ?? 'العودة للرئيسية',
+                    style: TextStyle(
+                      fontFamily: 'Zain',
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               ),
             ],
           ],
-
-          if (order.status == OrderStatus.rejectedByOwner ||
-              order.status == OrderStatus.rejectedByProvider ||
-              order.status == OrderStatus.cancelled) ...[
-            const SizedBox(height: 40),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: () => context.go(
-                  _isOwner(order) ? '/home/owner' : '/home/provider',
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.orangePrimary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: Text(
-                  l10n?.backToHome ?? 'العودة للرئيسية',
-                  style: TextStyle(
-                    fontFamily: 'Zain',
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
@@ -635,13 +748,15 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkCard : AppColors.lightCard,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.success.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
-          const Icon(Icons.feedback_rounded, size: 40, color: AppColors.success),
+          const Icon(
+            Icons.feedback_rounded,
+            size: 40,
+            color: AppColors.success,
+          ),
           const SizedBox(height: 8),
           Text(
             l10n?.providerRated ?? 'تم تقييم المزوّد',
@@ -649,7 +764,9 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
               fontFamily: 'Zain',
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+              color: isDark
+                  ? AppColors.darkTextPrimary
+                  : AppColors.lightTextPrimary,
             ),
           ),
           const SizedBox(height: 8),
@@ -691,7 +808,9 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
                 fontFamily: 'Zain',
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                color: isDark
+                    ? AppColors.darkTextPrimary
+                    : AppColors.lightTextPrimary,
               ),
             ),
           ),
@@ -705,7 +824,9 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(4),
                   child: Icon(
-                    i < _rating ? Icons.star_rounded : Icons.star_border_rounded,
+                    i < _rating
+                        ? Icons.star_rounded
+                        : Icons.star_border_rounded,
                     color: Colors.amber,
                     size: 40,
                   ),
@@ -718,13 +839,18 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
             controller: _ratingCommentController,
             maxLines: 3,
             decoration: InputDecoration(
-              hintText: l10n?.addCommentOptionalHint ?? 'أضف تعليقاً (اختياري)...',
+              hintText:
+                  l10n?.addCommentOptionalHint ?? 'أضف تعليقاً (اختياري)...',
               hintStyle: TextStyle(
                 fontFamily: 'Cairo',
-                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                color: isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.lightTextSecondary,
               ),
               filled: true,
-              fillColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+              fillColor: isDark
+                  ? AppColors.darkSurface
+                  : AppColors.lightSurface,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(
@@ -740,7 +866,9 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
             ),
             style: TextStyle(
               fontFamily: 'Cairo',
-              color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+              color: isDark
+                  ? AppColors.darkTextPrimary
+                  : AppColors.lightTextPrimary,
             ),
           ),
           const SizedBox(height: 16),
@@ -797,7 +925,10 @@ class _AutoCancelCountdownState extends State<_AutoCancelCountdown> {
     // ثبّت "الآن" على ساعة الخادم ثم احسب المتبقي — لا على ساعة الجهاز.
     _remaining = _computeRemaining();
     if (_remaining.inSeconds > 0) {
-      _timer = Timer.periodic(const Duration(seconds: 1), (_) => _updateRemaining());
+      _timer = Timer.periodic(
+        const Duration(seconds: 1),
+        (_) => _updateRemaining(),
+      );
     }
     ServerClock.instance.refresh().then((_) {
       if (mounted) _updateRemaining();

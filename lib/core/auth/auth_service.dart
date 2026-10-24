@@ -9,10 +9,6 @@ import 'change_password_error.dart';
 import 'phone_utils.dart';
 
 abstract class AuthService {
-  /// مراقبة (A3): عدد مرات فشل تصفير profiles.fcm_token عند الخروج.
-  /// لو استمر في الزيادة فهناك أجهزة بقيت مرتبطة بحسابات خرجت.
-  static int fcmTokenClearFailureCount = 0;
-
   User? get currentUser;
   Session? get currentSession;
   Stream<AuthState> get authStateChanges;
@@ -78,12 +74,12 @@ abstract class AuthService {
   Future<void> signOutFromRejection();
 
   /// تنظيف الخروج الخلفي بعد خروج محلي فوري (استدعاء بلا انتظار من منسّق
-  /// الخروج): يصفّر fcm_token لصفّ المستخدم القديم — يُبدأ قبل سحب الجلسة
-  /// المحلية فيلتقط الطلب رمز الوصول الصالح لحظيًا — ويفصل الجهاز من FCM،
-  /// ثم يُبطل الجلسة القديمة لدى الخادم عبر `signOut(scope: global)` الذي
-  /// يلتقط توكنها متزامنًا قبل مسحها محليًا (لا يمسّ جلسة جديدة إن سجّل
-  /// المستخدم دخولًا مرة أخرى). لا يمسّ الجلسة المحلية إطلاقًا بعد البدء.
-  Future<void> signOutInBackground(String? oldUserId);
+  /// الخروج): يُبطل الجلسة القديمة لدى الخادم عبر `signOut(scope: global)`
+  /// الذي يلتقط توكنها متزامنًا قبل مسحها محليًا (لا يمسّ جلسة جديدة إن سجّل
+  /// المستخدم دخولًا مرة أخرى)، ثم يفصل مواضيع FCM عن الجهاز. **لا يحذف توكن
+  /// الدفع** — يبقى صفّ الحساب في `device_tokens` ليستمر وصول إشعاراته على
+  /// هذا الجهاز. لا يمسّ الجلسة المحلية إطلاقًا بعد البدء.
+  Future<void> signOutInBackground();
 
   /// يحوّل identifier (إيميل أو رقم هاتف محلي) إلى الإيميل الحقيقي المرتبط
   /// بالحساب. يعيد null عندما يكون الإدخال فارغًا أو لا يوجد حساب مرتبط.
@@ -98,7 +94,10 @@ abstract class AuthService {
 
   /// يتحقق من كود OTP الخاص باستعادة كلمة المرور (OtpType.sms). يُنجز الدخول
   /// الفعلي (جلسة) عند النجاح فينسدل مسار تعيين كلمة مرور جديدة.
-  Future<void> verifyForgotPasswordOtp({required String localPhone, required String otp});
+  Future<void> verifyForgotPasswordOtp({
+    required String localPhone,
+    required String otp,
+  });
 
   /// يعيد إرسال كود OTP الخاص باستعادة كلمة المرور.
   Future<void> resendForgotPasswordOtp(String localPhone);
@@ -130,7 +129,10 @@ abstract class AuthService {
   Future<void> attachPhone(String localPhone);
 
   /// يتحقق من كود OTP المرسل إلى الرقم المذكور (OtpType.phoneChange).
-  Future<void> verifyPhoneOtp({required String localPhone, required String otp});
+  Future<void> verifyPhoneOtp({
+    required String localPhone,
+    required String otp,
+  });
 
   /// يعيد إرسال كود OTP الخاص بتفعيل الرقم.
   Future<void> resendPhoneOtp(String localPhone);
@@ -317,8 +319,7 @@ class SupabaseAuthService extends AuthService {
 
   @override
   Future<void> signOut() async {
-    final userId = _client.auth.currentUser?.id;
-    await _cleanupDevice(userId);
+    await _detachDeviceTopics();
     // مسار الخروج العادي: الإبطال العام يبقى دائمًا (بلا حارس) — سلوك غير مُتغيّر.
     await _client.auth.signOut();
   }
@@ -326,35 +327,21 @@ class SupabaseAuthService extends AuthService {
   @override
   Future<void> signOutFromRejection() async {
     final userId = _client.auth.currentUser?.id;
-    await _cleanupDevice(userId);
+    await _detachDeviceTopics();
     // الحارس هنا فقط: لا نُبطل إن تغيّرت الجلسة (تسجيل دخول جديد بعد الرفض).
     if (userId != null && _client.auth.currentUser?.id == userId) {
       await _client.auth.signOut();
     }
   }
 
-  /// فصل ارتباط الجهاز بالحساب (fcm_token + device_id + توكن FCM + الـ topics)
-  /// بأفضل جهد. لا يمسّ الجلسة المحلية. فشل أي خطوة يُسجَّل ولا يُوقف الباقي.
-  Future<void> _cleanupDevice(String? userId) async {
-    if (userId == null) return;
-    try {
-      await _client
-          .from('profiles')
-          .update({'fcm_token': null, 'device_id': null})
-          .eq('id', userId);
-    } catch (e) {
-      AuthService.fcmTokenClearFailureCount++;
-      debugPrint(
-        '[AuthService] FCM_TOKEN_CLEAR_FAILED '
-        '(count=${AuthService.fcmTokenClearFailureCount}, userId=$userId): $e '
-        '- proceeding with signOut; device may still receive this account notifications.',
-      );
-    }
-    try {
-      await FirebaseMessaging.instance.deleteToken();
-    } catch (e) {
-      debugPrint('[AuthService] FCM deleteToken failed: $e');
-    }
+  /// يفصل الجهاز عن مواضيع FCM العامة (car_owners/providers) بأفضل جهد.
+  ///
+  /// **لا يمسّ توكن الدفع**: صفّ (الحساب، الجهاز) في `device_tokens` يبقى بعد
+  /// الخروج — قرار منتج: الحساب يستمر في استقبال إشعاراته على جهازه (هاتف
+  /// ورشة مشترك عليه عدة حسابات)، ولا يحذف التوكن إلا الخادم حين يعلن FCM
+  /// موته (UNREGISTERED). و`deleteToken()` ممنوع هنا تحديدًا لأنه يُبطل توكن
+  /// التثبيت كله فيقطع الدفع عن بقية حسابات نفس الجهاز.
+  Future<void> _detachDeviceTopics() async {
     try {
       await FirebaseMessaging.instance.unsubscribeFromTopic('car_owners');
       await FirebaseMessaging.instance.unsubscribeFromTopic('providers');
@@ -375,33 +362,12 @@ class SupabaseAuthService extends AuthService {
   static const Duration _backgroundStepTimeout = Duration(seconds: 3);
 
   @override
-  Future<void> signOutInBackground(String? oldUserId) async {
+  Future<void> signOutInBackground() async {
     // بداية متزامنة قبل أي await — طالما الجلسة المحلية القديمة ما زالت
-    // قائمة يلتقط gotrue توكنها متزامنًا (انظر أدناه). كل خطوة وراء
-    // مهلة حتى لا تُعلّق العملية (الخلفية لا تُنتظَر من منسّق الخروج).
+    // قائمة يلتقط gotrue توكنها متزامنًا (انظر أدناه). كل خطوة وراء مهلة
+    // حتى لا تُعلّق العملية (الخلفية لا تُنتظَر من منسّق الخروج).
     //
-    // 1) مسح fcm_token + device_id لصفّ المستخدم القديم: يقرأ
-    //    Postgrest/AuthHttpClient توكن الجلسة الحالية متزامنًا لحظة إطلاق
-    //    الطلب، فيلتقط التوكن الصالح قبل أي مسح محلي. الطلب يبدأ بلا انتظار
-    //    (unawaited) فيبقى التوكن صالحًا لحظة إنشائه؛ فشله يُسجَّل فقط
-    //    (لا يمنع الخروج المحلي).
-    if (oldUserId != null) {
-      unawaited(
-        _client
-            .from('profiles')
-            .update({'fcm_token': null, 'device_id': null})
-            .eq('id', oldUserId)
-            .timeout(_backgroundStepTimeout)
-            .catchError((Object e) {
-          AuthService.fcmTokenClearFailureCount++;
-          debugPrint(
-            '[AuthService] background FCM_TOKEN_CLEAR_FAILED '
-            '(count=${AuthService.fcmTokenClearFailureCount}, userId=$oldUserId): $e',
-          );
-        }),
-      );
-    }
-    // 2) إبطال الجلسة القديمة لدى الخادم: `signOut(scope: global)` يقرأ
+    // 1) إبطال الجلسة القديمة لدى الخادم: `signOut(scope: global)` يقرأ
     //    `currentSession` متزامنًا في أول سطر له، فيلتقط توكن الجلسة
     //    القديمة، يمسح الجلسة المحلية محليًا، ثم يستدعي /logout بالتوكن
     //    القديم نفسه (بدون مفتاح خدمة/أدمن). بعد ذلك لا يمسّ gotrue
@@ -411,35 +377,28 @@ class SupabaseAuthService extends AuthService {
     await _client.auth
         .signOut(scope: SignOutScope.global)
         .timeout(_backgroundStepTimeout);
-    // 3) فصل الجهاز من FCM — لا يحتاج جلسة. أفضل جهد.
-    try {
-      await FirebaseMessaging.instance.deleteToken().timeout(_backgroundStepTimeout);
-    } catch (e) {
-      debugPrint('[AuthService] background FCM deleteToken failed: $e');
-    }
-    try {
-      await FirebaseMessaging.instance
-          .unsubscribeFromTopic('car_owners')
-          .timeout(_backgroundStepTimeout);
-      await FirebaseMessaging.instance
-          .unsubscribeFromTopic('providers')
-          .timeout(_backgroundStepTimeout);
-    } catch (e) {
-      debugPrint('[AuthService] background FCM topic unsubscribe failed: $e');
-    }
+    // 2) فصل مواضيع FCM عن الجهاز — لا يحتاج جلسة. أفضل جهد. توكن الدفع
+    //    نفسه يبقى مسجّلاً للحساب في device_tokens (انظر _detachDeviceTopics).
+    await _detachDeviceTopics().timeout(_backgroundStepTimeout);
   }
 
   /// يحوّل رقمًا محليًا (01012345678) إلى الصيغة الدولية التي تتطلبها GoTrue
   /// (+201012345678).
-  static String _toInternational(String localPhone) => '+20${localPhone.substring(1)}';
+  static String _toInternational(String localPhone) =>
+      '+20${localPhone.substring(1)}';
 
   @override
   Future<void> attachPhone(String localPhone) async {
-    await _client.auth.updateUser(UserAttributes(phone: _toInternational(localPhone)));
+    await _client.auth.updateUser(
+      UserAttributes(phone: _toInternational(localPhone)),
+    );
   }
 
   @override
-  Future<void> verifyPhoneOtp({required String localPhone, required String otp}) async {
+  Future<void> verifyPhoneOtp({
+    required String localPhone,
+    required String otp,
+  }) async {
     await _client.auth.verifyOTP(
       type: OtpType.phoneChange,
       phone: _toInternational(localPhone),
@@ -547,9 +506,7 @@ class SupabaseAuthService extends AuthService {
     try {
       await _client.functions.invoke(
         'delete-account',
-        headers: {
-          'Authorization': 'Bearer ${session.accessToken}',
-        },
+        headers: {'Authorization': 'Bearer ${session.accessToken}'},
         body: {'password': currentPassword},
       );
     } on FunctionException catch (e) {

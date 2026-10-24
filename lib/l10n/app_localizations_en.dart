@@ -423,6 +423,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notifications => 'Notifications';
 
   @override
+  String get notificationsPermissionDenied =>
+      'System notifications are off — enable them in app settings to receive order alerts';
+
+  @override
   String get settings => 'Settings';
 
   @override
@@ -920,6 +924,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notificationTitleOrderRejected => 'Order rejected';
 
   @override
+  String get notificationTitleOrderRejectedForProvider =>
+      'Your offer was rejected';
+
+  @override
   String get notificationTitleOrderCancelled => 'Order cancelled';
 
   @override
@@ -975,8 +983,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'A new price offer was received';
 
   @override
-  String get notificationBodyOrderConfirmed =>
-      'Your order was confirmed successfully';
+  String get notificationBodyOrderConfirmedForProvider =>
+      'The customer accepted your offer — you can start the job';
 
   @override
   String notificationBodyOrderRejectedWithProvider(String provider) {
@@ -987,7 +995,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notificationBodyOrderRejected => 'The order was rejected';
 
   @override
+  String get notificationBodyOrderRejectedForProvider =>
+      'The customer rejected your offer';
+
+  @override
   String get notificationBodyOrderCancelled => 'This order was cancelled';
+
+  @override
+  String get notificationBodyOrderCancelledForProvider =>
+      'The customer cancelled the order';
 
   @override
   String get notificationBodyOrderCompleted =>

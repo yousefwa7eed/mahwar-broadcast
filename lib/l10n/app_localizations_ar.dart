@@ -413,6 +413,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get notifications => 'الإشعارات';
 
   @override
+  String get notificationsPermissionDenied =>
+      'إشعارات النظام معطّلة — فعّلها من إعدادات التطبيق حتى تصلك تنبيهات الطلبات';
+
+  @override
   String get settings => 'الإعدادات';
 
   @override
@@ -906,6 +910,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get notificationTitleOrderRejected => 'تم رفض الطلب';
 
   @override
+  String get notificationTitleOrderRejectedForProvider => 'تم رفض عرضك';
+
+  @override
   String get notificationTitleOrderCancelled => 'تم إلغاء الطلب';
 
   @override
@@ -960,7 +967,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get notificationBodyPriceOfferReceived => 'تم استلام عرض سعر جديد';
 
   @override
-  String get notificationBodyOrderConfirmed => 'تم تأكيد طلبك بنجاح';
+  String get notificationBodyOrderConfirmedForProvider =>
+      'وافق العميل على عرضك — يمكنك بدء التنفيذ';
 
   @override
   String notificationBodyOrderRejectedWithProvider(String provider) {
@@ -971,7 +979,14 @@ class AppLocalizationsAr extends AppLocalizations {
   String get notificationBodyOrderRejected => 'تم رفض الطلب';
 
   @override
+  String get notificationBodyOrderRejectedForProvider => 'رفض العميل عرضك';
+
+  @override
   String get notificationBodyOrderCancelled => 'تم إلغاء هذا الطلب';
+
+  @override
+  String get notificationBodyOrderCancelledForProvider =>
+      'قام العميل بإلغاء الطلب';
 
   @override
   String get notificationBodyOrderCompleted => 'تم إتمام خدمة الطلب بنجاح';

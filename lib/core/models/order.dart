@@ -91,8 +91,12 @@ class Order {
     );
   }
 
-  static OrderStatus _parseStatus(String value) {
+  /// يحوّل نص الحالة القادم من قاعدة البيانات/Realtime، أو null لقيمة غير
+  /// معروفة — يمنع تفسير حالة مستقبلية كـ pending بصمت.
+  static OrderStatus? tryParseStatus(String value) {
     switch (value) {
+      case 'pending':
+        return OrderStatus.pending;
       case 'priced':
         return OrderStatus.priced;
       case 'confirmed':
@@ -105,11 +109,13 @@ class Order {
         return OrderStatus.cancelled;
       case 'completed':
         return OrderStatus.completed;
-      case 'pending':
       default:
-        return OrderStatus.pending;
+        return null;
     }
   }
+
+  static OrderStatus _parseStatus(String value) =>
+      tryParseStatus(value) ?? OrderStatus.pending;
 
   String statusLabel(AppLocalizations? l10n) {
     switch (status) {

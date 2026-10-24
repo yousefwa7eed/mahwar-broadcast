@@ -15,6 +15,7 @@ import 'core/services/app_messenger.dart';
 import 'core/services/push_notification_service.dart';
 import 'core/services/screen_time_service.dart';
 import 'core/services/service_type_directory.dart';
+import 'core/services/sound_effects_service.dart';
 import 'core/settings/app_settings_cubit.dart';
 import 'core/settings/app_settings_state.dart';
 import 'core/theme/app_theme.dart';
@@ -54,8 +55,8 @@ void main() async {
   // اسم الخدمة داخل الإشعارات بلغة العارض (service_types.name_ar/name_en)
   // بدل الاسم العربي المحفوظ لحظة إنشاء الإشعار. يُحمَّل مرة واحدة في الخلفية،
   // وعند فشله نرجع تلقائيًا إلى metadata.service_name.
-  NotificationModel.serviceTypeNameResolver =
-      (id, isArabic) => ServiceTypeDirectory.instance.nameFor(id, isArabic);
+  NotificationModel.serviceTypeNameResolver = (id, isArabic) =>
+      ServiceTypeDirectory.instance.nameFor(id, isArabic);
   ServiceTypeDirectory.instance.ensureLoaded();
 
   // مصدر واحد للإشعارات: يربطنا الـ PushNotificationService بالـ cubit
@@ -68,6 +69,9 @@ void main() async {
   // حتى تبقى الخدمة خاملة في اختبارات الـ widget التي تمرّر appRouter.
   ScreenTimeService.instance.start();
 
+  // مؤثرات الطلب: تُفعّل هنا فقط فتبقى صامتة تماماً في الاختبارات.
+  SoundEffectsService.instance.enable();
+
   runApp(
     MultiBlocProvider(
       providers: [
@@ -76,9 +80,8 @@ void main() async {
         // صراحةً بدل أن يبدأ تلقائيًا داخل كل AuthCubit (يبقى الـ cubit خاليًا
         // من المؤقّتات في الاختبارات).
         BlocProvider(
-          create: (_) => AuthCubit(
-            revocationPollInterval: const Duration(seconds: 90),
-          ),
+          create: (_) =>
+              AuthCubit(revocationPollInterval: const Duration(seconds: 90)),
         ),
         BlocProvider(create: (_) => ProfileCubit()..loadProfile()),
         BlocProvider(create: (_) => notificationCubit),
@@ -102,10 +105,12 @@ class _MahwarAppState extends State<MahwarApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     // رسالة ضغط فتح بها التطبيق وهو مغلق → يتوجه مباشرة للطلب/الإشعارات.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      PushNotificationService.instance.handleInitialMessage();
-      // مستخدم مسجّل فعلًا → نعيد حفظ التوكن/الجهاز مرة واحدة لكل إقلاع
-      // (حتى لا يبقى جهاز بلا إشعارات بعد مسح خارجي للتوكن).
-      PushNotificationService.instance.ensureTokenSavedOnStart();
+      final push = PushNotificationService.instance;
+      push.handleInitialMessage();
+      // مستخدم مسجّل فعلًا → نعيد تسجيل توكن الجهاز (حتى لا يبقى بلا
+      // إشعارات بعد دوران/حذف للتوكن) ونتأكد من إذن إشعارات النظام.
+      push.ensureTokenSaved();
+      push.ensurePermission();
     });
   }
 
@@ -115,14 +120,25 @@ class _MahwarAppState extends State<MahwarApp> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  /// الرجوع من الخلفية: تعليق النظام للتطبيق قد يكون أسقط socket الـ Realtime
-  /// ففات حدث حظر. نُعيد AuthCubit إلى التحقق من إشارة إبطال الجلسة فورًا بدل
-  /// انتظار مؤقّته الدوري. المراقبة هنا لا داخل الـ cubit نفسه حتى يبقى
-  /// AuthCubit قابلًا للبناء في اختبارات الوحدة بلا WidgetsBinding.
+  /// الرجوع من الخلفية: تعليق النظام للتطبيق يُسقط socket الـ Realtime،
+  /// والأحداث التي وقعت أثناء التعليق **لا يُعاد بثّها** — لذا نعيد الجلب من
+  /// الخادم بدل الاعتماد على الاشتراك الحي:
+  ///  - AuthCubit يتحقق من إشارة إبطال الجلسة فوراً بدل انتظار مؤقّته الدوري.
+  ///  - قائمة الإشعارات (الجرس) تُحمَّل من جديد ويُعاد تأكيد الاشتراك.
+  ///  - توكن الدفع يُعاد تسجيله إن مضت مهلته (يشفى بعد حذف/دوران).
+  /// الشاشات المفتوحة تعيد جلب بياناتها بنفسها عبر مراقب دورة حياتها.
+  /// المراقبة هنا لا داخل الـ cubits حتى تبقى قابلة للبناء في اختبارات
+  /// الوحدة بلا WidgetsBinding.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
     context.read<AuthCubit>().revalidateSessionOnResume();
+
+    final notifications = context.read<NotificationCubit>();
+    notifications.loadNotifications();
+    notifications.subscribeToNotifications();
+
+    PushNotificationService.instance.ensureTokenSaved();
   }
 
   @override

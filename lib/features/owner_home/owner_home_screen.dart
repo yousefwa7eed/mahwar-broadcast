@@ -1,4 +1,6 @@
-﻿import 'package:flutter/material.dart';
+import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -10,6 +12,7 @@ import '../../core/models/order.dart';
 import '../../core/notifications/notification_cubit.dart';
 import '../../core/services/location_service.dart';
 import '../../core/services/server_clock.dart';
+import '../../core/services/sound_effects_service.dart';
 import '../../core/settings/app_settings_cubit.dart';
 import '../../core/widgets/confirm_dialog.dart';
 import '../../core/widgets/profile_name_text.dart';
@@ -28,7 +31,8 @@ class OwnerHomeScreen extends StatefulWidget {
   State<OwnerHomeScreen> createState() => _OwnerHomeScreenState();
 }
 
-class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
+class _OwnerHomeScreenState extends State<OwnerHomeScreen>
+    with WidgetsBindingObserver {
   final SupabaseClient _client = Supabase.instance.client;
   int _currentIndex = 0;
 
@@ -49,6 +53,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadRecentOrders();
     _loadCurrentAddress();
     _subscribeToOrderChanges();
@@ -61,8 +66,29 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _ordersChannel?.unsubscribe();
     super.dispose();
+  }
+
+  /// العودة من الخلفية: Realtime **لا يعيد بثّ** الأحداث التي فاتت أثناء
+  /// تعليق النظام أو انقطاع الشبكة، فنعيد الجلب من الخادم (الطلبات + الجرس)
+  /// ونعيد الاشتراك الحي. أي انتقال وقع ونحن في الخلفية يُكتشف هنا فيُحدّث
+  /// بطاقة الطلب النشط ويُشغّل مؤثره الصوتي.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    _resubscribeToOrderChanges();
+    _loadRecentOrders();
+    final cubit = context.read<NotificationCubit>();
+    cubit.loadNotifications();
+    cubit.subscribeToNotifications();
+  }
+
+  void _resubscribeToOrderChanges() {
+    _ordersChannel?.unsubscribe();
+    _ordersChannel = null;
+    _subscribeToOrderChanges();
   }
 
   /// يجيب العنوان الحالي الحقيقي للجهاز ويعرضه في أعلى الصفحة.
@@ -74,7 +100,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       _addressText = '';
     });
 
-    final address = await LocationService.instance.getCurrentAddress(forceRefresh: true);
+    final address = await LocationService.instance.getCurrentAddress(
+      forceRefresh: true,
+    );
 
     if (mounted) {
       setState(() {
@@ -124,6 +152,14 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       final previous = _seenOrderStatuses[order.id];
       _seenOrderStatuses[order.id] = order.status.name;
 
+      // انتقال حقيقي وصل من الخادم (وليس أول تحميل) → مؤثر الحالة المناسب:
+      // عرض سعر وصل، تأكيد، رفض، إلغاء، أو اكتمال.
+      if (previous != null && previous != order.status.name) {
+        unawaited(
+          SoundEffectsService.instance.playOrderStatus(order.id, order.status),
+        );
+      }
+
       if (order.status != OrderStatus.completed) continue;
       if (previous == null || previous == OrderStatus.completed.name) continue;
       if (_ratingPromptedOrders.contains(order.id)) continue;
@@ -158,9 +194,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       if (!mounted) return;
       showDialog<void>(
         context: context,
-        builder: (_) => ProviderRatingDialog(
-          orderId: order.id,
-        ),
+        builder: (_) => ProviderRatingDialog(orderId: order.id),
       );
     });
   }
@@ -171,9 +205,14 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     final l10n = AppLocalizations.of(context);
 
     try {
-      await _client.rpc('owner_accept_price', params: {
-        'p_order_id': orderId,
-      });
+      await _client.rpc('owner_accept_price', params: {'p_order_id': orderId});
+
+      unawaited(
+        SoundEffectsService.instance.playOrderStatus(
+          orderId,
+          OrderStatus.confirmed,
+        ),
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -203,16 +242,23 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     final confirmed = await showConfirmDialog(
       context,
       title: l10n?.rejectOfferConfirmTitle ?? 'رفض عرض السعر؟',
-      message: l10n?.rejectOfferConfirmBody ?? 'سيتم رفض عرض المزوّد وإنهاء هذا الطلب.',
+      message:
+          l10n?.rejectOfferConfirmBody ??
+          'سيتم رفض عرض المزوّد وإنهاء هذا الطلب.',
       confirmLabel: l10n?.rejectOfferConfirmLabel ?? 'نعم، رفض العرض',
       confirmColor: AppColors.error,
     );
     if (confirmed != true || !mounted) return;
 
     try {
-      await _client.rpc('owner_reject_price', params: {
-        'p_order_id': orderId,
-      });
+      await _client.rpc('owner_reject_price', params: {'p_order_id': orderId});
+
+      unawaited(
+        SoundEffectsService.instance.playOrderStatus(
+          orderId,
+          OrderStatus.rejectedByOwner,
+        ),
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -243,16 +289,16 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     _ordersChannel = _client
         .channel('owner-orders-$userId')
         .onPostgresChanges(
-      event: PostgresChangeEvent.all,
-      schema: 'public',
-      table: 'orders',
-      filter: PostgresChangeFilter(
-        type: PostgresChangeFilterType.eq,
-        column: 'car_owner_id',
-        value: userId,
-      ),
-      callback: (payload) => _loadRecentOrders(),
-    )
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'orders',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'car_owner_id',
+            value: userId,
+          ),
+          callback: (payload) => _loadRecentOrders(),
+        )
         .subscribe();
   }
 
@@ -262,7 +308,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     final l10n = AppLocalizations.of(context);
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor: isDark
+          ? AppColors.darkBackground
+          : AppColors.lightBackground,
       body: SafeArea(
         child: IndexedStack(
           index: _currentIndex,
@@ -278,54 +326,75 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     );
   }
 
-  Widget _buildHomeTab(BuildContext context, bool isDark, AppLocalizations? l10n) {
+  Widget _buildHomeTab(
+    BuildContext context,
+    bool isDark,
+    AppLocalizations? l10n,
+  ) {
     final activeOrder = _activeOrder;
 
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          HomeHeader(
-            locationText: _addressText.isEmpty ? null : _addressText,
-            isLocatingLocation: _isLocatingAddress,
-            onLocationTap: _loadCurrentAddress,
-            unreadNotifications: context.watch<NotificationCubit>().state.unreadCount,
-            onNotificationTap: () => setState(() => _currentIndex = 2),
-            role: 'car_owner',
-          ),
-          const SizedBox(height: 8),
-          SosEmergencyBanner(
-            onPressed: () {
-              // S.O.S: يفتح طلب نجدة فورية (ونش S.O.S) مباشرة
-              context.push('/request/create?serviceId=crane');
-            },
-          ),
-          // بطاقة حالة الطلب النشط — تظهر تلقائياً ما دام هناك طلب غير
-          // نهائي وتختفي عند الإتمام/الإلغاء. النقر يفتح شاشة التتبع.
-          if (activeOrder != null) ...[
-            const SizedBox(height: 16),
-            ActiveOrderWidget(
-              order: activeOrder,
-              onTap: () => context.push('/request/track?orderId=${activeOrder.id}'),
-              onAccept: () => _acceptOffer(activeOrder.id),
-              onReject: () => _rejectOffer(activeOrder.id),
+    return RefreshIndicator(
+      onRefresh: _loadRecentOrders,
+      color: AppColors.orangePrimary,
+      child: SingleChildScrollView(
+        // سحب التحديث يحتاج فيزياء تسمح بالتمرير دائماً، وإلا لم يظهر المؤشر
+        // حين لا يملأ المحتوى الشاشة.
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            HomeHeader(
+              locationText: _addressText.isEmpty ? null : _addressText,
+              isLocatingLocation: _isLocatingAddress,
+              onLocationTap: _loadCurrentAddress,
+              unreadNotifications: context
+                  .watch<NotificationCubit>()
+                  .state
+                  .unreadCount,
+              onNotificationTap: () => setState(() => _currentIndex = 2),
+              role: 'car_owner',
             ),
+            const SizedBox(height: 8),
+            SosEmergencyBanner(
+              onPressed: () {
+                // S.O.S: يفتح طلب نجدة فورية (ونش S.O.S) مباشرة
+                context.push('/request/create?serviceId=crane');
+              },
+            ),
+            // بطاقة حالة الطلب النشط — تظهر تلقائياً ما دام هناك طلب غير
+            // نهائي وتختفي عند الإتمام/الإلغاء. النقر يفتح شاشة التتبع.
+            if (activeOrder != null) ...[
+              const SizedBox(height: 16),
+              ActiveOrderWidget(
+                order: activeOrder,
+                onTap: () =>
+                    context.push('/request/track?orderId=${activeOrder.id}'),
+                onAccept: () => _acceptOffer(activeOrder.id),
+                onReject: () => _rejectOffer(activeOrder.id),
+              ),
+            ],
+            const SizedBox(height: 16),
+            ServicesGrid(
+              onServiceTap: (service) {
+                context.push('/request/create?serviceId=${service.id}');
+              },
+            ),
+            const SizedBox(height: 24),
           ],
-          const SizedBox(height: 16),
-          ServicesGrid(
-            onServiceTap: (service) {
-              context.push('/request/create?serviceId=${service.id}');
-            },
-          ),
-          const SizedBox(height: 24),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildOrdersTab(BuildContext context, bool isDark, AppLocalizations? l10n) {
+  Widget _buildOrdersTab(
+    BuildContext context,
+    bool isDark,
+    AppLocalizations? l10n,
+  ) {
     if (_isLoadingOrders) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.orangePrimary));
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.orangePrimary),
+      );
     }
 
     if (_recentOrders.isEmpty) {
@@ -336,7 +405,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
             Icon(
               Icons.receipt_long_rounded,
               size: 64,
-              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+              color: isDark
+                  ? AppColors.darkTextSecondary
+                  : AppColors.lightTextSecondary,
             ),
             const SizedBox(height: 16),
             Text(
@@ -344,7 +415,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
               style: TextStyle(
                 fontFamily: 'Cairo',
                 fontSize: 14,
-                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                color: isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.lightTextSecondary,
               ),
             ),
           ],
@@ -365,7 +438,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                   fontFamily: 'Zain',
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                  color: isDark
+                      ? AppColors.darkTextPrimary
+                      : AppColors.lightTextPrimary,
                 ),
               ),
               const Spacer(),
@@ -396,7 +471,8 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                 final statusColor = _orderStatusColor(order.status);
                 return InkWell(
                   borderRadius: BorderRadius.circular(16),
-                  onTap: () => context.push('/request/track?orderId=${order.id}'),
+                  onTap: () =>
+                      context.push('/request/track?orderId=${order.id}'),
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(16),
@@ -404,7 +480,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                       color: isDark ? AppColors.darkCard : AppColors.lightCard,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                        color: isDark
+                            ? AppColors.darkBorder
+                            : AppColors.lightBorder,
                       ),
                     ),
                     child: Column(
@@ -413,7 +491,10 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                         Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: statusColor.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(8),
@@ -449,7 +530,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                             fontFamily: 'Cairo',
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                            color: isDark
+                                ? AppColors.darkTextPrimary
+                                : AppColors.lightTextPrimary,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -458,7 +541,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                           style: TextStyle(
                             fontFamily: 'Cairo',
                             fontSize: 13,
-                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                            color: isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.lightTextSecondary,
                           ),
                         ),
                       ],
@@ -504,11 +589,17 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     return null;
   }
 
-  Widget _buildNotificationsTab(BuildContext context, bool isDark, AppLocalizations? l10n) {
+  Widget _buildNotificationsTab(
+    BuildContext context,
+    bool isDark,
+    AppLocalizations? l10n,
+  ) {
     final state = context.watch<NotificationCubit>().state;
 
     if (state.isLoading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.orangePrimary));
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.orangePrimary),
+      );
     }
 
     if (state.notifications.isEmpty) {
@@ -519,7 +610,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
             Icon(
               Icons.notifications_off_outlined,
               size: 64,
-              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+              color: isDark
+                  ? AppColors.darkTextSecondary
+                  : AppColors.lightTextSecondary,
             ),
             const SizedBox(height: 16),
             Text(
@@ -527,7 +620,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
               style: TextStyle(
                 fontFamily: 'Cairo',
                 fontSize: 14,
-                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                color: isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.lightTextSecondary,
               ),
             ),
           ],
@@ -545,7 +640,8 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
             Align(
               alignment: AlignmentDirectional.centerEnd,
               child: TextButton.icon(
-                onPressed: () => context.read<NotificationCubit>().markAllAsRead(),
+                onPressed: () =>
+                    context.read<NotificationCubit>().markAllAsRead(),
                 icon: const Icon(Icons.mark_email_read_outlined, size: 20),
                 label: Text(
                   l10n?.markAllRead ?? 'تعيين الكل كمقروء',
@@ -560,90 +656,109 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
             final notification = state.notifications[index];
             final title = notification.localizedTitle(l10n);
             final body = notification.localizedBody(l10n);
-          return GestureDetector(
-            // معالج موحّد مع صفحة الإشعارات: deep link خارجي / home /
-            // طلب / إشعار عام (شاشة التفاصيل).
-            onTap: () => openNotificationFromList(context, notification),
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.darkCard : AppColors.lightCard,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: notification.isRead
-                      ? (isDark ? AppColors.darkBorder : AppColors.lightBorder)
-                      : notification.color.withValues(alpha: 0.35),
-                ),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: notification.color.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(notification.icon, color: notification.color, size: 22),
+            return GestureDetector(
+              // معالج موحّد مع صفحة الإشعارات: deep link خارجي / home /
+              // طلب / إشعار عام (شاشة التفاصيل).
+              onTap: () => openNotificationFromList(context, notification),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: notification.isRead
+                        ? (isDark
+                              ? AppColors.darkBorder
+                              : AppColors.lightBorder)
+                        : notification.color.withValues(alpha: 0.35),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: TextStyle(
-                            fontFamily: 'Zain',
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: notification.color.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        notification.icon,
+                        color: notification.color,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: TextStyle(
+                              fontFamily: 'Zain',
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: isDark
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.lightTextPrimary,
+                            ),
                           ),
-                        ),
-                        if (body.isNotEmpty) ...[
+                          if (body.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              body,
+                              style: TextStyle(
+                                fontFamily: 'Cairo',
+                                fontSize: 13,
+                                color: isDark
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.lightTextSecondary,
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 4),
                           Text(
-                            body,
+                            notification.timeAgo(
+                              ServerClock.instance.now,
+                              l10n,
+                            ),
                             style: TextStyle(
                               fontFamily: 'Cairo',
-                              fontSize: 13,
-                              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                              fontSize: 11,
+                              color: isDark
+                                  ? AppColors.darkTextSecondary
+                                  : AppColors.lightTextSecondary,
                             ),
                           ),
                         ],
-                        const SizedBox(height: 4),
-                        Text(
-                          notification.timeAgo(ServerClock.instance.now, l10n),
-                          style: TextStyle(
-                            fontFamily: 'Cairo',
-                            fontSize: 11,
-                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (!notification.isRead)
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: notification.color,
-                        shape: BoxShape.circle,
                       ),
                     ),
-                ],
+                    if (!notification.isRead)
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: notification.color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
-          );
-        }),
+            );
+          }),
         ],
       ),
     );
   }
 
-  Widget _buildProfileTab(BuildContext context, bool isDark, AppLocalizations? l10n) {
+  Widget _buildProfileTab(
+    BuildContext context,
+    bool isDark,
+    AppLocalizations? l10n,
+  ) {
     final settingsCubit = context.watch<AppSettingsCubit>();
     final isArabic = settingsCubit.state.locale.languageCode == 'ar';
 
@@ -655,7 +770,11 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
           CircleAvatar(
             radius: 50,
             backgroundColor: AppColors.orangePrimary.withValues(alpha: 0.15),
-            child: const Icon(Icons.person_rounded, size: 50, color: AppColors.orangePrimary),
+            child: const Icon(
+              Icons.person_rounded,
+              size: 50,
+              color: AppColors.orangePrimary,
+            ),
           ),
           const SizedBox(height: 16),
           // أثناء تحميل الملف الشخصي نعرض شيمر مكان الاسم مع إعادة محاولة
@@ -668,7 +787,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
               fontFamily: 'Zain',
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+              color: isDark
+                  ? AppColors.darkTextPrimary
+                  : AppColors.lightTextPrimary,
             ),
           ),
           const SizedBox(height: 32),
@@ -682,14 +803,17 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
           _buildProfileOption(
             context,
             icon: Icons.language_rounded,
-            title: '${l10n?.languageLabel ?? 'اللغة'}: ${l10n?.currentLanguage ?? (isArabic ? 'العربية' : 'English')}',
+            title:
+                '${l10n?.languageLabel ?? 'اللغة'}: ${l10n?.currentLanguage ?? (isArabic ? 'العربية' : 'English')}',
             isDark: isDark,
             onTap: () => settingsCubit.toggleLocale(),
           ),
           _buildProfileOption(
             context,
             icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-            title: isArabic ? (l10n?.lightMode ?? 'الوضع الفاتح') : (l10n?.darkMode ?? 'الوضع الداكن'),
+            title: isArabic
+                ? (l10n?.lightMode ?? 'الوضع الفاتح')
+                : (l10n?.darkMode ?? 'الوضع الداكن'),
             isDark: isDark,
             onTap: () => settingsCubit.toggleTheme(),
           ),
@@ -717,10 +841,10 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                 onPressed: LogoutCoordinator.isRunning.value
                     ? null
                     : () => LogoutCoordinator().logout(
-                          context: context,
-                          resetProfile:
-                              () => context.read<ProfileCubit>().reset(),
-                        ),
+                        context: context,
+                        resetProfile: () =>
+                            context.read<ProfileCubit>().reset(),
+                      ),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: AppColors.error),
                   shape: RoundedRectangleBorder(
@@ -769,13 +893,17 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
           style: TextStyle(
             fontFamily: 'Cairo',
             fontSize: 16,
-            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+            color: isDark
+                ? AppColors.darkTextPrimary
+                : AppColors.lightTextPrimary,
           ),
         ),
         trailing: Icon(
           Icons.arrow_forward_ios_rounded,
           size: 16,
-          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+          color: isDark
+              ? AppColors.darkTextSecondary
+              : AppColors.lightTextSecondary,
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         tileColor: isDark ? AppColors.darkCard : AppColors.lightCard,
@@ -812,9 +940,18 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         selectedItemColor: AppColors.orangePrimary,
-        unselectedItemColor: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-        selectedLabelStyle: const TextStyle(fontFamily: 'Cairo', fontSize: 11, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: const TextStyle(fontFamily: 'Cairo', fontSize: 11),
+        unselectedItemColor: isDark
+            ? AppColors.darkTextSecondary
+            : AppColors.lightTextSecondary,
+        selectedLabelStyle: const TextStyle(
+          fontFamily: 'Cairo',
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontFamily: 'Cairo',
+          fontSize: 11,
+        ),
         items: [
           BottomNavigationBarItem(
             icon: const Icon(Icons.home_outlined),
@@ -841,4 +978,3 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     );
   }
 }
-

@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import '../services/device_identity.dart';
+import '../services/push_notification_service.dart';
 import 'auth_service.dart';
 import 'phone_utils.dart';
 
@@ -38,17 +38,21 @@ class AuthSignUpRequested extends AuthEvent {
   });
 
   @override
-  List<Object?> get props => [email, password, fullName, phoneNumber, role, nationalId];
+  List<Object?> get props => [
+    email,
+    password,
+    fullName,
+    phoneNumber,
+    role,
+    nationalId,
+  ];
 }
 
 class AuthSignInRequested extends AuthEvent {
   final String email;
   final String password;
 
-  const AuthSignInRequested({
-    required this.email,
-    required this.password,
-  });
+  const AuthSignInRequested({required this.email, required this.password});
 
   @override
   List<Object?> get props => [email, password];
@@ -134,11 +138,9 @@ class AuthCubit extends Cubit<AuthState> {
   Timer? _revocationPoll;
   final Duration? revocationPollInterval;
 
-  AuthCubit({
-    AuthService? service,
-    this.revocationPollInterval,
-  })  : _authService = service ?? SupabaseAuthService(),
-        super(const AuthInitial()) {
+  AuthCubit({AuthService? service, this.revocationPollInterval})
+    : _authService = service ?? SupabaseAuthService(),
+      super(const AuthInitial()) {
     _init();
   }
 
@@ -166,7 +168,7 @@ class AuthCubit extends Cubit<AuthState> {
         // حراسة الجلسة للمعرف الجديد (يشترك على قناة معرف المستخدم الحالي).
         _beginSessionGuard(session.user.id);
         // عمل غير حرج بعد الدخول — لا يُنتظر حتى لا يؤخّر التوجيه/الرفض.
-        unawaited(_saveFcmToken(session.user.id));
+        unawaited(_registerPushDevice());
         unawaited(_subscribeToRoleTopic(session.user));
       } else if (event == AuthChangeEvent.signedOut) {
         _phoneVerified = null;
@@ -267,26 +269,17 @@ class AuthCubit extends Cubit<AuthState> {
     return super.close();
   }
 
-  /// يجلب FCM token الخاص بالجهاز الحالي ويحفظه في عمود fcm_token
-  /// جوه جدول profiles، مرتبطًا بمعرّف المستخدم الحقيقي (userId).
-  /// لو فشلت العملية، ماينفعش نوقف تسجيل الدخول بسببها - بنكتفي بتجاهل الخطأ.
-  Future<void> _saveFcmToken(String userId) async {
+  /// يسجّل جهاز الحساب الجديد للدفع (توكن FCM + إذن إشعارات النظام) عبر
+  /// [PushNotificationService] — مصدر واحد للتسجيل بدل تكرار الكتابة على
+  /// profiles هنا. الفشل لا يوقف تسجيل الدخول إطلاقًا: الدفع خدمة ثانوية
+  /// بالنسبة للجلسة، والتسجيل يُعاد عند كل إقلاع/عودة من الخلفية.
+  Future<void> _registerPushDevice() async {
     try {
-      final messaging = FirebaseMessaging.instance;
-      // أول دخول → طلب إذن إشعارات النظام (Android 13+) قبل أخذ التوكن
-      await messaging.requestPermission(alert: true, badge: true, sound: true);
-      final String? token = await messaging.getToken();
-      if (token == null) return;
-
-      final deviceId = await DeviceIdentity.instance.get();
-      if (Supabase.instance.client.auth.currentUser?.id != userId) return;
-
-      await Supabase.instance.client
-          .from('profiles')
-          .update({'fcm_token': token, 'device_id': deviceId})
-          .eq('id', userId);
+      final push = PushNotificationService.instance;
+      await push.saveToken();
+      await push.ensurePermission();
     } catch (e) {
-      // تجاهل الخطأ هنا عمدًا - فشل حفظ التوكن مش المفروض يمنع تسجيل الدخول
+      debugPrint('[AuthCubit] push registration skipped: $e');
     }
   }
 
@@ -446,10 +439,7 @@ class AuthCubit extends Cubit<AuthState> {
         return;
       }
 
-      await _authService.signInWithEmail(
-        email: email,
-        password: password,
-      );
+      await _authService.signInWithEmail(email: email, password: password);
 
       // Auth state will be updated via the listener
     } on AuthException catch (e) {
@@ -472,15 +462,15 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   /// يرفض الجلسة التي أُنشئت من نقطة دخول مقيّدة بالدور. يُنتظَر تنظيف الخادم/
-  /// الجهاز (مسح fcm_token + device_id + سحب الجلسة) مع مهلة قصيرة حتى يُضمن
+  /// الجهاز (سحب اشتراكات FCM فقط — التوكن يبقى في القاعدة) مع مهلة قصيرة حتى يُضمن
   /// قطع ارتباط الجهاز قبل سحب الجلسة محليًا، دون أن يعلّق الواجهة عند بطء
   /// الشبكة. لا يبثّ [AuthError] أبدًا — حتى لا تظهر رسالة خطأ خروج فوق
   /// رسالة عدم التطابق.
   Future<void> rejectSession() async {
     try {
-      await _authService
-          .signOutFromRejection()
-          .timeout(const Duration(seconds: 5));
+      await _authService.signOutFromRejection().timeout(
+        const Duration(seconds: 5),
+      );
     } catch (_) {
       // فشل التنظيف/الإبطال — نتابع السحب المحلي على كل حال.
     }
@@ -513,7 +503,10 @@ class AuthCubit extends Cubit<AuthState> {
     required String localPhone,
     required String otp,
   }) async {
-    await _authService.verifyForgotPasswordOtp(localPhone: localPhone, otp: otp);
+    await _authService.verifyForgotPasswordOtp(
+      localPhone: localPhone,
+      otp: otp,
+    );
   }
 
   Future<void> resendForgotPasswordOtp(String localPhone) async {
@@ -536,7 +529,8 @@ class AuthCubit extends Cubit<AuthState> {
   /// نفس التدفق (من قِبل signUp نفسها ومن قِبل مستمع onAuthStateChange) —
   /// الحارس هنا يمنع إرسال رسالة OTP مكررة ورسوم SMS مزدوجة.
   Future<void> attachPhone(String localPhone) async {
-    final recentlyAttached = _attachedPhone == localPhone &&
+    final recentlyAttached =
+        _attachedPhone == localPhone &&
         _attachedAt != null &&
         DateTime.now().difference(_attachedAt!) < const Duration(seconds: 30);
     if (recentlyAttached) return;
@@ -546,7 +540,10 @@ class AuthCubit extends Cubit<AuthState> {
     _attachedAt = DateTime.now();
   }
 
-  Future<void> verifyPhoneOtp({required String localPhone, required String otp}) async {
+  Future<void> verifyPhoneOtp({
+    required String localPhone,
+    required String otp,
+  }) async {
     await _authService.verifyPhoneOtp(localPhone: localPhone, otp: otp);
     // نجح التحقق → الرقم موثّق الآن؛ نحدّث البوابة فورًا حتى لا يعيد التنقل
     // التالي سؤال الخادم ولا يُحجب المستخدم لحظيًا بعد نجاح التحقق.

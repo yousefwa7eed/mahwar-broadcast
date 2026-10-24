@@ -38,9 +38,9 @@ void main() {
     [
       'order_confirmed',
       'تم تأكيد الطلب',
-      'تم تأكيد طلبك بنجاح',
+      'وافق العميل على عرضك — يمكنك بدء التنفيذ',
       'Order confirmed',
-      'Your order was confirmed successfully',
+      'The customer accepted your offer — you can start the job',
     ],
     [
       'order_cancelled',
@@ -151,6 +151,28 @@ void main() {
     final without = notif('order_rejected', metadata: const {});
     expect(without.localizedBody(ar), 'تم رفض الطلب');
     expect(without.localizedBody(en), 'The order was rejected');
+  });
+
+  test('order_rejected by=owner: نص موجّه للمزوّد', () {
+    final n = notif('order_rejected', metadata: const {'by': 'owner'});
+    expect(n.localizedTitle(ar), 'تم رفض عرضك');
+    expect(n.localizedTitle(en), 'Your offer was rejected');
+    expect(n.localizedBody(ar), 'رفض العميل عرضك');
+    expect(n.localizedBody(en), 'The customer rejected your offer');
+
+    final fromProvider = notif('order_rejected', metadata: const {'by': 'provider'});
+    expect(fromProvider.localizedTitle(ar), 'تم رفض الطلب');
+    expect(fromProvider.localizedBody(ar), 'تم رفض الطلب');
+  });
+
+  test('order_cancelled by=owner: نص موجّه للمزوّد، وtimeout يبقى عاماً', () {
+    final byOwner = notif('order_cancelled', metadata: const {'by': 'owner'});
+    expect(byOwner.localizedBody(ar), 'قام العميل بإلغاء الطلب');
+    expect(byOwner.localizedBody(en), 'The customer cancelled the order');
+
+    final timeout = notif('order_cancelled', metadata: const {'by': 'timeout'});
+    expect(timeout.localizedBody(ar), 'تم إلغاء هذا الطلب');
+    expect(timeout.localizedBody(en), 'This order was cancelled');
   });
 
   test('rating_received: مع قيمة وبدونها (بما فيها 0)', () {

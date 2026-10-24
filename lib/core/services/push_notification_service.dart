@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../auth/auth_service.dart';
 import '../auth/home_route.dart';
@@ -12,11 +13,15 @@ import 'app_messenger.dart';
 import 'device_identity.dart';
 
 /// ينسّق كل ما يخص إشعارات الدفع (FCM) على مستوى التطبيق كامل:
-///  - طلب إذن الإشعارات + حفظ/تحديث التوكن في profiles.fcm_token
+///  - طلب إذن الإشعارات + تسجيل توكن الجهاز في `device_tokens`
 ///  - استقبال الرسائل مهما كانت حالة التطبيق (مفتوح/في الخلفية/مغلق)
 ///  - فتح صفحة تتبع الطلب مباشرة بالضغط على الإشعار
 ///  - مزامنة قائمة الإشعارات (الجرس) بعد استلام أي إشعار — المصدر واحد
 ///    (جدول notifications)، فـ push هو مجرد "تنبيه"، والقائمة دائماً صحيحة.
+///
+/// التسجيل صفّ لكل (حساب، جهاز) عبر RPC `register_device_token`، والصفّ يبقى
+/// بعد الخروج — فالحساب يستمر في استقبال إشعاراته على جهازه (مثلاً هاتف ورشة
+/// واحد عليه حساب مزوّد وحساب مالك). الخادم يرسل لكل توكنات المستقبِل.
 class PushNotificationService {
   PushNotificationService._();
   static final PushNotificationService instance = PushNotificationService._();
@@ -25,7 +30,19 @@ class PushNotificationService {
   NotificationCubit? _cubit;
   Timer? _syncDebounce;
   bool _handlersRegistered = false;
-  bool _startupSaveAttempted = false;
+  DateTime? _lastTokenSave;
+  bool _permissionWarningShown = false;
+
+  /// مهلة إعادة التسجيل التلقائي: كافية لتغطية العودة من الخلفية بلا نداء
+  /// متكرر، وقصيرة بما يكفي لشفاء توكن حُذف من الخادم (موت التوكن).
+  static const Duration _tokenSaveInterval = Duration(minutes: 5);
+
+  /// منصة الجهاز كما يقبلها قيد `device_tokens.platform`.
+  static final String _platform = switch (defaultTargetPlatform) {
+    TargetPlatform.iOS => 'ios',
+    TargetPlatform.android => 'android',
+    _ => 'web',
+  };
 
   /// يربط الـ cubit ليتسنى تحديث القائمة عند استلام إشعار (يُنادى من main).
   void attach(NotificationCubit cubit) => _cubit = cubit;
@@ -47,42 +64,95 @@ class PushNotificationService {
     _messaging.onTokenRefresh.listen(_onTokenRefresh);
   }
 
-  /// طلب إذن إشعارات النظام من المستخدم (أول مرة، Android 13+).
-  Future<void> requestPermission() async {
+  /// يفحص إذن إشعارات النظام ويطلبه إن لم يُقرَّر بعد، وينبّه المستخدم مرة
+  /// واحدة لكل جلسة عند تعطّله. بلا إذن لا يظهر أي دفع على الجهاز وإن كان
+  /// التوكن سليماً والخادم أجاب `sent` — فشل صامت بالكامل من جهة المستخدم.
+  Future<void> ensurePermission() async {
     try {
-      await _messaging.requestPermission(alert: true, badge: true, sound: true);
-    } catch (_) {
-      // لا نوقف أي تدفق بسبب رفض الإذن أو خطأ نظام
+      var settings = await _messaging.getNotificationSettings();
+      if (settings.authorizationStatus == AuthorizationStatus.notDetermined) {
+        settings = await _messaging.requestPermission(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+      }
+      debugPrint(
+        '[Push] notification permission: ${settings.authorizationStatus.name}',
+      );
+      if (settings.authorizationStatus != AuthorizationStatus.authorized &&
+          !_permissionWarningShown) {
+        _permissionWarningShown = true;
+        _warnPermissionDenied();
+      }
+    } catch (e) {
+      // بيئات بلا plugin (اختبارات) أو رفض نظام — لا نوقف أي تدفق.
+      debugPrint('[Push] permission check failed: $e');
     }
   }
 
-  /// إعادة حفظ توكن الجهاز الحالي (خطة بديلة إن غابت عن تدفق تسجيل الدخول).
+  /// تنبيه الإذن المعطّل. السياق يُقرأ لحظياً من مفتاح الرسول العام لا من
+  /// سياق مُمرَّر، لأن الاستدعاء يأتي بعد فجوات async.
+  void _warnPermissionDenied() {
+    const fallback =
+        'إشعارات النظام معطّلة — فعّلها من إعدادات التطبيق حتى تصلك تنبيهات الطلبات';
+    final ctx = AppMessenger.messengerKey.currentContext;
+    AppMessenger.showText(
+      ctx == null
+          ? fallback
+          : AppLocalizations.of(ctx)?.notificationsPermissionDenied ?? fallback,
+    );
+  }
+
+  /// يسجّل توكن الجهاز الحالي للحساب الحالي — يُستدعى عند الدخول دائماً
+  /// (بلا مهلة) لأن تبديل الحساب على نفس الجهاز يجب أن يُسجَّل فوراً.
   Future<void> saveToken() async {
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) return;
     try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return;
       final token = await _messaging.getToken();
-      if (token == null) return;
-      final deviceId = await DeviceIdentity.instance.get();
-      if (Supabase.instance.client.auth.currentUser?.id != userId) return;
-      await Supabase.instance.client
-          .from('profiles')
-          .update({'fcm_token': token, 'device_id': deviceId})
-          .eq('id', userId);
-    } catch (_) {
-      // فشل الحفظ لا يمنع أي شيء
+      if (token == null) {
+        debugPrint(
+          '[Push] getToken returned null — no FCM registration on this device',
+        );
+        return;
+      }
+      await _register(token, userId);
+    } catch (e) {
+      // بيئات بلا firebase/Supabase (اختبارات) أو فشل شبكة: لا نوقف أي تدفق،
+      // لكن لا نصمت — الصمت هنا هو ما أخفى غياب توكن المزوّد سابقاً.
+      debugPrint('[Push] token save FAILED: $e');
     }
   }
 
-  /// إعادة حفظ fcm_token + device_id عند إقلاع التطبيق إذا كان المستخدم
-  /// مسجّلًا فعلًا — مرة واحدة لكل إقلاع (لتفادي تكرار النداء). ضمانة إعادة
-  /// ربط الجهاز بعد أي مسح خارجي للتوكن (مثل تنظيف Stage 4) دون انتظار تسجيل
-  /// دخول أو تحديث توكن من FCM. نفس حارس الهوية داخل [saveToken]: نلتقط
-  /// userId ثم نتأكد أنه ما زال المستخدم الحالي قبل الكتابة.
-  Future<void> ensureTokenSavedOnStart() async {
-    if (_startupSaveAttempted) return;
-    _startupSaveAttempted = true;
+  /// إعادة تسجيل التوكن بمهلة [_tokenSaveInterval] — للإقلاع والعودة من
+  /// الخلفية، فيشفى التوكن بعد أي حذف خارجي دون نداء عند كل تبديل تطبيق.
+  Future<void> ensureTokenSaved() async {
+    final last = _lastTokenSave;
+    if (last != null && DateTime.now().difference(last) < _tokenSaveInterval) {
+      return;
+    }
     await saveToken();
+  }
+
+  /// يكتب (الحساب، الجهاز، التوكن) عبر RPC الخادم. الصف يخص هذا الحساب وحده؛
+  /// لا نلمس صفوف حسابات أخرى تشترك في نفس الجهاز (منع اختطاف الإشعارات).
+  /// التوكنات الميتة ينظّفها الخادم عند UNREGISTERED لا العميل.
+  Future<void> _register(String token, String userId) async {
+    final client = Supabase.instance.client;
+    final deviceId = await DeviceIdentity.instance.get();
+    // حارس الهوية: لا نربط توكن الجهاز بحساب لم يعد هو الحالي (تبديل حساب
+    // أثناء النداء) — وإلّا استقبل الحساب الخاطئ إشعارات هذا الجهاز.
+    if (client.auth.currentUser?.id != userId) return;
+    await client.rpc(
+      'register_device_token',
+      params: {
+        'p_token': token,
+        'p_device_id': deviceId,
+        'p_platform': _platform,
+      },
+    );
+    _lastTokenSave = DateTime.now();
   }
 
   /// يعالج رسالة فُتح بها التطبيق وهو مغلق/مقتول (يُنادى بعد إقلاع الـ UI).
@@ -106,7 +176,8 @@ class PushNotificationService {
     final ctx = AppMessenger.messengerKey.currentContext;
     final l10n = ctx == null ? null : AppLocalizations.of(ctx);
     AppMessenger.showBanner(
-      title: message.notification?.title ??
+      title:
+          message.notification?.title ??
           l10n?.notificationTitleDefault ??
           'إشعار جديد',
       body: message.notification?.body,
@@ -235,7 +306,9 @@ class PushNotificationService {
     //    وفي غيابه نفتح شاشة التفاصيل الكاملة (العنوان والنص ووقت الإرسال)
     //    بدلاً من الاكتفاء بصفحة الإشعارات.
     if (type == 'broadcast') {
-      if (deepLink != null && deepLink.isNotEmpty && NotificationModel.isExternalLink(deepLink)) {
+      if (deepLink != null &&
+          deepLink.isNotEmpty &&
+          NotificationModel.isExternalLink(deepLink)) {
         NotificationModel.launchExternal(deepLink);
         return;
       }
@@ -251,7 +324,9 @@ class PushNotificationService {
       appRouter.push('/notifications');
       return;
     }
-    if (deepLink != null && deepLink.isNotEmpty && NotificationModel.isExternalLink(deepLink)) {
+    if (deepLink != null &&
+        deepLink.isNotEmpty &&
+        NotificationModel.isExternalLink(deepLink)) {
       // رابط خارجي → يُفتح في المتصفح خارج التطبيق (لا تنقل داخل التطبيق).
       NotificationModel.launchExternal(deepLink);
       return;
@@ -290,9 +365,7 @@ class PushNotificationService {
       return;
     }
     appRouter.push(
-      screen == 'quote'
-          ? '/request/quote?orderId=$orderId'
-          : '/home/provider',
+      screen == 'quote' ? '/request/quote?orderId=$orderId' : '/home/provider',
     );
   }
 
@@ -342,17 +415,13 @@ class PushNotificationService {
   }
 
   Future<void> _onTokenRefresh(String token) async {
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) return;
     try {
-      final deviceId = await DeviceIdentity.instance.get();
-      if (Supabase.instance.client.auth.currentUser?.id != userId) return;
-      await Supabase.instance.client
-          .from('profiles')
-          .update({'fcm_token': token, 'device_id': deviceId})
-          .eq('id', userId);
-    } catch (_) {
-      // تجاهل — سيُعاد الحفظ عند تسجيل الدخول التالي
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return;
+      await _register(token, userId);
+    } catch (e) {
+      // يُعاد التسجيل عند الإقلاع/العودة من الخلفية التالية.
+      debugPrint('[Push] token refresh registration FAILED: $e');
     }
   }
 }

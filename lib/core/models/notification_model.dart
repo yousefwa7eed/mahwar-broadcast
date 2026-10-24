@@ -78,10 +78,14 @@ factory NotificationModel.fromJson(Map<String, dynamic> json) {
   //   price_offer      notificationTitlePriceOffer /
   //                    notificationBodyPriceOfferWithService | notificationBodyPriceOffer
   //                    | notificationBodyPriceOfferReceived
-  //   order_confirmed  notificationTitleOrderConfirmed / notificationBodyOrderConfirmed
-  //   order_rejected   notificationTitleOrderRejected /
+  //   order_confirmed  notificationTitleOrderConfirmed /
+  //                    notificationBodyOrderConfirmedForProvider
+  //   order_rejected   notificationTitleOrderRejected | notificationTitleOrderRejectedForProvider /
   //                    notificationBodyOrderRejectedWithProvider | notificationBodyOrderRejected
-  //   order_cancelled  notificationTitleOrderCancelled / notificationBodyOrderCancelled
+  //                    | notificationBodyOrderRejectedForProvider (metadata.by == 'owner')
+  //   order_cancelled  notificationTitleOrderCancelled /
+  //                    notificationBodyOrderCancelled | notificationBodyOrderCancelledForProvider
+  //                    (metadata.by == 'owner')
   //   order_completed  notificationTitleOrderCompleted / notificationBodyOrderCompleted
   //   shift_started    notificationTitleShiftStarted / notificationBodyShiftStarted
   //   shift_ended      notificationTitleShiftEnded / notificationBodyShiftEnded
@@ -154,6 +158,7 @@ factory NotificationModel.fromJson(Map<String, dynamic> json) {
       if (title != null) return title;
       return texts.notificationTitleBroadcast;
     }
+    final by = metadata == null ? null : _nonEmpty(metadata!['by'] as String?);
     switch (type) {
       case 'new_order':
         return texts.notificationTitleNewOrder;
@@ -162,6 +167,9 @@ factory NotificationModel.fromJson(Map<String, dynamic> json) {
       case 'order_confirmed':
         return texts.notificationTitleOrderConfirmed;
       case 'order_rejected':
+        if (by == 'owner') {
+          return texts.notificationTitleOrderRejectedForProvider;
+        }
         return texts.notificationTitleOrderRejected;
       case 'order_cancelled':
         return texts.notificationTitleOrderCancelled;
@@ -196,6 +204,7 @@ factory NotificationModel.fromJson(Map<String, dynamic> json) {
 
     final providerName =
         meta == null ? null : _nonEmpty(meta['provider_name'] as String?);
+    final by = meta == null ? null : _nonEmpty(meta['by'] as String?);
     final price = meta?['price'];
     final rating = meta?['rating'];
     final serviceName = _localizedServiceName(texts);
@@ -220,13 +229,19 @@ factory NotificationModel.fromJson(Map<String, dynamic> json) {
         }
         return texts.notificationBodyPriceOfferReceived;
       case 'order_confirmed':
-        return texts.notificationBodyOrderConfirmed;
+        return texts.notificationBodyOrderConfirmedForProvider;
       case 'order_rejected':
+        if (by == 'owner') {
+          return texts.notificationBodyOrderRejectedForProvider;
+        }
         if (providerName != null) {
           return texts.notificationBodyOrderRejectedWithProvider(providerName);
         }
         return texts.notificationBodyOrderRejected;
       case 'order_cancelled':
+        if (by == 'owner') {
+          return texts.notificationBodyOrderCancelledForProvider;
+        }
         return texts.notificationBodyOrderCancelled;
       case 'new_order':
         if (serviceName != null) {
