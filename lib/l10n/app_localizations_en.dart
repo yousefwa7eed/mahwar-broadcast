@@ -848,6 +848,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get providerListUpdateFailed => 'Couldn\'t refresh the list';
 
   @override
+  String providerLastSeen(String time) {
+    return 'Last seen: $time';
+  }
+
+  @override
   String get changePassword => 'Change Password';
 
   @override

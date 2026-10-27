@@ -279,6 +279,14 @@
   "approximateLocationWarning": "الموقع تقريبي، قد لا يكون دقيقاً",
   "refineLocation": "تحسين الدقة",
   "providerListUpdateFailed": "تعذّر تحديث القائمة",
+  "providerLastSeen": "آخر ظهور: {time}",
+  "@providerLastSeen": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "changePassword": "تغيير كلمة المرور",
   "changePasswordSubtitle": "أدخل كلمة المرور الحالية ثم اختر كلمة مرور جديدة (٦ أحرف على الأقل).",
   "currentPasswordLabel": "كلمة المرور الحالية",

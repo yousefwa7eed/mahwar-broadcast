@@ -279,6 +279,7 @@
   "approximateLocationWarning": "Approximate location, may not be precise",
   "refineLocation": "Refine location",
   "providerListUpdateFailed": "Couldn't refresh the list",
+  "providerLastSeen": "Last seen: {time}",
   "changePassword": "Change Password",
   "changePasswordSubtitle": "Enter your current password then choose a new one (at least 6 characters).",
   "currentPasswordLabel": "Current Password",

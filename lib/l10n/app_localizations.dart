@@ -1688,6 +1688,12 @@ abstract class AppLocalizations {
   /// **'تعذّر تحديث القائمة'**
   String get providerListUpdateFailed;
 
+  /// No description provided for @providerLastSeen.
+  ///
+  /// In ar, this message translates to:
+  /// **'آخر ظهور: {time}'**
+  String providerLastSeen(String time);
+
   /// No description provided for @changePassword.
   ///
   /// In ar, this message translates to:

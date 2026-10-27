@@ -5,8 +5,10 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/models/provider_details.dart';
+import '../../core/services/server_clock.dart';
 import '../../core/utils/distance_format.dart';
 import '../../l10n/app_localizations.dart';
+import 'nearby_providers_params.dart';
 
 class NearbyProvidersScreen extends StatefulWidget {
   final String serviceId;
@@ -19,6 +21,29 @@ class NearbyProvidersScreen extends StatefulWidget {
     required this.lat,
     required this.lng,
   });
+
+  /// "آخر ظهور" للمزوّد محسوباً ضد زمن الخادم (ServerClock) لا ساعة الجهاز.
+  /// [asOf] معرَّض للاختبار فقط — عند الغياب يُستخدم ServerClock.instance.now.
+  static String formatLastSeen(
+    DateTime? updatedAt, {
+    DateTime? asOf,
+    AppLocalizations? l10n,
+  }) {
+    if (updatedAt == null) return '';
+    final now = (asOf ?? ServerClock.instance.now).toUtc();
+    final diff = now.isBefore(updatedAt) ? Duration.zero : now.difference(updatedAt);
+    final String relative;
+    if (diff.inMinutes < 1) {
+      relative = l10n?.notificationTimeNow ?? 'الآن';
+    } else if (diff.inMinutes < 60) {
+      relative = l10n?.notificationTimeMinutes(diff.inMinutes) ?? 'منذ ${diff.inMinutes} دقيقة';
+    } else if (diff.inHours < 24) {
+      relative = l10n?.notificationTimeHours(diff.inHours) ?? 'منذ ${diff.inHours} ساعة';
+    } else {
+      relative = l10n?.notificationTimeDays(diff.inDays) ?? 'منذ ${diff.inDays} يوم';
+    }
+    return l10n?.providerLastSeen(relative) ?? 'آخر ظهور: $relative';
+  }
 
   @override
   State<NearbyProvidersScreen> createState() => _NearbyProvidersScreenState();
@@ -47,6 +72,7 @@ class _NearbyProvidersScreenState extends State<NearbyProvidersScreen> with Widg
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    ServerClock.instance.refresh();
     _loadServiceNames();
     _loadProviders();
     _timer = Timer.periodic(_refreshInterval, (_) => _handlePoll());
@@ -107,12 +133,11 @@ class _NearbyProvidersScreenState extends State<NearbyProvidersScreen> with Widg
     try {
       final response = await _client.rpc(
         'get_nearest_providers',
-        params: {
-          'user_lat': widget.lat,
-          'user_lng': widget.lng,
-          'service_filter': widget.serviceId,
-          'max_distance_meters': 50000,
-        },
+        params: buildNearestProvidersParams(
+          userLat: widget.lat,
+          userLng: widget.lng,
+          serviceFilter: widget.serviceId,
+        ),
       );
 
       final providers = (response as List)
@@ -447,6 +472,38 @@ class _NearbyProvidersScreenState extends State<NearbyProvidersScreen> with Widg
                       ),
                     ],
                   ),
+                  if (p.locationUpdatedAt != null) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.schedule_rounded,
+                          size: 13,
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.lightTextSecondary,
+                        ),
+                        const SizedBox(width: 3),
+                        Flexible(
+                          child: Text(
+                            NearbyProvidersScreen.formatLastSeen(
+                              p.locationUpdatedAt,
+                              l10n: l10n,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: 'Cairo',
+                              fontSize: 11.5,
+                              color: isDark
+                                  ? AppColors.darkTextSecondary
+                                  : AppColors.lightTextSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

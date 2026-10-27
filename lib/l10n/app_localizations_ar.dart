@@ -836,6 +836,11 @@ class AppLocalizationsAr extends AppLocalizations {
   String get providerListUpdateFailed => 'تعذّر تحديث القائمة';
 
   @override
+  String providerLastSeen(String time) {
+    return 'آخر ظهور: $time';
+  }
+
+  @override
   String get changePassword => 'تغيير كلمة المرور';
 
   @override
