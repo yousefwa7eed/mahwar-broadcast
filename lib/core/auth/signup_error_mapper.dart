@@ -21,6 +21,13 @@ const List<String> _knownCodes = [
   'MISSING_SPECIALIZATION',
   'MISSING_ROLE',
   'INVALID_ROLE',
+  'MISSING_VEHICLE',
+  'MISSING_VEHICLE_YEAR',
+  'MISSING_VEHICLE_COLOR',
+  'VEHICLE_TRIM_NOT_FOUND',
+  'INVALID_MODEL_YEAR',
+  'VEHICLE_COLOR_NOT_FOUND',
+  'INVALID_PLATE',
   // Legacy duplicate codes — still raised by the live trigger and understood by
   // older app builds; kept for rollback safety until the role-locked migration
   // lands.
@@ -92,6 +99,18 @@ String? _messageForCode(String code, AppLocalizations? l10n) {
     case 'MISSING_ROLE':
     case 'INVALID_ROLE':
       return l10n?.signupInvalidRole ?? 'حدث خطأ في نوع الحساب، حاول التسجيل مرة أخرى';
+    case 'MISSING_VEHICLE':
+      return l10n?.signupVehicleRequired ?? 'يرجى اختيار سيارتك لإكمال التسجيل';
+    case 'MISSING_VEHICLE_YEAR':
+      return l10n?.signupVehicleYearRequired ?? 'يرجى اختيار سنة صنع السيارة';
+    case 'MISSING_VEHICLE_COLOR':
+      return l10n?.signupVehicleColorRequired ?? 'يرجى اختيار لون السيارة';
+    case 'VEHICLE_TRIM_NOT_FOUND':
+    case 'INVALID_MODEL_YEAR':
+    case 'VEHICLE_COLOR_NOT_FOUND':
+    case 'INVALID_PLATE':
+      return l10n?.signupInvalidVehicleData ??
+          'بيانات السيارة المختارة غير صحيحة، يرجى اختيارها مرة أخرى';
     case 'DUPLICATE_PHONE':
       return l10n?.signupDuplicatePhone ?? 'رقم الهاتف مسجّل بالفعل';
     case 'DUPLICATE_NATIONAL_ID':

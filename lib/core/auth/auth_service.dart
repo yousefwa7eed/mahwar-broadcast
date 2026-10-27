@@ -51,9 +51,7 @@ abstract class AuthService {
     String? vehiclePlate,
     String? vehicleColor,
     List<String>? specializations,
-    String? carMake,
-    String? carModel,
-    int? carYear,
+    Map<String, dynamic>? vehicleMetadata,
   });
 
   Future<AuthResponse> signInWithEmail({
@@ -274,9 +272,7 @@ class SupabaseAuthService extends AuthService {
     String? vehiclePlate,
     String? vehicleColor,
     List<String>? specializations,
-    String? carMake,
-    String? carModel,
-    int? carYear,
+    Map<String, dynamic>? vehicleMetadata,
   }) async {
     return await _client.auth.signUp(
       email: email,
@@ -299,9 +295,7 @@ class SupabaseAuthService extends AuthService {
         'vehicle_year': vehicleYear,
         'vehicle_plate': vehiclePlate,
         'vehicle_color': vehicleColor,
-        'car_make': carMake,
-        'car_model': carModel,
-        'car_year': carYear,
+        ...?vehicleMetadata,
       },
     );
   }

@@ -9,9 +9,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/auth/national_id_utils.dart';
 import '../../../core/errors/rpc_error_translator.dart';
-import '../../../core/models/car_detail.dart';
+import '../../../core/models/vehicle.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/sound_effects_service.dart';
+import '../../../core/services/vehicle_catalog_service.dart';
 import '../../../l10n/app_localizations.dart';
 import 'widgets/location_picker_widget.dart';
 import 'widgets/car_selector_widget.dart';
@@ -56,7 +57,7 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
   }
 
   LatLng? _selectedLocation;
-  CarDetail? _selectedCar;
+  VehicleSummary? _selectedVehicle;
   final _notesController = TextEditingController();
 
   /// خيارات العميل عند إنشاء الطلب:
@@ -71,8 +72,9 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
   final List<XFile> _pickedImages = [];
   final ImagePicker _picker = ImagePicker();
 
-  List<CarDetail> _userCars = [];
+  List<VehicleSummary> _userVehicles = [];
   bool _isLoadingCars = true;
+  bool _carLoadFailed = false;
 
   /// يبقى true حتى تكتمل تعبئة النموذج الأولية (السيارات + المسودة) فتُبنى
   /// الخريطة مرة واحدة بموقعها النهائي.
@@ -286,10 +288,7 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
       serviceTypeId: _resolveServiceTypeId(),
       latitude: _selectedLocation?.latitude,
       longitude: _selectedLocation?.longitude,
-      carId: _selectedCar?.id,
-      carMake: _selectedCar?.make,
-      carModel: _selectedCar?.model,
-      carYear: _selectedCar?.year,
+      vehicleId: _selectedVehicle?.vehicle.id,
       notes: _notesController.text.trim(),
       autoCancel: _autoCancel,
       imagePaths: _pickedImages.map((img) => img.path).toList(),
@@ -319,46 +318,68 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
     return operation;
   }
 
-  /// يجلب السيارات الحقيقية المسجّلة لصاحب الحساب الحالي من جدول car_details
+  /// يجلب سيارات المستخدم من جدول `vehicles` ويحلّ أسماءها من كتالوج
+  /// السيارات (ماركة/موديل/فئة/لون).
   Future<void> _loadUserCars() async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) {
-      setState(() => _isLoadingCars = false);
+      setState(() {
+        _isLoadingCars = false;
+        _carLoadFailed = true;
+      });
       return;
     }
 
+    setState(() {
+      _isLoadingCars = true;
+      _carLoadFailed = false;
+    });
+
     try {
+      final catalog = await VehicleCatalogService.instance.load();
       final response = await _client
-          .from('car_details')
+          .from('vehicles')
           .select()
           .eq('user_id', userId)
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: true);
 
-      final cars = response
-          .map<CarDetail>((json) => CarDetail(
-        id: json['id'] as String,
-        userId: json['user_id'] as String,
-        make: json['make'] as String? ?? '',
-        model: json['model'] as String? ?? '',
-        year: json['year'] as int? ?? 0,
-        plateNumber: json['plate_number'] as String? ?? '',
-        color: json['color'] as String? ?? '',
-      ))
+      final vehicles = response
+          .map((json) => Vehicle.fromJson(json).resolve(catalog))
           .toList();
 
-      if (mounted) {
-        setState(() {
-          _userCars = cars;
-          _isLoadingCars = false;
-          // لو فيه سيارة واحدة بس، اختارها تلقائيًا لتسهيل التجربة
-          if (cars.length == 1) _selectedCar = cars.first;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _userVehicles = vehicles;
+        _isLoadingCars = false;
+        // حافظ على الاختيار الحالي إن ما زال موجوداً، وإلا اختر الافتراضية.
+        final currentId = _selectedVehicle?.vehicle.id;
+        final current = currentId == null
+            ? null
+            : _findVehicle(vehicles, currentId);
+        _selectedVehicle = current ?? _defaultVehicle(vehicles);
+      });
     } catch (e) {
       if (mounted) {
-        setState(() => _isLoadingCars = false);
+        setState(() {
+          _isLoadingCars = false;
+          _carLoadFailed = true;
+        });
       }
     }
+  }
+
+  VehicleSummary? _findVehicle(List<VehicleSummary> list, String id) {
+    for (final summary in list) {
+      if (summary.vehicle.id == id) return summary;
+    }
+    return null;
+  }
+
+  VehicleSummary? _defaultVehicle(List<VehicleSummary> list) {
+    for (final summary in list) {
+      if (summary.vehicle.isDefault) return summary;
+    }
+    return list.length == 1 ? list.first : null;
   }
 
   /// يستعيد مسودة محفوظة محلياً وتطبقها على النموذج (إن كانت حديثة وتخصّ هذا
@@ -389,8 +410,8 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
         }
         _notesController.text = draft.notes;
         _autoCancel = draft.autoCancel;
-        final car = _matchCar(draft);
-        if (car != null) _selectedCar = car;
+        final vehicle = _matchVehicle(draft);
+        if (vehicle != null) _selectedVehicle = vehicle;
       });
       if (validImagePaths.isNotEmpty) {
         setState(() {
@@ -405,25 +426,11 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
     }
   }
 
-  /// يطابق السيارة المحفوظة مع السيارات المسجّلة الحالية: بالمعرّف أولاً،
-  /// ثم بالطراز/السنة (في حال حُذفت السيارة وأُعيدت إضافتها بمعرّف جديد).
-  CarDetail? _matchCar(ServiceRequestDraft draft) {
-    final carId = draft.carId;
-    if (carId != null) {
-      for (final car in _userCars) {
-        if (car.id == carId) return car;
-      }
-    }
-    if (draft.carMake != null) {
-      for (final car in _userCars) {
-        if (car.make == draft.carMake &&
-            car.model == draft.carModel &&
-            car.year == draft.carYear) {
-          return car;
-        }
-      }
-    }
-    return null;
+  /// يطابق السيارة المحفوظة في المسودة مع سيارات المستخدم الحالية بالمعرّف.
+  VehicleSummary? _matchVehicle(ServiceRequestDraft draft) {
+    final vehicleId = draft.vehicleId;
+    if (vehicleId == null) return null;
+    return _findVehicle(_userVehicles, vehicleId);
   }
 
   /// بوابة إرسال الطلب: يتأكد (بجلب طازج) أن العميل يملك رقماً قومياً صالحاً.
@@ -508,10 +515,10 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
       return;
     }
 
-    if (_selectedCar == null) {
+    if (_selectedVehicle == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(l10n?.noCarAdded ?? 'يرجى اختيار السيارة أولاً'),
+          content: Text(l10n?.selectCarFirst ?? 'يرجى اختيار السيارة أولاً'),
           backgroundColor: Colors.red,
         ),
       );
@@ -800,13 +807,19 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
             _isLoadingCars
                 ? const Center(child: CircularProgressIndicator(color: AppColors.orangePrimary))
                 : CarSelectorWidget(
-              cars: _userCars,
-              selectedCar: _selectedCar,
-              onCarSelected: (car) {
-                setState(() => _selectedCar = car);
-                _scheduleDraftSave();
-              },
-            ),
+                    vehicles: _userVehicles,
+                    selectedVehicle: _selectedVehicle,
+                    loadFailed: _carLoadFailed,
+                    onRetry: _loadUserCars,
+                    onManageCars: () async {
+                      await context.push('/profile/cars');
+                      if (mounted) _loadUserCars();
+                    },
+                    onVehicleSelected: (vehicle) {
+                      setState(() => _selectedVehicle = vehicle);
+                      _scheduleDraftSave();
+                    },
+                  ),
             const SizedBox(height: 24),
 
             // Notes Field

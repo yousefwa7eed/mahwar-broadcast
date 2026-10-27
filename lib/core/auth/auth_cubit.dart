@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import '../models/vehicle_selection.dart';
 import '../services/push_notification_service.dart';
 import 'auth_service.dart';
 import 'phone_utils.dart';
@@ -368,9 +369,7 @@ class AuthCubit extends Cubit<AuthState> {
     String? vehiclePlate,
     String? vehicleColor,
     List<String>? specializations,
-    String? carMake,
-    String? carModel,
-    int? carYear,
+    VehicleSelection? vehicle,
   }) async {
     try {
       emit(const AuthLoading());
@@ -397,9 +396,7 @@ class AuthCubit extends Cubit<AuthState> {
         vehiclePlate: vehiclePlate,
         vehicleColor: vehicleColor,
         specializations: specializations,
-        carMake: carMake,
-        carModel: carModel,
-        carYear: carYear,
+        vehicleMetadata: vehicle?.toSignupMetadata(),
       );
 
       final user = response.user;

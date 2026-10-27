@@ -3910,6 +3910,396 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تعذّر تحديد موقعك خلال 30 ثانية، تأكد من توافر GPS ثم أعد المحاولة'**
   String get locationTimeoutDelayed;
+
+  /// No description provided for @selectVehicleTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختيار السيارة'**
+  String get selectVehicleTitle;
+
+  /// No description provided for @vehiclePopularBrands.
+  ///
+  /// In ar, this message translates to:
+  /// **'الماركات الشائعة'**
+  String get vehiclePopularBrands;
+
+  /// No description provided for @vehicleAllBrands.
+  ///
+  /// In ar, this message translates to:
+  /// **'كل الماركات'**
+  String get vehicleAllBrands;
+
+  /// No description provided for @vehicleSearchBrand.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث عن الماركة'**
+  String get vehicleSearchBrand;
+
+  /// No description provided for @vehicleSearchModel.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث عن الموديل'**
+  String get vehicleSearchModel;
+
+  /// No description provided for @vehicleNoResults.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد نتائج مطابقة'**
+  String get vehicleNoResults;
+
+  /// No description provided for @vehicleStepBrand.
+  ///
+  /// In ar, this message translates to:
+  /// **'الماركة'**
+  String get vehicleStepBrand;
+
+  /// No description provided for @vehicleStepModel.
+  ///
+  /// In ar, this message translates to:
+  /// **'الموديل'**
+  String get vehicleStepModel;
+
+  /// No description provided for @vehicleStepYear.
+  ///
+  /// In ar, this message translates to:
+  /// **'سنة الصنع'**
+  String get vehicleStepYear;
+
+  /// No description provided for @vehicleStepTrim.
+  ///
+  /// In ar, this message translates to:
+  /// **'الفئة'**
+  String get vehicleStepTrim;
+
+  /// No description provided for @vehicleStepColor.
+  ///
+  /// In ar, this message translates to:
+  /// **'اللون'**
+  String get vehicleStepColor;
+
+  /// No description provided for @vehicleStepPlate.
+  ///
+  /// In ar, this message translates to:
+  /// **'لوحة السيارة'**
+  String get vehicleStepPlate;
+
+  /// No description provided for @vehicleYearHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر سنة الصنع، وسنحدد الجيل تلقائيًا'**
+  String get vehicleYearHint;
+
+  /// No description provided for @vehicleTrimHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'الفئة تعني المحرك ومستوى التجهيز. لو مش متأكد اختر «لا أعرف».'**
+  String get vehicleTrimHint;
+
+  /// No description provided for @vehicleTrimUnknown.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا أعرف'**
+  String get vehicleTrimUnknown;
+
+  /// No description provided for @vehicleTrimUnknownHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'سنختار الفئة الأساسية، ويمكنك تعديلها لاحقًا'**
+  String get vehicleTrimUnknownHint;
+
+  /// No description provided for @vehicleMatchedGeneration.
+  ///
+  /// In ar, this message translates to:
+  /// **'الجيل المطابق: {range}'**
+  String vehicleMatchedGeneration(String range);
+
+  /// No description provided for @vehicleHorsepower.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} حصان'**
+  String vehicleHorsepower(int count);
+
+  /// No description provided for @vehicleSeatsCount.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} مقاعد'**
+  String vehicleSeatsCount(int count);
+
+  /// No description provided for @vehicleBodySedan.
+  ///
+  /// In ar, this message translates to:
+  /// **'سيدان'**
+  String get vehicleBodySedan;
+
+  /// No description provided for @vehicleBodyHatchback.
+  ///
+  /// In ar, this message translates to:
+  /// **'هاتشباك'**
+  String get vehicleBodyHatchback;
+
+  /// No description provided for @vehicleBodySuv.
+  ///
+  /// In ar, this message translates to:
+  /// **'SUV'**
+  String get vehicleBodySuv;
+
+  /// No description provided for @vehicleBodyCrossover.
+  ///
+  /// In ar, this message translates to:
+  /// **'كروس أوفر'**
+  String get vehicleBodyCrossover;
+
+  /// No description provided for @vehicleBodyPickup.
+  ///
+  /// In ar, this message translates to:
+  /// **'بيك أب'**
+  String get vehicleBodyPickup;
+
+  /// No description provided for @vehicleBodyVan.
+  ///
+  /// In ar, this message translates to:
+  /// **'فان'**
+  String get vehicleBodyVan;
+
+  /// No description provided for @vehicleBodyMpv.
+  ///
+  /// In ar, this message translates to:
+  /// **'عائلية (MPV)'**
+  String get vehicleBodyMpv;
+
+  /// No description provided for @vehicleBodyCoupe.
+  ///
+  /// In ar, this message translates to:
+  /// **'كوبيه'**
+  String get vehicleBodyCoupe;
+
+  /// No description provided for @vehicleBodyWagon.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستيشن'**
+  String get vehicleBodyWagon;
+
+  /// No description provided for @vehicleFuelPetrol.
+  ///
+  /// In ar, this message translates to:
+  /// **'بنزين'**
+  String get vehicleFuelPetrol;
+
+  /// No description provided for @vehicleFuelDiesel.
+  ///
+  /// In ar, this message translates to:
+  /// **'ديزل'**
+  String get vehicleFuelDiesel;
+
+  /// No description provided for @vehicleFuelHybrid.
+  ///
+  /// In ar, this message translates to:
+  /// **'هايبرد'**
+  String get vehicleFuelHybrid;
+
+  /// No description provided for @vehicleFuelElectric.
+  ///
+  /// In ar, this message translates to:
+  /// **'كهرباء'**
+  String get vehicleFuelElectric;
+
+  /// No description provided for @vehicleFuelCng.
+  ///
+  /// In ar, this message translates to:
+  /// **'غاز طبيعي'**
+  String get vehicleFuelCng;
+
+  /// No description provided for @vehicleTransmissionManual.
+  ///
+  /// In ar, this message translates to:
+  /// **'مانيوال'**
+  String get vehicleTransmissionManual;
+
+  /// No description provided for @vehicleTransmissionAutomatic.
+  ///
+  /// In ar, this message translates to:
+  /// **'أوتوماتيك'**
+  String get vehicleTransmissionAutomatic;
+
+  /// No description provided for @vehicleTransmissionCvt.
+  ///
+  /// In ar, this message translates to:
+  /// **'CVT'**
+  String get vehicleTransmissionCvt;
+
+  /// No description provided for @vehicleTransmissionDct.
+  ///
+  /// In ar, this message translates to:
+  /// **'DCT'**
+  String get vehicleTransmissionDct;
+
+  /// No description provided for @vehiclePlateOptionalTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'لوحة السيارة (اختياري)'**
+  String get vehiclePlateOptionalTitle;
+
+  /// No description provided for @vehiclePlateOptionalHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة اللوحة تساعد مزوّد الخدمة على تمييز سيارتك'**
+  String get vehiclePlateOptionalHint;
+
+  /// No description provided for @vehiclePlateEditableHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب الأرقام داخل اللوحة، واختَر الحروف بالترتيب — الحرف الأول على اليمين'**
+  String get vehiclePlateEditableHint;
+
+  /// No description provided for @vehiclePlateLetters.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحروف'**
+  String get vehiclePlateLetters;
+
+  /// No description provided for @vehiclePlateDigitsHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأرقام'**
+  String get vehiclePlateDigitsHint;
+
+  /// No description provided for @vehiclePlatePreview.
+  ///
+  /// In ar, this message translates to:
+  /// **'معاينة اللوحة'**
+  String get vehiclePlatePreview;
+
+  /// No description provided for @vehiclePlateClear.
+  ///
+  /// In ar, this message translates to:
+  /// **'مسح'**
+  String get vehiclePlateClear;
+
+  /// No description provided for @vehiclePlateInvalid.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل 3 حروف و3 أو 4 أرقام'**
+  String get vehiclePlateInvalid;
+
+  /// No description provided for @vehicleSave.
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ السيارة'**
+  String get vehicleSave;
+
+  /// No description provided for @vehicleCatalogLoadFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل كتالوج السيارات، تحقق من الاتصال وحاول مرة أخرى'**
+  String get vehicleCatalogLoadFailed;
+
+  /// No description provided for @signupVehicleSection.
+  ///
+  /// In ar, this message translates to:
+  /// **'سيارتك'**
+  String get signupVehicleSection;
+
+  /// No description provided for @signupVehicleRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'يرجى اختيار سيارتك لإكمال التسجيل'**
+  String get signupVehicleRequired;
+
+  /// No description provided for @defaultVehicle.
+  ///
+  /// In ar, this message translates to:
+  /// **'السيارة الافتراضية'**
+  String get defaultVehicle;
+
+  /// No description provided for @setAsDefault.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعيين كافتراضية'**
+  String get setAsDefault;
+
+  /// No description provided for @editVehicle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل السيارة'**
+  String get editVehicle;
+
+  /// No description provided for @deleteCarTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف السيارة'**
+  String get deleteCarTitle;
+
+  /// No description provided for @vehicleSaved.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم حفظ السيارة'**
+  String get vehicleSaved;
+
+  /// No description provided for @vehicleDeleted.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم حذف السيارة'**
+  String get vehicleDeleted;
+
+  /// No description provided for @vehicleDefaultSet.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تعيين السيارة كافتراضية'**
+  String get vehicleDefaultSet;
+
+  /// No description provided for @selectCarFirst.
+  ///
+  /// In ar, this message translates to:
+  /// **'يرجى اختيار السيارة أولاً'**
+  String get selectCarFirst;
+
+  /// No description provided for @signupVehicleYearRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'يرجى اختيار سنة صنع السيارة'**
+  String get signupVehicleYearRequired;
+
+  /// No description provided for @signupVehicleColorRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'يرجى اختيار لون السيارة'**
+  String get signupVehicleColorRequired;
+
+  /// No description provided for @signupInvalidVehicleData.
+  ///
+  /// In ar, this message translates to:
+  /// **'بيانات السيارة المختارة غير صحيحة، يرجى اختيارها مرة أخرى'**
+  String get signupInvalidVehicleData;
+
+  /// No description provided for @rpcErrorVehicleNotFound.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يتم العثور على السيارة المختارة. ربما تم حذفها، اختر سيارة أخرى.'**
+  String get rpcErrorVehicleNotFound;
+
+  /// No description provided for @rpcErrorVehicleTrimNotFound.
+  ///
+  /// In ar, this message translates to:
+  /// **'فئة السيارة المختارة غير متاحة. يرجى اختيار السيارة مرة أخرى.'**
+  String get rpcErrorVehicleTrimNotFound;
+
+  /// No description provided for @rpcErrorInvalidModelYear.
+  ///
+  /// In ar, this message translates to:
+  /// **'سنة الصنع لا تتوافق مع الجيل المختار. يرجى مراجعة بيانات السيارة.'**
+  String get rpcErrorInvalidModelYear;
+
+  /// No description provided for @rpcErrorVehicleColorNotFound.
+  ///
+  /// In ar, this message translates to:
+  /// **'اللون المختار غير متاح. يرجى اختيار اللون مرة أخرى.'**
+  String get rpcErrorVehicleColorNotFound;
+
+  /// No description provided for @rpcErrorInvalidPlate.
+  ///
+  /// In ar, this message translates to:
+  /// **'بيانات اللوحة غير صحيحة. استخدم 3 حروف و3 أو 4 أرقام.'**
+  String get rpcErrorInvalidPlate;
 }
 
 class _AppLocalizationsDelegate

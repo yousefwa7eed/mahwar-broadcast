@@ -94,4 +94,48 @@ void main() {
       'رقم الهاتف أو الرقم القومي مسجّل بالفعل في حساب آخر. يرجى تسجيل الدخول بالحساب الموجود.',
     );
   });
+
+  group('أكواد سيارة المالك الجديدة', () {
+    test('MISSING_VEHICLE تطالب باختيار سيارة', () {
+      expect(
+        mapSignupError('MISSING_VEHICLE: a vehicle is required', null),
+        'يرجى اختيار سيارتك لإكمال التسجيل',
+      );
+    });
+
+    test('MISSING_VEHICLE_YEAR و MISSING_VEHICLE_COLOR برسائل مستقلة', () {
+      expect(
+        mapSignupError('MISSING_VEHICLE_YEAR: required', null),
+        'يرجى اختيار سنة صنع السيارة',
+      );
+      expect(
+        mapSignupError('MISSING_VEHICLE_COLOR: required', null),
+        'يرجى اختيار لون السيارة',
+      );
+    });
+
+    test('أخطاء الكتالوج تُختصر لرسالة بيانات سيارة غير صحيحة', () {
+      for (final code in [
+        'VEHICLE_TRIM_NOT_FOUND',
+        'INVALID_MODEL_YEAR',
+        'VEHICLE_COLOR_NOT_FOUND',
+        'INVALID_PLATE',
+      ]) {
+        expect(
+          mapSignupError('$code: invalid', null),
+          'بيانات السيارة المختارة غير صحيحة، يرجى اختيارها مرة أخرى',
+        );
+      }
+    });
+
+    test('رمز السيارة مع بادئة GoTrue يُلتقط', () {
+      expect(
+        mapSignupError(
+          'Database error saving new user: MISSING_VEHICLE: a vehicle is required',
+          null,
+        ),
+        'يرجى اختيار سيارتك لإكمال التسجيل',
+      );
+    });
+  });
 }

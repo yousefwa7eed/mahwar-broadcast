@@ -836,5 +836,91 @@
       }
     }
   },
-  "locationTimeoutDelayed": "تعذّر تحديد موقعك خلال 30 ثانية، تأكد من توافر GPS ثم أعد المحاولة"
+  "locationTimeoutDelayed": "تعذّر تحديد موقعك خلال 30 ثانية، تأكد من توافر GPS ثم أعد المحاولة",
+  "selectVehicleTitle": "اختيار السيارة",
+  "vehiclePopularBrands": "الماركات الشائعة",
+  "vehicleAllBrands": "كل الماركات",
+  "vehicleSearchBrand": "ابحث عن الماركة",
+  "vehicleSearchModel": "ابحث عن الموديل",
+  "vehicleNoResults": "لا توجد نتائج مطابقة",
+  "vehicleStepBrand": "الماركة",
+  "vehicleStepModel": "الموديل",
+  "vehicleStepYear": "سنة الصنع",
+  "vehicleStepTrim": "الفئة",
+  "vehicleStepColor": "اللون",
+  "vehicleStepPlate": "لوحة السيارة",
+  "vehicleYearHint": "اختر سنة الصنع، وسنحدد الجيل تلقائيًا",
+  "vehicleTrimHint": "الفئة تعني المحرك ومستوى التجهيز. لو مش متأكد اختر «لا أعرف».",
+  "vehicleTrimUnknown": "لا أعرف",
+  "vehicleTrimUnknownHint": "سنختار الفئة الأساسية، ويمكنك تعديلها لاحقًا",
+  "vehicleMatchedGeneration": "الجيل المطابق: {range}",
+  "@vehicleMatchedGeneration": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      }
+    }
+  },
+  "vehicleHorsepower": "{count} حصان",
+  "@vehicleHorsepower": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "vehicleSeatsCount": "{count} مقاعد",
+  "@vehicleSeatsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "vehicleBodySedan": "سيدان",
+  "vehicleBodyHatchback": "هاتشباك",
+  "vehicleBodySuv": "SUV",
+  "vehicleBodyCrossover": "كروس أوفر",
+  "vehicleBodyPickup": "بيك أب",
+  "vehicleBodyVan": "فان",
+  "vehicleBodyMpv": "عائلية (MPV)",
+  "vehicleBodyCoupe": "كوبيه",
+  "vehicleBodyWagon": "ستيشن",
+  "vehicleFuelPetrol": "بنزين",
+  "vehicleFuelDiesel": "ديزل",
+  "vehicleFuelHybrid": "هايبرد",
+  "vehicleFuelElectric": "كهرباء",
+  "vehicleFuelCng": "غاز طبيعي",
+  "vehicleTransmissionManual": "مانيوال",
+  "vehicleTransmissionAutomatic": "أوتوماتيك",
+  "vehicleTransmissionCvt": "CVT",
+  "vehicleTransmissionDct": "DCT",
+  "vehiclePlateOptionalTitle": "لوحة السيارة (اختياري)",
+  "vehiclePlateOptionalHint": "إضافة اللوحة تساعد مزوّد الخدمة على تمييز سيارتك",
+  "vehiclePlateEditableHint": "اكتب الأرقام داخل اللوحة، واختَر الحروف بالترتيب — الحرف الأول على اليمين",
+  "vehiclePlateLetters": "الحروف",
+  "vehiclePlateDigitsHint": "الأرقام",
+  "vehiclePlatePreview": "معاينة اللوحة",
+  "vehiclePlateClear": "مسح",
+  "vehiclePlateInvalid": "أدخل 3 حروف و3 أو 4 أرقام",
+  "vehicleSave": "حفظ السيارة",
+  "vehicleCatalogLoadFailed": "تعذّر تحميل كتالوج السيارات، تحقق من الاتصال وحاول مرة أخرى",
+  "signupVehicleSection": "سيارتك",
+  "signupVehicleRequired": "يرجى اختيار سيارتك لإكمال التسجيل",
+  "defaultVehicle": "السيارة الافتراضية",
+  "setAsDefault": "تعيين كافتراضية",
+  "editVehicle": "تعديل السيارة",
+  "deleteCarTitle": "حذف السيارة",
+  "vehicleSaved": "تم حفظ السيارة",
+  "vehicleDeleted": "تم حذف السيارة",
+  "vehicleDefaultSet": "تم تعيين السيارة كافتراضية",
+  "selectCarFirst": "يرجى اختيار السيارة أولاً",
+  "signupVehicleYearRequired": "يرجى اختيار سنة صنع السيارة",
+  "signupVehicleColorRequired": "يرجى اختيار لون السيارة",
+  "signupInvalidVehicleData": "بيانات السيارة المختارة غير صحيحة، يرجى اختيارها مرة أخرى",
+  "rpcErrorVehicleNotFound": "لم يتم العثور على السيارة المختارة. ربما تم حذفها، اختر سيارة أخرى.",
+  "rpcErrorVehicleTrimNotFound": "فئة السيارة المختارة غير متاحة. يرجى اختيار السيارة مرة أخرى.",
+  "rpcErrorInvalidModelYear": "سنة الصنع لا تتوافق مع الجيل المختار. يرجى مراجعة بيانات السيارة.",
+  "rpcErrorVehicleColorNotFound": "اللون المختار غير متاح. يرجى اختيار اللون مرة أخرى.",
+  "rpcErrorInvalidPlate": "بيانات اللوحة غير صحيحة. استخدم 3 حروف و3 أو 4 أرقام."
 }

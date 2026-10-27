@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -15,10 +15,7 @@ class ServiceRequestDraft {
     this.serviceTypeId,
     this.latitude,
     this.longitude,
-    this.carId,
-    this.carMake,
-    this.carModel,
-    this.carYear,
+    this.vehicleId,
     this.notes = '',
     this.autoCancel = true,
     this.imagePaths = const [],
@@ -39,10 +36,9 @@ class ServiceRequestDraft {
 
   final double? latitude;
   final double? longitude;
-  final String? carId;
-  final String? carMake;
-  final String? carModel;
-  final int? carYear;
+  /// معرّف السيارة من جدول `vehicles` — يُرسَل للخادم الذي يشتق لقطة
+  /// الماركة/الموديل/الفئة/اللون/اللوحة ويتحقق من ملكيتها.
+  final String? vehicleId;
   final String notes;
   final bool autoCancel;
   final List<String> imagePaths;
@@ -52,8 +48,7 @@ class ServiceRequestDraft {
   bool get hasContent =>
       latitude != null ||
       longitude != null ||
-      carId != null ||
-      carMake != null ||
+      vehicleId != null ||
       notes.trim().isNotEmpty ||
       imagePaths.isNotEmpty ||
       autoCancel != true;
@@ -64,10 +59,7 @@ class ServiceRequestDraft {
         'serviceTypeId': serviceTypeId,
         'latitude': latitude,
         'longitude': longitude,
-        'carId': carId,
-        'carMake': carMake,
-        'carModel': carModel,
-        'carYear': carYear,
+        'vehicleId': vehicleId,
         'notes': notes,
         'autoCancel': autoCancel,
         'imagePaths': imagePaths,
@@ -82,10 +74,7 @@ class ServiceRequestDraft {
       serviceTypeId: json['serviceTypeId'] as String?,
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
-      carId: json['carId'] as String?,
-      carMake: json['carMake'] as String?,
-      carModel: json['carModel'] as String?,
-      carYear: (json['carYear'] as num?)?.toInt(),
+      vehicleId: json['vehicleId'] as String?,
       notes: json['notes'] as String? ?? '',
       autoCancel: json['autoCancel'] as bool? ?? true,
       imagePaths: (json['imagePaths'] is List)

@@ -5,6 +5,7 @@ import '../../../core/constants/avatar_config.dart';
 import '../../../core/services/server_clock.dart';
 import '../../../core/utils/distance_format.dart';
 import '../../../core/widgets/attachments_gallery.dart';
+import '../../../core/widgets/brand_mark.dart';
 import '../../../l10n/app_localizations.dart';
 
 /// بطاقة الطلب الواصل للمزوّد في لوحة التحكم.
@@ -16,6 +17,10 @@ class NearbyRequestCard extends StatelessWidget {
   final String carMake;
   final String carModel;
   final int carYear;
+  final String? brandId;
+  final String? carTrim;
+  final String? carColor;
+  final String? carPlate;
   final String issueType;
   final double? distanceMeters;
   final String address;
@@ -33,6 +38,10 @@ class NearbyRequestCard extends StatelessWidget {
     required this.carMake,
     required this.carModel,
     required this.carYear,
+    this.brandId,
+    this.carTrim,
+    this.carColor,
+    this.carPlate,
     required this.issueType,
     required this.distanceMeters,
     required this.address,
@@ -45,6 +54,12 @@ class NearbyRequestCard extends StatelessWidget {
     this.customerAvatarUrl,
   });
 
+  String _carDetails() => [
+        if (carTrim != null && carTrim!.trim().isNotEmpty) carTrim!,
+        if (carColor != null && carColor!.trim().isNotEmpty) carColor!,
+        if (carPlate != null && carPlate!.trim().isNotEmpty) carPlate!,
+      ].join(' · ');
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -52,6 +67,7 @@ class NearbyRequestCard extends StatelessWidget {
     final customerDisplayName = customerName.isEmpty
         ? (l10n?.notificationCustomerFallback ?? 'العميل')
         : customerName;
+    final carDetails = _carDetails();
 
     return Container(
       width: double.infinity,
@@ -153,16 +169,40 @@ class NearbyRequestCard extends StatelessWidget {
 
           // Car info
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.directions_car_rounded, size: 18, color: AppColors.orangePrimary),
+              Padding(
+                padding: const EdgeInsets.only(top: 1),
+                child: BrandMark(brandId: brandId, size: 18),
+              ),
               const SizedBox(width: 8),
-              Text(
-                '$carMake $carModel $carYear',
-                style: TextStyle(
-                  fontFamily: 'Cairo',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$carMake $carModel $carYear',
+                      style: TextStyle(
+                        fontFamily: 'Cairo',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                      ),
+                    ),
+                    if (carDetails.isNotEmpty)
+                      Text(
+                        carDetails,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: 'Cairo',
+                          fontSize: 12,
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.lightTextSecondary,
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ],

@@ -30,6 +30,16 @@ class Order {
   final String carMake;
   final String carModel;
   final int carYear;
+
+  /// لقطة بيانات السيارة من الكتالوج وقت الإنشاء (تبقى صحيحة حتى لو تغيّر
+  /// الكتالوج لاحقاً). الطلبات القديمة قد تحتوي null في كل هذه الحقول.
+  final String? vehicleId;
+  final String? carBrandId;
+  final String? carTrimId;
+  final String? carTrim;
+  final String? carColorId;
+  final String? carColor;
+  final String? carPlate;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DateTime? respondDeadline;
@@ -56,6 +66,13 @@ class Order {
     required this.carMake,
     required this.carModel,
     required this.carYear,
+    this.vehicleId,
+    this.carBrandId,
+    this.carTrimId,
+    this.carTrim,
+    this.carColorId,
+    this.carColor,
+    this.carPlate,
     this.createdAt,
     this.updatedAt,
     this.respondDeadline,
@@ -84,6 +101,13 @@ class Order {
       carMake: json['car_make'] as String,
       carModel: json['car_model'] as String,
       carYear: json['car_year'] as int,
+      vehicleId: json['vehicle_id'] as String?,
+      carBrandId: json['car_brand_id'] as String?,
+      carTrimId: json['car_trim_id'] as String?,
+      carTrim: json['car_trim'] as String?,
+      carColorId: json['car_color_id'] as String?,
+      carColor: json['car_color'] as String?,
+      carPlate: json['car_plate'] as String?,
       createdAt: parseSupabaseTimestamp(json['created_at']),
       updatedAt: parseSupabaseTimestamp(json['updated_at']),
       respondDeadline: parseSupabaseTimestamp(json['respond_deadline']),
@@ -137,6 +161,15 @@ class Order {
   }
 
   String get carDisplayName => '$carMake $carModel $carYear';
+
+  /// تفاصيل إضافية للعرض (الفئة/اللون/اللوحة) — تُرشَّح من الفراغات.
+  String get carDetails {
+    return [
+      if (carTrim != null && carTrim!.trim().isNotEmpty) carTrim!,
+      if (carColor != null && carColor!.trim().isNotEmpty) carColor!,
+      if (carPlate != null && carPlate!.trim().isNotEmpty) carPlate!,
+    ].join(' · ');
+  }
 
   /// الطلب وصل لحالة نهائية: إتمام ناجح أو فشل (رفض/إلغاء).
   bool get isFinalized =>

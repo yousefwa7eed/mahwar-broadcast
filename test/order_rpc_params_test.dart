@@ -3,13 +3,11 @@ import 'package:mahwar/features/provider_selection/order_rpc_params.dart';
 
 void main() {
   group('buildCreateOrderForProviderParams', () {
-    test('always sends the required phone params as null/false', () {
+    test('never sends phone params — the server derives contact separately', () {
       final params = buildCreateOrderForProviderParams(
         providerId: 'prov-1',
-        serviceTypeId: 'crane_rental',
-        carMake: 'Toyota',
-        carModel: 'Corolla',
-        carYear: 2019,
+        serviceTypeId: 'crane',
+        vehicleId: 'vehicle-1',
         latitude: 30.05,
         longitude: 31.23,
         notes: 'breakdown',
@@ -17,17 +15,17 @@ void main() {
         attachments: null,
       );
 
-      expect(params['p_owner_phone'], isNull);
-      expect(params['p_share_phone'], isFalse);
+      expect(
+        params.keys.where((key) => key.contains('phone')),
+        isEmpty,
+      );
     });
 
     test('contains exactly the expected keys (plus optional attachments)', () {
       final params = buildCreateOrderForProviderParams(
         providerId: 'prov-1',
-        serviceTypeId: 'crane_rental',
-        carMake: 'Toyota',
-        carModel: 'Corolla',
-        carYear: 2019,
+        serviceTypeId: 'crane',
+        vehicleId: 'vehicle-1',
         latitude: 30.05,
         longitude: 31.23,
         notes: 'breakdown',
@@ -38,22 +36,16 @@ void main() {
       expect(params.keys.toSet(), {
         'p_provider_id',
         'p_service_type_id',
-        'p_car_make',
-        'p_car_model',
-        'p_car_year',
+        'p_vehicle_id',
         'p_latitude',
         'p_longitude',
         'p_notes',
-        'p_owner_phone',
         'p_auto_cancel',
-        'p_share_phone',
         'p_attachments',
       });
       expect(params['p_provider_id'], 'prov-1');
-      expect(params['p_service_type_id'], 'crane_rental');
-      expect(params['p_car_make'], 'Toyota');
-      expect(params['p_car_model'], 'Corolla');
-      expect(params['p_car_year'], 2019);
+      expect(params['p_service_type_id'], 'crane');
+      expect(params['p_vehicle_id'], 'vehicle-1');
       expect(params['p_latitude'], 30.05);
       expect(params['p_longitude'], 31.23);
       expect(params['p_notes'], 'breakdown');
@@ -65,9 +57,7 @@ void main() {
       final bare = buildCreateOrderForProviderParams(
         providerId: 'prov-1',
         serviceTypeId: null,
-        carMake: null,
-        carModel: null,
-        carYear: null,
+        vehicleId: null,
         latitude: null,
         longitude: null,
         notes: null,
@@ -80,9 +70,7 @@ void main() {
       final full = buildCreateOrderForProviderParams(
         providerId: 'prov-1',
         serviceTypeId: null,
-        carMake: null,
-        carModel: null,
-        carYear: null,
+        vehicleId: null,
         latitude: null,
         longitude: null,
         notes: null,
@@ -93,55 +81,6 @@ void main() {
       );
       expect(full['p_address_text'], '12 Nile St');
       expect(full['p_currency'], 'EGP');
-    });
-  });
-
-  group('buildUpdatePendingOrderParams', () {
-    test('always sends the required phone params as null/false', () {
-      final params = buildUpdatePendingOrderParams(
-        orderId: 'order-1',
-        serviceTypeId: 'crane_rental',
-        carMake: 'Toyota',
-        carModel: 'Corolla',
-        carYear: 2019,
-        latitude: 30.05,
-        longitude: 31.23,
-        notes: 'breakdown',
-        autoCancel: true,
-      );
-
-      expect(params['p_owner_phone'], isNull);
-      expect(params['p_share_phone'], isFalse);
-    });
-
-    test('contains exactly the expected keys', () {
-      final params = buildUpdatePendingOrderParams(
-        orderId: 'order-1',
-        serviceTypeId: 'crane_rental',
-        carMake: 'Toyota',
-        carModel: 'Corolla',
-        carYear: 2019,
-        latitude: 30.05,
-        longitude: 31.23,
-        notes: 'breakdown',
-        autoCancel: false,
-      );
-
-      expect(params.keys.toSet(), {
-        'p_order_id',
-        'p_service_type_id',
-        'p_car_make',
-        'p_car_model',
-        'p_car_year',
-        'p_latitude',
-        'p_longitude',
-        'p_notes',
-        'p_owner_phone',
-        'p_auto_cancel',
-        'p_share_phone',
-      });
-      expect(params['p_order_id'], 'order-1');
-      expect(params['p_auto_cancel'], isFalse);
     });
   });
 }

@@ -2140,4 +2140,217 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get locationTimeoutDelayed =>
       'Could not locate you within 30 seconds, make sure GPS is available and try again';
+
+  @override
+  String get selectVehicleTitle => 'Select vehicle';
+
+  @override
+  String get vehiclePopularBrands => 'Popular brands';
+
+  @override
+  String get vehicleAllBrands => 'All brands';
+
+  @override
+  String get vehicleSearchBrand => 'Search brands';
+
+  @override
+  String get vehicleSearchModel => 'Search models';
+
+  @override
+  String get vehicleNoResults => 'No matching results';
+
+  @override
+  String get vehicleStepBrand => 'Brand';
+
+  @override
+  String get vehicleStepModel => 'Model';
+
+  @override
+  String get vehicleStepYear => 'Model year';
+
+  @override
+  String get vehicleStepTrim => 'Trim';
+
+  @override
+  String get vehicleStepColor => 'Color';
+
+  @override
+  String get vehicleStepPlate => 'Plate';
+
+  @override
+  String get vehicleYearHint =>
+      'Pick the model year — we\'ll match the generation for you';
+
+  @override
+  String get vehicleTrimHint =>
+      'A trim is the engine and equipment level. Pick \"Not sure\" if you don\'t know.';
+
+  @override
+  String get vehicleTrimUnknown => 'Not sure';
+
+  @override
+  String get vehicleTrimUnknownHint =>
+      'We\'ll pick the base trim — you can change it later';
+
+  @override
+  String vehicleMatchedGeneration(String range) {
+    return 'Matched generation: $range';
+  }
+
+  @override
+  String vehicleHorsepower(int count) {
+    return '$count hp';
+  }
+
+  @override
+  String vehicleSeatsCount(int count) {
+    return '$count seats';
+  }
+
+  @override
+  String get vehicleBodySedan => 'Sedan';
+
+  @override
+  String get vehicleBodyHatchback => 'Hatchback';
+
+  @override
+  String get vehicleBodySuv => 'SUV';
+
+  @override
+  String get vehicleBodyCrossover => 'Crossover';
+
+  @override
+  String get vehicleBodyPickup => 'Pickup';
+
+  @override
+  String get vehicleBodyVan => 'Van';
+
+  @override
+  String get vehicleBodyMpv => 'MPV';
+
+  @override
+  String get vehicleBodyCoupe => 'Coupe';
+
+  @override
+  String get vehicleBodyWagon => 'Wagon';
+
+  @override
+  String get vehicleFuelPetrol => 'Petrol';
+
+  @override
+  String get vehicleFuelDiesel => 'Diesel';
+
+  @override
+  String get vehicleFuelHybrid => 'Hybrid';
+
+  @override
+  String get vehicleFuelElectric => 'Electric';
+
+  @override
+  String get vehicleFuelCng => 'CNG';
+
+  @override
+  String get vehicleTransmissionManual => 'Manual';
+
+  @override
+  String get vehicleTransmissionAutomatic => 'Automatic';
+
+  @override
+  String get vehicleTransmissionCvt => 'CVT';
+
+  @override
+  String get vehicleTransmissionDct => 'DCT';
+
+  @override
+  String get vehiclePlateOptionalTitle => 'Plate number (optional)';
+
+  @override
+  String get vehiclePlateOptionalHint =>
+      'Adding the plate helps the provider identify your car';
+
+  @override
+  String get vehiclePlateEditableHint =>
+      'Type the digits on the plate, then pick the letters in order — first letter on the right';
+
+  @override
+  String get vehiclePlateLetters => 'Letters';
+
+  @override
+  String get vehiclePlateDigitsHint => 'Digits';
+
+  @override
+  String get vehiclePlatePreview => 'Plate preview';
+
+  @override
+  String get vehiclePlateClear => 'Clear';
+
+  @override
+  String get vehiclePlateInvalid => 'Enter 3 letters and 3 or 4 digits';
+
+  @override
+  String get vehicleSave => 'Save vehicle';
+
+  @override
+  String get vehicleCatalogLoadFailed =>
+      'Could not load the vehicle catalog. Check your connection and try again.';
+
+  @override
+  String get signupVehicleSection => 'Your car';
+
+  @override
+  String get signupVehicleRequired => 'Please select your car to continue';
+
+  @override
+  String get defaultVehicle => 'Default vehicle';
+
+  @override
+  String get setAsDefault => 'Set as default';
+
+  @override
+  String get editVehicle => 'Edit vehicle';
+
+  @override
+  String get deleteCarTitle => 'Delete vehicle';
+
+  @override
+  String get vehicleSaved => 'Vehicle saved';
+
+  @override
+  String get vehicleDeleted => 'Vehicle deleted';
+
+  @override
+  String get vehicleDefaultSet => 'Default vehicle updated';
+
+  @override
+  String get selectCarFirst => 'Please select your car first';
+
+  @override
+  String get signupVehicleYearRequired => 'Please select your car model year';
+
+  @override
+  String get signupVehicleColorRequired => 'Please select your car color';
+
+  @override
+  String get signupInvalidVehicleData =>
+      'The selected vehicle data is invalid, please pick it again';
+
+  @override
+  String get rpcErrorVehicleNotFound =>
+      'The selected vehicle was not found. Pick another car.';
+
+  @override
+  String get rpcErrorVehicleTrimNotFound =>
+      'The selected trim is unavailable. Please pick the car again.';
+
+  @override
+  String get rpcErrorInvalidModelYear =>
+      'The model year does not match the selected generation. Check the car details.';
+
+  @override
+  String get rpcErrorVehicleColorNotFound =>
+      'The selected color is unavailable. Please pick the color again.';
+
+  @override
+  String get rpcErrorInvalidPlate =>
+      'Invalid plate details. Use 3 letters and 3 or 4 digits.';
 }

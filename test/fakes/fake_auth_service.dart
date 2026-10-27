@@ -42,6 +42,10 @@ class FakeAuthService extends AuthService {
 
   int serverUserCount = 0;
   int serverRoleCount = 0;
+
+  /// آخر metadata سيارة أُرسلت في [signUpWithEmail] — لاختبار ربط سيارة
+  /// المالك بالكتالوج دون شبكة.
+  Map<String, dynamic>? lastVehicleMetadata;
   int signOutCount = 0;
   int clearLocalSessionCount = 0;
   int signOutFromRejectionCount = 0;
@@ -219,10 +223,9 @@ class FakeAuthService extends AuthService {
     String? vehiclePlate,
     String? vehicleColor,
     List<String>? specializations,
-    String? carMake,
-    String? carModel,
-    int? carYear,
+    Map<String, dynamic>? vehicleMetadata,
   }) async {
+    lastVehicleMetadata = vehicleMetadata;
     user = User(
       id: 'fake-user-id',
       appMetadata: const {},

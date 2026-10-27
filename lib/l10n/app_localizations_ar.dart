@@ -2096,4 +2096,216 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get locationTimeoutDelayed =>
       'تعذّر تحديد موقعك خلال 30 ثانية، تأكد من توافر GPS ثم أعد المحاولة';
+
+  @override
+  String get selectVehicleTitle => 'اختيار السيارة';
+
+  @override
+  String get vehiclePopularBrands => 'الماركات الشائعة';
+
+  @override
+  String get vehicleAllBrands => 'كل الماركات';
+
+  @override
+  String get vehicleSearchBrand => 'ابحث عن الماركة';
+
+  @override
+  String get vehicleSearchModel => 'ابحث عن الموديل';
+
+  @override
+  String get vehicleNoResults => 'لا توجد نتائج مطابقة';
+
+  @override
+  String get vehicleStepBrand => 'الماركة';
+
+  @override
+  String get vehicleStepModel => 'الموديل';
+
+  @override
+  String get vehicleStepYear => 'سنة الصنع';
+
+  @override
+  String get vehicleStepTrim => 'الفئة';
+
+  @override
+  String get vehicleStepColor => 'اللون';
+
+  @override
+  String get vehicleStepPlate => 'لوحة السيارة';
+
+  @override
+  String get vehicleYearHint => 'اختر سنة الصنع، وسنحدد الجيل تلقائيًا';
+
+  @override
+  String get vehicleTrimHint =>
+      'الفئة تعني المحرك ومستوى التجهيز. لو مش متأكد اختر «لا أعرف».';
+
+  @override
+  String get vehicleTrimUnknown => 'لا أعرف';
+
+  @override
+  String get vehicleTrimUnknownHint =>
+      'سنختار الفئة الأساسية، ويمكنك تعديلها لاحقًا';
+
+  @override
+  String vehicleMatchedGeneration(String range) {
+    return 'الجيل المطابق: $range';
+  }
+
+  @override
+  String vehicleHorsepower(int count) {
+    return '$count حصان';
+  }
+
+  @override
+  String vehicleSeatsCount(int count) {
+    return '$count مقاعد';
+  }
+
+  @override
+  String get vehicleBodySedan => 'سيدان';
+
+  @override
+  String get vehicleBodyHatchback => 'هاتشباك';
+
+  @override
+  String get vehicleBodySuv => 'SUV';
+
+  @override
+  String get vehicleBodyCrossover => 'كروس أوفر';
+
+  @override
+  String get vehicleBodyPickup => 'بيك أب';
+
+  @override
+  String get vehicleBodyVan => 'فان';
+
+  @override
+  String get vehicleBodyMpv => 'عائلية (MPV)';
+
+  @override
+  String get vehicleBodyCoupe => 'كوبيه';
+
+  @override
+  String get vehicleBodyWagon => 'ستيشن';
+
+  @override
+  String get vehicleFuelPetrol => 'بنزين';
+
+  @override
+  String get vehicleFuelDiesel => 'ديزل';
+
+  @override
+  String get vehicleFuelHybrid => 'هايبرد';
+
+  @override
+  String get vehicleFuelElectric => 'كهرباء';
+
+  @override
+  String get vehicleFuelCng => 'غاز طبيعي';
+
+  @override
+  String get vehicleTransmissionManual => 'مانيوال';
+
+  @override
+  String get vehicleTransmissionAutomatic => 'أوتوماتيك';
+
+  @override
+  String get vehicleTransmissionCvt => 'CVT';
+
+  @override
+  String get vehicleTransmissionDct => 'DCT';
+
+  @override
+  String get vehiclePlateOptionalTitle => 'لوحة السيارة (اختياري)';
+
+  @override
+  String get vehiclePlateOptionalHint =>
+      'إضافة اللوحة تساعد مزوّد الخدمة على تمييز سيارتك';
+
+  @override
+  String get vehiclePlateEditableHint =>
+      'اكتب الأرقام داخل اللوحة، واختَر الحروف بالترتيب — الحرف الأول على اليمين';
+
+  @override
+  String get vehiclePlateLetters => 'الحروف';
+
+  @override
+  String get vehiclePlateDigitsHint => 'الأرقام';
+
+  @override
+  String get vehiclePlatePreview => 'معاينة اللوحة';
+
+  @override
+  String get vehiclePlateClear => 'مسح';
+
+  @override
+  String get vehiclePlateInvalid => 'أدخل 3 حروف و3 أو 4 أرقام';
+
+  @override
+  String get vehicleSave => 'حفظ السيارة';
+
+  @override
+  String get vehicleCatalogLoadFailed =>
+      'تعذّر تحميل كتالوج السيارات، تحقق من الاتصال وحاول مرة أخرى';
+
+  @override
+  String get signupVehicleSection => 'سيارتك';
+
+  @override
+  String get signupVehicleRequired => 'يرجى اختيار سيارتك لإكمال التسجيل';
+
+  @override
+  String get defaultVehicle => 'السيارة الافتراضية';
+
+  @override
+  String get setAsDefault => 'تعيين كافتراضية';
+
+  @override
+  String get editVehicle => 'تعديل السيارة';
+
+  @override
+  String get deleteCarTitle => 'حذف السيارة';
+
+  @override
+  String get vehicleSaved => 'تم حفظ السيارة';
+
+  @override
+  String get vehicleDeleted => 'تم حذف السيارة';
+
+  @override
+  String get vehicleDefaultSet => 'تم تعيين السيارة كافتراضية';
+
+  @override
+  String get selectCarFirst => 'يرجى اختيار السيارة أولاً';
+
+  @override
+  String get signupVehicleYearRequired => 'يرجى اختيار سنة صنع السيارة';
+
+  @override
+  String get signupVehicleColorRequired => 'يرجى اختيار لون السيارة';
+
+  @override
+  String get signupInvalidVehicleData =>
+      'بيانات السيارة المختارة غير صحيحة، يرجى اختيارها مرة أخرى';
+
+  @override
+  String get rpcErrorVehicleNotFound =>
+      'لم يتم العثور على السيارة المختارة. ربما تم حذفها، اختر سيارة أخرى.';
+
+  @override
+  String get rpcErrorVehicleTrimNotFound =>
+      'فئة السيارة المختارة غير متاحة. يرجى اختيار السيارة مرة أخرى.';
+
+  @override
+  String get rpcErrorInvalidModelYear =>
+      'سنة الصنع لا تتوافق مع الجيل المختار. يرجى مراجعة بيانات السيارة.';
+
+  @override
+  String get rpcErrorVehicleColorNotFound =>
+      'اللون المختار غير متاح. يرجى اختيار اللون مرة أخرى.';
+
+  @override
+  String get rpcErrorInvalidPlate =>
+      'بيانات اللوحة غير صحيحة. استخدم 3 حروف و3 أو 4 أرقام.';
 }

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/services.dart';
-import 'car_selection_dropdowns_widget.dart';
 import '../../../core/auth/national_id_utils.dart';
 import '../../../core/auth/phone_utils.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/models/vehicle_selection.dart';
 import '../../../core/settings/app_settings_cubit.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../vehicles/vehicle_picker_screen.dart';
+import '../../vehicles/widgets/vehicle_selection_card.dart';
 
 class OwnerSignupFormWidget extends StatefulWidget {
   final Function(
@@ -13,9 +16,7 @@ class OwnerSignupFormWidget extends StatefulWidget {
     String phone,
     String? email,
     String? nationalId,
-    String make,
-    String model,
-    String year,
+    VehicleSelection vehicle,
     String password,
   ) onSubmit;
 
@@ -35,9 +36,7 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  String? _carMake;
-  String? _carModel;
-  String? _carYear;
+  VehicleSelection? _vehicle;
   bool _agreedToTerms = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -53,36 +52,52 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
     super.dispose();
   }
 
-  void _submit(bool isArabic) {
-    if (_formKey.currentState!.validate()) {
-      if (!_agreedToTerms) {
-        final l10n = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              l10n?.signupAgreeTermsRequired ??
-                  'يجب الموافقة على شروط الاستخدام وسياسة الخصوصية للمتابعة',
-              style: TextStyle(fontFamily: isArabic ? 'Cairo' : 'Poppins'),
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
+  Future<void> _pickVehicle() async {
+    final selection = await Navigator.of(context).push<VehicleSelection>(
+      MaterialPageRoute(builder: (_) => const VehiclePickerScreen()),
+    );
+    if (!mounted || selection == null) return;
+    setState(() => _vehicle = selection);
+  }
 
-      widget.onSubmit(
-        _fullNameController.text.trim(),
-        PhoneUtils.normalize(_phoneController.text.trim()),
-        _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
-        _nationalIdController.text.trim().isEmpty
-            ? null
-            : NationalIdUtils.normalize(_nationalIdController.text.trim()),
-        _carMake!,
-        _carModel!,
-        _carYear!,
-        _passwordController.text,
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(fontFamily: 'Cairo')),
+        backgroundColor: AppColors.error,
+      ),
+    );
+  }
+
+  void _submit(bool isArabic) {
+    if (!_formKey.currentState!.validate()) return;
+
+    final l10n = AppLocalizations.of(context);
+    if (!_agreedToTerms) {
+      _showMessage(
+        l10n?.signupAgreeTermsRequired ??
+            'يجب الموافقة على شروط الاستخدام وسياسة الخصوصية للمتابعة',
       );
+      return;
     }
+    final vehicle = _vehicle;
+    if (vehicle == null) {
+      _showMessage(
+        l10n?.signupVehicleRequired ?? 'يرجى اختيار سيارتك لإكمال التسجيل',
+      );
+      return;
+    }
+
+    widget.onSubmit(
+      _fullNameController.text.trim(),
+      PhoneUtils.normalize(_phoneController.text.trim()),
+      _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
+      _nationalIdController.text.trim().isEmpty
+          ? null
+          : NationalIdUtils.normalize(_nationalIdController.text.trim()),
+      vehicle,
+      _passwordController.text,
+    );
   }
 
   @override
@@ -189,13 +204,19 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
           ),
           const SizedBox(height: 24),
 
-          // Car Selection Dropdowns
-          CarSelectionDropdownsWidget(
-            onChanged: (make, model, year) {
-              _carMake = make;
-              _carModel = model;
-              _carYear = year;
-            },
+          // Vehicle from the catalog
+          Text(
+            l10n?.signupVehicleSection ?? 'سيارتك',
+            style: TextStyle(
+              fontFamily: isArabic ? 'Zain' : 'Poppins',
+              fontSize: 17,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          VehicleSelectionCard(
+            selection: _vehicle,
+            onTap: _pickVehicle,
           ),
           const SizedBox(height: 24),
 

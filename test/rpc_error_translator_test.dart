@@ -83,6 +83,35 @@ void main() {
     });
   });
 
+  group('RpcErrorTranslator — vehicle codes', () {
+    test('maps VEHICLE_NOT_FOUND in both languages', () {
+      final error = _pg('VEHICLE_NOT_FOUND', code: 'P0001');
+      expect(
+        RpcErrorTranslator.translate(error, null),
+        contains('لم يتم العثور على السيارة'),
+      );
+      expect(
+        RpcErrorTranslator.translate(error, AppLocalizationsEn()),
+        contains('Pick another car'),
+      );
+    });
+
+    test('maps catalog validation codes instead of the generic message', () {
+      for (final code in [
+        'VEHICLE_TRIM_NOT_FOUND',
+        'INVALID_MODEL_YEAR',
+        'VEHICLE_COLOR_NOT_FOUND',
+        'INVALID_PLATE',
+      ]) {
+        final translated = RpcErrorTranslator.translate(
+          _pg(code, code: 'P0001'),
+          null,
+        );
+        expect(translated, isNot('حدث خطأ في الاتصال، حاول مرة أخرى.'));
+      }
+    });
+  });
+
   group('RpcErrorTranslator — unknown errors', () {
     test('returns a generic message per language', () {
       expect(

@@ -29,6 +29,11 @@ class RpcErrorTranslator {
     'NOT_AUTHENTICATED',
     'PHONE_NOT_VERIFIED',
     'PHONE_CHANGE_REQUIRES_OTP',
+    'VEHICLE_NOT_FOUND',
+    'VEHICLE_TRIM_NOT_FOUND',
+    'INVALID_MODEL_YEAR',
+    'VEHICLE_COLOR_NOT_FOUND',
+    'INVALID_PLATE',
   };
 
   /// ترجمة أي خطأ Supabase معكوس من دالة RPC إلى رسالة واضحة حسب [l10n].
@@ -103,6 +108,21 @@ class RpcErrorTranslator {
       case 'PHONE_CHANGE_REQUIRES_OTP':
         return l10n?.rpcErrorPhoneChangeRequiresOtp ??
             'لتغيير رقم الهاتف يجب التحقق منه برمز SMS. استخدم زر تغيير الرقم.';
+      case 'VEHICLE_NOT_FOUND':
+        return l10n?.rpcErrorVehicleNotFound ??
+            'لم يتم العثور على السيارة المختارة. ربما تم حذفها، اختر سيارة أخرى.';
+      case 'VEHICLE_TRIM_NOT_FOUND':
+        return l10n?.rpcErrorVehicleTrimNotFound ??
+            'فئة السيارة المختارة غير متاحة. يرجى اختيار السيارة مرة أخرى.';
+      case 'INVALID_MODEL_YEAR':
+        return l10n?.rpcErrorInvalidModelYear ??
+            'سنة الصنع لا تتوافق مع الجيل المختار. يرجى مراجعة بيانات السيارة.';
+      case 'VEHICLE_COLOR_NOT_FOUND':
+        return l10n?.rpcErrorVehicleColorNotFound ??
+            'اللون المختار غير متاح. يرجى اختيار اللون مرة أخرى.';
+      case 'INVALID_PLATE':
+        return l10n?.rpcErrorInvalidPlate ??
+            'بيانات اللوحة غير صحيحة. استخدم 3 حروف و3 أو 4 أرقام.';
       default:
         return null;
     }

@@ -55,6 +55,7 @@ dependencies:
   patrol: ^4.9.0
   flutter_secure_storage: ^11.2.0
   audioplayers: ^6.8.1
+  flutter_svg: ^2.3.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -81,7 +82,7 @@ flutter:
   assets:
     - assets/
     - assets/banners/
-    - assets/data/
+    - assets/brands/
     - assets/fonts/Cairo/
     - assets/fonts/Poppins/
     - assets/fonts/Zain/

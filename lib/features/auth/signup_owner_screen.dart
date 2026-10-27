@@ -86,7 +86,7 @@ class SignupOwnerScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 28),
                     OwnerSignupFormWidget(
-                      onSubmit: (fullName, phone, email, nationalId, make, model, year, password) {
+                      onSubmit: (fullName, phone, email, nationalId, vehicle, password) {
                         final normalizedPhone = PhoneUtils.normalize(phone);
                         final emailToUse = email ?? '$normalizedPhone@mahwar.app';
                         context.read<AuthCubit>().signUp(
@@ -96,9 +96,7 @@ class SignupOwnerScreen extends StatelessWidget {
                           phoneNumber: normalizedPhone,
                           role: 'car_owner',
                           nationalId: nationalId,
-                          carMake: make,
-                          carModel: model,
-                          carYear: int.tryParse(year) ?? 2024,
+                          vehicle: vehicle,
                         );
                       },
                     ),

@@ -8,10 +8,7 @@ void main() {
         serviceTypeId: 'crane_rental',
         latitude: 30.05,
         longitude: 31.23,
-        carId: 'c1',
-        carMake: 'Toyota',
-        carModel: 'Corolla',
-        carYear: 2019,
+        vehicleId: 'v1',
         notes: 'breakdown on the ring road',
         autoCancel: false,
         imagePaths: const ['/a.jpg', '/b.jpg'],
@@ -27,10 +24,7 @@ void main() {
       expect(restored.serviceTypeId, 'crane_rental');
       expect(restored.latitude, 30.05);
       expect(restored.longitude, 31.23);
-      expect(restored.carId, 'c1');
-      expect(restored.carMake, 'Toyota');
-      expect(restored.carModel, 'Corolla');
-      expect(restored.carYear, 2019);
+      expect(restored.vehicleId, 'v1');
       expect(restored.notes, 'breakdown on the ring road');
       expect(restored.autoCancel, isFalse);
       expect(restored.imagePaths, ['/a.jpg', '/b.jpg']);
@@ -52,7 +46,7 @@ void main() {
       expect(restored.serviceTypeId, isNull);
       expect(restored.latitude, isNull);
       expect(restored.longitude, isNull);
-      expect(restored.carMake, isNull);
+      expect(restored.vehicleId, isNull);
       expect(restored.notes, '');
       expect(restored.autoCancel, isTrue);
       expect(restored.imagePaths, isEmpty);
@@ -69,6 +63,16 @@ void main() {
 
     test('defaults alone (autoCancel true, sharePhone false) do not count', () {
       expect(bare().hasContent, isFalse);
+    });
+
+    test('a picked vehicle counts', () {
+      final draft = ServiceRequestDraft(
+        userId: 'u1',
+        serviceId: 'crane',
+        vehicleId: 'v1',
+        savedAt: DateTime(2026),
+      );
+      expect(draft.hasContent, isTrue);
     });
 
     test('a picked location counts', () {

@@ -105,7 +105,7 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
         draft.serviceTypeId == null ||
         draft.latitude == null ||
         draft.longitude == null ||
-        draft.carMake == null;
+        draft.vehicleId == null;
     if (missingDraft) {
       _showError(l10n?.requestDataNotFound ??
           'تعذّر العثور على بيانات الطلب، يرجى إعادة إدخاله من جديد');
@@ -138,17 +138,15 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
       }
 
       // إنشاء الطلب ذرّياً مع المزوّد المختار (SECURITY DEFINER): صف واحد
-      // يكتمل بـ provider_id وrespond_deadline وإشعار المزوّد. تُرسل معاملات
-      // p_owner_phone/p_share_phone الإلزامية كـ null/false — القاعدة تُصفّر
-      // الهاتف عبر trg_orders_force_null_phone.
+      // يكتمل بـ provider_id وrespond_deadline وإشعار المزوّد. الخادم يتحقق
+      // من ملكية السيارة ويشتق لقطة الماركة/الموديل/الفئة/اللون/اللوحة من
+      // الكتالوج — لا يرسل العميل أي بيانات سيارة ولا رقم هاتف.
       final newOrderId = await _client.rpc(
         'create_order_for_provider',
         params: buildCreateOrderForProviderParams(
           providerId: widget.providerId,
           serviceTypeId: draft.serviceTypeId,
-          carMake: draft.carMake,
-          carModel: draft.carModel,
-          carYear: draft.carYear,
+          vehicleId: draft.vehicleId,
           latitude: draft.latitude,
           longitude: draft.longitude,
           notes: draft.notes,
