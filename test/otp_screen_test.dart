@@ -376,7 +376,7 @@ void main() {
   testWidgets(
       'تغيير الرقم: رقم مملوك لحساب آخر يُرفض مسبقًا ولا يُرسل كود', (tester) async {
     final fake = FakeAuthService()..user = currentUser();
-    fake.emailByPhone['01123456789'] = 'other@mahwar.app';
+    fake.phoneAvailability['01123456789'] = false;
     final (app, _) = buildApp(fake, mode: OtpMode.changeNumber);
 
     await tester.pumpWidget(app);
@@ -386,6 +386,8 @@ void main() {
     await tester.pump();
 
     expect(find.text('رقم الهاتف مسجل بالفعل لدى مستخدم آخر'), findsOneWidget);
+    expect(fake.isPhoneAvailableCount, 1);
+    expect(fake.lastIsPhoneAvailablePhone, '01123456789');
     expect(fake.attachCount, 0);
     expect(find.text('إرسال الرمز'), findsOneWidget);
 
@@ -402,6 +404,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
+    expect(fake.isPhoneAvailableCount, 1);
     expect(fake.attachCount, 1);
     expect(fake.attachedPhone, '01123456789');
     expect(
@@ -414,8 +417,8 @@ void main() {
 
   testWidgets('تغيير الرقم: إعادة إدخال نفس رقم المستخدم مسموحة',
       (tester) async {
+    // الخادم يستثني حساب المستخدم الحالي من فحص التفرّد، فيعود رقمه متاحًا.
     final fake = FakeAuthService()..user = currentUser();
-    fake.emailByPhone['01123456789'] = 'me@mahwar.app';
     final (app, _) = buildApp(fake, mode: OtpMode.changeNumber);
 
     await tester.pumpWidget(app);
@@ -424,6 +427,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
+    expect(fake.isPhoneAvailableCount, 1);
     expect(fake.attachCount, 1);
 
     await tester.pumpWidget(const SizedBox());
@@ -432,7 +436,7 @@ void main() {
   testWidgets('تغيير الرقم: فشل الفحص المسبق (شبكة) يفشل مُغلقًا ولا يرسل كود',
       (tester) async {
     final fake = FakeAuthService()..user = currentUser();
-    fake.resolveEmailError = Exception('network down');
+    fake.isPhoneAvailableError = Exception('network down');
     final (app, _) = buildApp(fake, mode: OtpMode.changeNumber);
 
     await tester.pumpWidget(app);
@@ -455,7 +459,7 @@ void main() {
   testWidgets('تغيير الرقم: حدّ الفحص (TOO_MANY_LOOKUPS) يفشل مُغلقًا برسالة الحدّ',
       (tester) async {
     final fake = FakeAuthService()..user = currentUser();
-    fake.resolveEmailError =
+    fake.isPhoneAvailableError =
         const PostgrestException(message: 'TOO_MANY_LOOKUPS', code: 'P0001');
     final (app, _) = buildApp(fake, mode: OtpMode.changeNumber);
 
@@ -474,6 +478,46 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('تغيير الرقم: رقم غير صالح من الخادم يُعرض برسالة الرقم الصحيح',
+      (tester) async {
+    final fake = FakeAuthService()..user = currentUser();
+    fake.isPhoneAvailableError =
+        const PostgrestException(message: 'INVALID_PHONE: bad', code: 'P0001');
+    final (app, _) = buildApp(fake, mode: OtpMode.changeNumber);
+
+    await tester.pumpWidget(app);
+    await tester.enterText(find.byType(TextField), '01123456789');
+    await tester.tap(find.text('إرسال الرمز'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(fake.attachCount, 0);
+    expect(find.text('أدخل رقم هاتف مصري صحيح'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('تغيير الرقم: جلسة منتهية (NOT_AUTHENTICATED) تُعرض برسالة الجلسة',
+      (tester) async {
+    final fake = FakeAuthService()..user = currentUser();
+    fake.isPhoneAvailableError = const PostgrestException(
+      message: 'NOT_AUTHENTICATED: no session',
+      code: 'P0001',
+    );
+    final (app, _) = buildApp(fake, mode: OtpMode.changeNumber);
+
+    await tester.pumpWidget(app);
+    await tester.enterText(find.byType(TextField), '01123456789');
+    await tester.tap(find.text('إرسال الرمز'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(fake.attachCount, 0);
+    expect(find.text('انتهت الجلسة، يرجى تسجيل الدخول من جديد.'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
   test('mapChangePhoneLookupError يفرّق بين الحدّ المعدّل والرسالة العامة', () {
     expect(
       mapChangePhoneLookupError(
@@ -488,6 +532,26 @@ void main() {
         AppLocalizationsEn(),
       ),
       'Too many attempts. Please try again later.',
+    );
+    expect(
+      mapChangePhoneLookupError(
+        const PostgrestException(
+          message: 'NOT_AUTHENTICATED: no session',
+          code: 'P0001',
+        ),
+        null,
+      ),
+      'انتهت الجلسة، يرجى تسجيل الدخول من جديد.',
+    );
+    expect(
+      mapChangePhoneLookupError(
+        const PostgrestException(
+          message: 'INVALID_PHONE: bad',
+          code: 'P0001',
+        ),
+        null,
+      ),
+      'أدخل رقم هاتف مصري صحيح',
     );
     expect(
       mapChangePhoneLookupError(Exception('network'), null),

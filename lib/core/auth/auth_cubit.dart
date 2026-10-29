@@ -560,6 +560,13 @@ class AuthCubit extends Cubit<AuthState> {
   Future<String?> emailForPhone(String localPhone) =>
       _authService.resolveEmail(localPhone);
 
+  /// هل رقم [localPhone] متاح للربط بحساب المستخدم الحالي؟ يفحص الخادم
+  /// `auth.users.phone` و`profiles.phone_number` معًا ويستثني حساب المستخدم.
+  /// يرمي أخطاء الخادم (`INVALID_PHONE` / `TOO_MANY_LOOKUPS` /
+  /// `NOT_AUTHENTICATED`) عند رفض الفحص.
+  Future<bool> isPhoneAvailable(String localPhone) =>
+      _authService.isPhoneAvailable(localPhone);
+
   /// إيميل المستخدم الحالي — لتمييز رقمه الخاص عن رقم مملوك لحساب آخر في
   /// الفحص المسبق لتغيير الرقم. null خارج جلسة مصادَقة.
   String? get currentUserEmail => _authService.currentUser?.email;

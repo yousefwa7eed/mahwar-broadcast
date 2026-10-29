@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_config.dart';
 import 'change_password_error.dart';
+import 'phone_availability_params.dart';
 import 'phone_utils.dart';
 
 abstract class AuthService {
@@ -82,6 +83,14 @@ abstract class AuthService {
   /// يحوّل identifier (إيميل أو رقم هاتف محلي) إلى الإيميل الحقيقي المرتبط
   /// بالحساب. يعيد null عندما يكون الإدخال فارغًا أو لا يوجد حساب مرتبط.
   Future<String?> resolveEmail(String identifier);
+
+  /// هل رقم الهاتف المحلي متاح للربط بالحساب الحالي؟
+  ///
+  /// يقرأ الخادم `auth.users.phone` و`profiles.phone_number` معًا (لا `profiles`
+  /// وحده) ويستثني حساب المستخدم الحالي. يرمي [PostgrestException] بأكواد
+  /// الخادم (`INVALID_PHONE` / `TOO_MANY_LOOKUPS` / `NOT_AUTHENTICATED`) عند
+  /// رفض الفحص — فلا يجوز تفسير الخطأ على أنه «متاح».
+  Future<bool> isPhoneAvailable(String localPhone);
 
   /// يضبط كلمة مرور جديدة للمستخدم الحالي (جلسة دخول OTP من استعادة كلمة المرور).
   Future<void> setNewPassword(String newPassword);
@@ -437,6 +446,16 @@ class SupabaseAuthService extends AuthService {
       // لا نبتلع أخطاء الشبكة/الخادم الحقيقية خلف رسالة "لا يوجد حساب" عامة.
       rethrow;
     }
+  }
+
+  @override
+  Future<bool> isPhoneAvailable(String localPhone) async {
+    final sanitized = PhoneUtils.normalize(localPhone);
+    final response = await _client.rpc(
+      'is_phone_available',
+      params: buildIsPhoneAvailableParams(phone: sanitized),
+    );
+    return response as bool;
   }
 
   @override

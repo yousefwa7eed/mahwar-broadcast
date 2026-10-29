@@ -4,7 +4,10 @@ class UserProfile {
   final String id;
   final UserRole role;
   final String fullName;
-  final String phoneNumber;
+
+  /// `profiles.phone_number` قابل لـ NULL: الخادم يمسحه عند إزالة رقم الهاتف من
+  /// `auth.users` (F10) فيبقى الحساب بلا رقم.
+  final String? phoneNumber;
   final String? email;
   final String? nationalId;
   final String? avatarUrl;
@@ -30,7 +33,7 @@ class UserProfile {
       id: json['id'] as String,
       role: json['role'] == 'car_owner' ? UserRole.carOwner : UserRole.provider,
       fullName: json['full_name'] as String,
-      phoneNumber: json['phone_number'] as String,
+      phoneNumber: json['phone_number'] as String?,
       email: json['email'] as String?,
       nationalId: json['national_id'] as String?,
       avatarUrl: json['avatar_url'] as String?,

@@ -93,6 +93,16 @@ class FakeAuthService extends AuthService {
   /// بالإيميل.
   Object? resolveEmailError;
 
+  /// نتيجة `isPhoneAvailable` لكل رقم محلي؛ الغياب = متاح (true).
+  final Map<String, bool> phoneAvailability = {};
+
+  /// إن كان مضبوطًا فإن `isPhoneAvailable` يرميه — لمحاكاة `INVALID_PHONE` /
+  /// `TOO_MANY_LOOKUPS` / `NOT_AUTHENTICATED` أو فشل شبكة (فشل مُغلق).
+  Object? isPhoneAvailableError;
+
+  int isPhoneAvailableCount = 0;
+  String? lastIsPhoneAvailablePhone;
+
   Object? attachError;
   Object? verifyError;
   Object? resendError;
@@ -283,6 +293,14 @@ class FakeAuthService extends AuthService {
     return emailByPhone[phone.startsWith('0')
         ? phone
         : '0${phone.substring(3)}'];
+  }
+
+  @override
+  Future<bool> isPhoneAvailable(String localPhone) async {
+    isPhoneAvailableCount++;
+    lastIsPhoneAvailablePhone = localPhone;
+    if (isPhoneAvailableError != null) throw isPhoneAvailableError!;
+    return phoneAvailability[localPhone] ?? true;
   }
 
   @override

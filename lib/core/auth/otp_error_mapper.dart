@@ -60,20 +60,28 @@ String mapRecoverySendError(Object error, AppLocalizations? l10n) {
 }
 
 /// يرسم فشل الفحص المسبق لتفرّد الرقم في مسار تغيير الرقم (RPC
-/// `get_email_by_phone`) — السياسة «فشل مُغلق»: أي خطأ في الفحص يمنع إرسال
+/// `is_phone_available`) — السياسة «فشل مُغلق»: أي خطأ في الفحص يمنع إرسال
 /// الكود، فلا يُربط رقم لم يتحقق الخادم من تفرّده. يفرّق بين الحدّ المعدّل
-/// ([_isThrottleError]) ورسالة عامة، ولا يكشف أي بيانات عن الرقم/الحساب.
+/// ([_isThrottleError])، وانتهاء الجلسة، والرقم غير الصالح، ورسالة عامة، ولا
+/// يكشف أي بيانات عن الرقم/الحساب.
 String mapChangePhoneLookupError(Object error, AppLocalizations? l10n) {
   if (_isThrottleError(error)) {
     return l10n?.changePhoneThrottleError ??
         'تم تجاوز عدد المحاولات. حاول مرة أخرى لاحقاً.';
+  }
+  if (_hasServerCode(error, 'NOT_AUTHENTICATED')) {
+    return l10n?.rpcErrorNotAuthenticated ??
+        'انتهت الجلسة، يرجى تسجيل الدخول من جديد.';
+  }
+  if (_hasServerCode(error, 'INVALID_PHONE')) {
+    return l10n?.enterValidEgyptianPhone ?? 'أدخل رقم هاتف مصري صحيح';
   }
   return l10n?.changePhoneLookupFailed ??
       'تعذّر التحقق من رقم الهاتف. حاول مرة أخرى.';
 }
 
 /// يميّز خطأ الحدّ المعدّل عن الفشل العام: إمّا رفض خادمي من RPC الفحص
-/// (`get_email_by_phone` يرمي `TOO_MANY_LOOKUPS` بعد 5 محاولات/ساعة/رقم)، أو
+/// (`is_phone_available` يرمي `TOO_MANY_LOOKUPS` بعد 5 محاولات/ساعة/رقم)، أو
 /// رمز حدّ معدّل من GoTrue.
 bool _isThrottleError(Object error) {
   if (error is PostgrestException) {
@@ -85,6 +93,14 @@ bool _isThrottleError(Object error) {
         error.code == 'over_sms_send_rate_limit';
   }
   return false;
+}
+
+/// هل الخطأ يحمل رمز الخادم [code]؟ الخادم يرمي `CODE: message` فيصل الرمز
+/// داخل `message` (وكود PostgREST نفسه يبقى `P0001`)، لذا نقارن الاثنين.
+bool _hasServerCode(Object error, String code) {
+  if (error is! PostgrestException) return false;
+  if (error.code == code) return true;
+  return error.message.toUpperCase().contains(code);
 }
 
 String _generic(AppLocalizations? l10n) =>

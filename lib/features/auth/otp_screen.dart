@@ -254,31 +254,40 @@ class _OtpScreenState extends State<OtpScreen> {
       final cubit = context.read<AuthCubit>();
       if (widget.mode == OtpMode.forgot) {
         await cubit.requestForgotPasswordOtp(normalized);
-      } else {
-        // فحص تفرّد مسبق: لا نرسل كودًا لرقم مملوك لحساب آخر (تفادي إهدار SMS).
-        // مسار تغيير الرقم يفشل مُغلقًا: أي خطأ/انتهاء مهلة/حدّ معدّل في الفحص
+      } else if (widget.mode == OtpMode.changeNumber) {
+        // فحص تفرّد مسبق عبر `is_phone_available` (auth.users.phone +
+        // profiles.phone_number معًا، مع استثناء حساب المستخدم الحالي). لا نرسل
+        // كودًا لرقم غير متاح، والفشل مُغلق: أي خطأ/مهلة/حدّ معدّل في الفحص
         // يعني أن التفرّد لم يُتحقَّق منه ⇒ لا نرسل الكود ولا نربط الرقم.
-        final isChangeNumber = widget.mode == OtpMode.changeNumber;
-        String? ownerEmail;
-        var lookupFailed = false;
         try {
-          ownerEmail = await cubit.emailForPhone(normalized);
-        } catch (e) {
-          lookupFailed = true;
-          if (isChangeNumber) {
+          final available = await cubit.isPhoneAvailable(normalized);
+          if (!available) {
             setState(() {
               _isBusy = false;
-              _errorText = mapChangePhoneLookupError(e, l10n);
+              _errorText = l10n?.phoneAlreadyRegistered ??
+                  'رقم الهاتف مسجل بالفعل لدى مستخدم آخر';
             });
             return;
           }
-          // مسار التسجيل (بلا رقم مسبق) يبقى على سلوكه السابق: فشل الفحص لا
-          // يحجب المستخدم — الحارس الخادمي (PHONE_CHANGE_REQUIRES_OTP + قيد
-          // التفرّد) خط الدفاع الأخير.
+        } catch (e) {
+          setState(() {
+            _isBusy = false;
+            _errorText = mapChangePhoneLookupError(e, l10n);
+          });
+          return;
         }
-        if (!lookupFailed &&
-            ownerEmail != null &&
-            ownerEmail != cubit.currentUserEmail) {
+        await cubit.attachPhone(normalized);
+      } else {
+        // فحص تفرّد مسبق لمسار التسجيل («استخدام رقم آخر»): لا نرسل كودًا لرقم
+        // مملوك لحساب آخر (تفادي إهدار SMS). فشل الفحص لا يحجب المستخدم — الحارس
+        // الخادمي (PHONE_CHANGE_REQUIRES_OTP + قيد التفرّد) خط الدفاع الأخير.
+        String? ownerEmail;
+        try {
+          ownerEmail = await cubit.emailForPhone(normalized);
+        } catch (_) {
+          // فشل الفحص لا يحجب مسار التسجيل (fail-open).
+        }
+        if (ownerEmail != null && ownerEmail != cubit.currentUserEmail) {
           setState(() {
             _isBusy = false;
             _errorText = l10n?.phoneAlreadyRegistered ??
