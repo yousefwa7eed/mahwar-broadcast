@@ -1752,6 +1752,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'This phone number is already registered to another user';
 
   @override
+  String get changePhoneSameNumber =>
+      'This is already your current number. Enter a different number.';
+
+  @override
   String get rejectOfferConfirmTitle => 'Reject the price offer?';
 
   @override
@@ -2178,6 +2182,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vehicleStepPlate => 'Plate';
 
   @override
+  String get vehicleStepReview => 'Review';
+
+  @override
+  String get vehicleReviewTitle => 'Review your car';
+
+  @override
+  String get vehicleReviewHint =>
+      'Check the details — you can edit any item before saving.';
+
+  @override
+  String get vehicleReviewAction => 'Review details';
+
+  @override
+  String get vehicleEdit => 'Edit';
+
+  @override
+  String get vehiclePlateNone => 'Not added (optional)';
+
+  @override
   String get vehicleYearHint =>
       'Pick the model year — we\'ll match the generation for you';
 
@@ -2270,7 +2293,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vehiclePlateEditableHint =>
-      'Type the digits on the plate, then pick the letters in order — first letter on the right';
+      'Type the digits on the plate, then pick the letters in order — first letter on the right. Repeats are fine and the count is not fixed';
+
+  @override
+  String get vehiclePlateSequenceHint =>
+      'The first letter you tap appears on the right of the plate';
+
+  @override
+  String get vehiclePlateBackspace => 'Delete last letter';
 
   @override
   String get vehiclePlateLetters => 'Letters';
@@ -2285,7 +2315,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vehiclePlateClear => 'Clear';
 
   @override
-  String get vehiclePlateInvalid => 'Enter 3 letters and 3 or 4 digits';
+  String get vehiclePlateInvalid =>
+      'Enter both letters and digits (up to 5 letters and 7 digits), or clear the plate';
 
   @override
   String get vehicleSave => 'Save vehicle';

@@ -364,13 +364,14 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  User currentUser({String email = 'me@mahwar.app'}) => User(
+  User currentUser({String email = 'me@mahwar.app', String? phone}) => User(
         id: 'fake-user-id',
         appMetadata: const {},
         userMetadata: const {'role': 'car_owner'},
         aud: 'authenticated',
         createdAt: 'now',
         email: email,
+        phone: phone,
       );
 
   testWidgets(
@@ -429,6 +430,88 @@ void main() {
 
     expect(fake.isPhoneAvailableCount, 1);
     expect(fake.attachCount, 1);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('تغيير الرقم: رقم المستخدم الحالي نفسه يتوقف محليًا بلا RPC ولا SMS',
+      (tester) async {
+    final fake = FakeAuthService()..user = currentUser(phone: '201554775966');
+    final (app, _) = buildApp(fake, mode: OtpMode.changeNumber);
+
+    await tester.pumpWidget(app);
+    await tester.enterText(find.byType(TextField), '01554775966');
+    await tester.tap(find.text('إرسال الرمز'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      find.text('هذا هو رقمك الحالي بالفعل. أدخل رقمًا مختلفًا.'),
+      findsOneWidget,
+    );
+    expect(fake.isPhoneAvailableCount, 0);
+    expect(fake.attachCount, 0);
+    expect(find.text('إرسال الرمز'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('تغيير الرقم: رقم المستخدم الحالي بصيغة +20 يوازي الرقم المحلي',
+      (tester) async {
+    final fake = FakeAuthService()..user = currentUser(phone: '201554775966');
+    final (app, _) = buildApp(fake, mode: OtpMode.changeNumber);
+
+    await tester.pumpWidget(app);
+    await tester.enterText(find.byType(TextField), '+201554775966');
+    await tester.tap(find.text('إرسال الرمز'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      find.text('هذا هو رقمك الحالي بالفعل. أدخل رقمًا مختلفًا.'),
+      findsOneWidget,
+    );
+    expect(fake.isPhoneAvailableCount, 0);
+    expect(fake.attachCount, 0);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('تغيير الرقم: رقم المستخدم الحالي بصيغة 20 بلا + يوازي الرقم المحلي',
+      (tester) async {
+    final fake = FakeAuthService()..user = currentUser(phone: '201554775966');
+    final (app, _) = buildApp(fake, mode: OtpMode.changeNumber);
+
+    await tester.pumpWidget(app);
+    await tester.enterText(find.byType(TextField), '201554775966');
+    await tester.tap(find.text('إرسال الرمز'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      find.text('هذا هو رقمك الحالي بالفعل. أدخل رقمًا مختلفًا.'),
+      findsOneWidget,
+    );
+    expect(fake.isPhoneAvailableCount, 0);
+    expect(fake.attachCount, 0);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('تغيير الرقم: رقم مختلف عن الحالي يمضي للفحص والربط',
+      (tester) async {
+    final fake = FakeAuthService()..user = currentUser(phone: '201554775966');
+    final (app, _) = buildApp(fake, mode: OtpMode.changeNumber);
+
+    await tester.pumpWidget(app);
+    await tester.enterText(find.byType(TextField), '01123456789');
+    await tester.tap(find.text('إرسال الرمز'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(fake.isPhoneAvailableCount, 1);
+    expect(fake.attachCount, 1);
+    expect(fake.attachedPhone, '01123456789');
 
     await tester.pumpWidget(const SizedBox());
   });

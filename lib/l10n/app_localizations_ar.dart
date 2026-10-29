@@ -1714,6 +1714,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get phoneAlreadyRegistered => 'رقم الهاتف مسجل بالفعل لدى مستخدم آخر';
 
   @override
+  String get changePhoneSameNumber =>
+      'هذا هو رقمك الحالي بالفعل. أدخل رقمًا مختلفًا.';
+
+  @override
   String get rejectOfferConfirmTitle => 'رفض عرض السعر؟';
 
   @override
@@ -2134,6 +2138,25 @@ class AppLocalizationsAr extends AppLocalizations {
   String get vehicleStepPlate => 'لوحة السيارة';
 
   @override
+  String get vehicleStepReview => 'المراجعة';
+
+  @override
+  String get vehicleReviewTitle => 'راجع بيانات سيارتك';
+
+  @override
+  String get vehicleReviewHint =>
+      'تأكد من بيانات السيارة، ويمكنك تعديل أي بند على حدة قبل الحفظ.';
+
+  @override
+  String get vehicleReviewAction => 'مراجعة البيانات';
+
+  @override
+  String get vehicleEdit => 'تعديل';
+
+  @override
+  String get vehiclePlateNone => 'لم تُضف (اختياري)';
+
+  @override
   String get vehicleYearHint => 'اختر سنة الصنع، وسنحدد الجيل تلقائيًا';
 
   @override
@@ -2225,7 +2248,14 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get vehiclePlateEditableHint =>
-      'اكتب الأرقام داخل اللوحة، واختَر الحروف بالترتيب — الحرف الأول على اليمين';
+      'اكتب الأرقام داخل اللوحة، واختَر الحروف بالترتيب — الأول على اليمين. الحرف يتكرر عادي، والعدد غير ثابت';
+
+  @override
+  String get vehiclePlateSequenceHint =>
+      'الحرف الأول الذي تنقره يظهر على يمين اللوحة';
+
+  @override
+  String get vehiclePlateBackspace => 'حذف آخر حرف';
 
   @override
   String get vehiclePlateLetters => 'الحروف';
@@ -2240,7 +2270,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get vehiclePlateClear => 'مسح';
 
   @override
-  String get vehiclePlateInvalid => 'أدخل 3 حروف و3 أو 4 أرقام';
+  String get vehiclePlateInvalid =>
+      'أدخل الحروف والأرقام معًا (حتى 5 حروف و7 أرقام)، أو امسح اللوحة';
 
   @override
   String get vehicleSave => 'حفظ السيارة';

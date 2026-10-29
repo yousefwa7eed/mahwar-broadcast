@@ -571,6 +571,11 @@ class AuthCubit extends Cubit<AuthState> {
   /// الفحص المسبق لتغيير الرقم. null خارج جلسة مصادَقة.
   String? get currentUserEmail => _authService.currentUser?.email;
 
+  /// رقم هاتف المستخدم الحالي من جلسة Supabase (`auth.users.phone` بصيغة
+  /// GoTrue بلا '+': 20xxxxxxxxxx) — المصدر الموثوق؛ `profiles.phone_number`
+  /// قد يكون NULL. null خارج جلسة مصادَقة.
+  String? get currentUserPhone => _authService.currentUser?.phone;
+
   /// هل توجد جلسة مصادَقة محليًا؟ (قراءة متزامنة بلا شبكة.)
   bool get hasSession => _authService.currentUser != null;
 

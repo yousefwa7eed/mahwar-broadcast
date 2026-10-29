@@ -255,6 +255,19 @@ class _OtpScreenState extends State<OtpScreen> {
       if (widget.mode == OtpMode.forgot) {
         await cubit.requestForgotPasswordOtp(normalized);
       } else if (widget.mode == OtpMode.changeNumber) {
+        // رقم المستخدم الحالي نفسه: الخادم يعتبره «متاحًا» لأنه يستثني حساب
+        // المستخدم من فحص التفرّد، لكن GoTrue يقبل نفس الرقم بلا إرسال أي كود.
+        // نتوقف محليًا قبل أي RPC وقبل attachPhone (فلا SMS ولا انتقال).
+        final currentPhone = cubit.currentUserPhone;
+        if (currentPhone != null &&
+            PhoneUtils.normalize(currentPhone) == normalized) {
+          setState(() {
+            _isBusy = false;
+            _errorText = l10n?.changePhoneSameNumber ??
+                'هذا هو رقمك الحالي بالفعل. أدخل رقمًا مختلفًا.';
+          });
+          return;
+        }
         // فحص تفرّد مسبق عبر `is_phone_available` (auth.users.phone +
         // profiles.phone_number معًا، مع استثناء حساب المستخدم الحالي). لا نرسل
         // كودًا لرقم غير متاح، والفشل مُغلق: أي خطأ/مهلة/حدّ معدّل في الفحص

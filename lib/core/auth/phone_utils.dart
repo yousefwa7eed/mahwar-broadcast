@@ -17,10 +17,11 @@ class PhoneUtils {
       );
 
   /// Strips separators (spaces, dashes, parentheses), folds Arabic-Indic digits
-  /// (٠-٩ / ۰-۹) into Latin (0-9), and folds country codes (+20 / 0020) into a
-  /// leading 0, e.g.:
+  /// (٠-٩ / ۰-۹) into Latin (0-9), and folds country codes (+20 / 0020 / bare
+  /// 20 with 12 digits) into a leading 0, e.g.:
   ///  +20 101 234 5678 -> 01012345678
   ///  00201012345678    -> 01012345678
+  ///  201554775966      -> 01554775966  (GoTrue session form, no '+')
   ///  ٠١٥٥ ٤٧٧ ٥٩٦٦    -> 01554775966
   ///  01012345678       -> 01012345678
   static String normalize(String input) {
@@ -29,6 +30,8 @@ class PhoneUtils {
       phone = '0${phone.substring(3)}';
     } else if (phone.startsWith('0020')) {
       phone = '0${phone.substring(4)}';
+    } else if (phone.startsWith('20') && phone.length == 12) {
+      phone = '0${phone.substring(2)}';
     }
     return phone;
   }

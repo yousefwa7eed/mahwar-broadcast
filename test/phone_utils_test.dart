@@ -18,6 +18,10 @@ void main() {
       expect(PhoneUtils.normalize('+20 155 477 5966'), '01554775966');
     });
 
+    test('folds the bare 20 country prefix GoTrue stores in the session', () {
+      expect(PhoneUtils.normalize('201554775966'), '01554775966');
+    });
+
     test('folds Arabic-Indic digits (٠-٩) into Latin', () {
       expect(PhoneUtils.normalize('٠١٥٥٤٧٧٥٩٦٦'), '01554775966');
       expect(PhoneUtils.normalize('٠١٥٥ ٤٧٧ ٥٩٦٦'), '01554775966');
@@ -42,6 +46,11 @@ void main() {
 
     test('accepts the same numbers typed in Arabic-Indic digits', () {
       expect(PhoneUtils.isValidEgyptianMobile('٠١٥٥٤٧٧٥٩٦٦'), isTrue);
+    });
+
+    test('accepts international forms with and without the plus sign', () {
+      expect(PhoneUtils.isValidEgyptianMobile('+201554775966'), isTrue);
+      expect(PhoneUtils.isValidEgyptianMobile('201554775966'), isTrue);
     });
 
     test('rejects invalid numbers', () {

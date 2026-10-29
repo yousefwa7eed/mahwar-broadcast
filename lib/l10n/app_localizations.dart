@@ -3227,6 +3227,12 @@ abstract class AppLocalizations {
   /// **'رقم الهاتف مسجل بالفعل لدى مستخدم آخر'**
   String get phoneAlreadyRegistered;
 
+  /// No description provided for @changePhoneSameNumber.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا هو رقمك الحالي بالفعل. أدخل رقمًا مختلفًا.'**
+  String get changePhoneSameNumber;
+
   /// No description provided for @rejectOfferConfirmTitle.
   ///
   /// In ar, this message translates to:
@@ -3983,6 +3989,42 @@ abstract class AppLocalizations {
   /// **'لوحة السيارة'**
   String get vehicleStepPlate;
 
+  /// No description provided for @vehicleStepReview.
+  ///
+  /// In ar, this message translates to:
+  /// **'المراجعة'**
+  String get vehicleStepReview;
+
+  /// No description provided for @vehicleReviewTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'راجع بيانات سيارتك'**
+  String get vehicleReviewTitle;
+
+  /// No description provided for @vehicleReviewHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكد من بيانات السيارة، ويمكنك تعديل أي بند على حدة قبل الحفظ.'**
+  String get vehicleReviewHint;
+
+  /// No description provided for @vehicleReviewAction.
+  ///
+  /// In ar, this message translates to:
+  /// **'مراجعة البيانات'**
+  String get vehicleReviewAction;
+
+  /// No description provided for @vehicleEdit.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل'**
+  String get vehicleEdit;
+
+  /// No description provided for @vehiclePlateNone.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تُضف (اختياري)'**
+  String get vehiclePlateNone;
+
   /// No description provided for @vehicleYearHint.
   ///
   /// In ar, this message translates to:
@@ -4148,8 +4190,20 @@ abstract class AppLocalizations {
   /// No description provided for @vehiclePlateEditableHint.
   ///
   /// In ar, this message translates to:
-  /// **'اكتب الأرقام داخل اللوحة، واختَر الحروف بالترتيب — الحرف الأول على اليمين'**
+  /// **'اكتب الأرقام داخل اللوحة، واختَر الحروف بالترتيب — الأول على اليمين. الحرف يتكرر عادي، والعدد غير ثابت'**
   String get vehiclePlateEditableHint;
+
+  /// No description provided for @vehiclePlateSequenceHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحرف الأول الذي تنقره يظهر على يمين اللوحة'**
+  String get vehiclePlateSequenceHint;
+
+  /// No description provided for @vehiclePlateBackspace.
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف آخر حرف'**
+  String get vehiclePlateBackspace;
 
   /// No description provided for @vehiclePlateLetters.
   ///
@@ -4178,7 +4232,7 @@ abstract class AppLocalizations {
   /// No description provided for @vehiclePlateInvalid.
   ///
   /// In ar, this message translates to:
-  /// **'أدخل 3 حروف و3 أو 4 أرقام'**
+  /// **'أدخل الحروف والأرقام معًا (حتى 5 حروف و7 أرقام)، أو امسح اللوحة'**
   String get vehiclePlateInvalid;
 
   /// No description provided for @vehicleSave.
