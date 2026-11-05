@@ -1905,6 +1905,18 @@ class AppLocalizationsAr extends AppLocalizations {
   String get fastSafeRoadside24_7 => 'خدمة سريعة وآمنة على كافة الطرق 24/7';
 
   @override
+  String get bannerHeadline => 'سلكناها للطريق!';
+
+  @override
+  String get betaVersionNotice => 'نسخة تجريبية — كل جديد يوصل قريب';
+
+  @override
+  String get betaBadge => 'نسخة تجريبية';
+
+  @override
+  String get backLabel => 'رجوع';
+
+  @override
   String get viewAll => 'عرض الكل';
 
   @override

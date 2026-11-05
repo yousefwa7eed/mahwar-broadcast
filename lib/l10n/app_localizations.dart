@@ -3581,6 +3581,30 @@ abstract class AppLocalizations {
   /// **'خدمة سريعة وآمنة على كافة الطرق 24/7'**
   String get fastSafeRoadside24_7;
 
+  /// No description provided for @bannerHeadline.
+  ///
+  /// In ar, this message translates to:
+  /// **'سلكناها للطريق!'**
+  String get bannerHeadline;
+
+  /// No description provided for @betaVersionNotice.
+  ///
+  /// In ar, this message translates to:
+  /// **'نسخة تجريبية — كل جديد يوصل قريب'**
+  String get betaVersionNotice;
+
+  /// No description provided for @betaBadge.
+  ///
+  /// In ar, this message translates to:
+  /// **'نسخة تجريبية'**
+  String get betaBadge;
+
+  /// No description provided for @backLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'رجوع'**
+  String get backLabel;
+
   /// No description provided for @viewAll.
   ///
   /// In ar, this message translates to:

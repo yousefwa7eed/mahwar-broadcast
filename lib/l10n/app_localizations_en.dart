@@ -1948,6 +1948,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fastSafeRoadside24_7 => 'Fast and safe service on all roads 24/7';
 
   @override
+  String get bannerHeadline => 'We\'ve paved your way!';
+
+  @override
+  String get betaVersionNotice => 'Beta version — more coming soon';
+
+  @override
+  String get betaBadge => 'Beta';
+
+  @override
+  String get backLabel => 'Back';
+
+  @override
   String get viewAll => 'View all';
 
   @override

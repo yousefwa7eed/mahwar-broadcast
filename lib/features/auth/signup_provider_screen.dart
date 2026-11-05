@@ -5,6 +5,7 @@ import '../../core/auth/home_route.dart';
 import '../../core/auth/signup_error_mapper.dart';
 import '../../core/settings/app_settings_cubit.dart';
 import '../../core/settings/app_settings_state.dart';
+import '../../core/theme/surface_palette.dart';
 import '../../l10n/app_localizations.dart';
 import 'widgets/login_header_widget.dart';
 import 'widgets/provider_signup_form_widget.dart';
@@ -28,7 +29,10 @@ class SignupProviderScreen extends StatelessWidget {
             state.user.userMetadata?['phone_number'] as String?,
           );
         } else if (state is AuthError) {
-          showErrorDialog(context, mapSignupError(state.message, AppLocalizations.of(context)));
+          showErrorDialog(
+            context,
+            mapSignupError(state.message, AppLocalizations.of(context)),
+          );
         }
       },
       child: BlocBuilder<AppSettingsCubit, AppSettingsState>(
@@ -38,18 +42,26 @@ class SignupProviderScreen extends StatelessWidget {
           final l10n = AppLocalizations.of(context);
 
           return Scaffold(
-            backgroundColor: isDarkMode ? const Color(0xFF121212) : const Color(0xFFF9F9FB),
+            backgroundColor: isDarkMode
+                ? const Color(0xFF121212)
+                : const Color(0xFFF9F9FB),
             body: SafeArea(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 20,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const LoginHeaderWidget(role: 'provider'),
+                    LoginHeaderWidget(
+                      role: 'provider',
+                      palette: SurfacePalette.lerp(isDarkMode ? 1.0 : 0.0),
+                      isArabic: isArabic,
+                    ),
                     const SizedBox(height: 28),
                     Text(
-                      l10n?.signupProviderTitle ??
-                          'انضم لشبكة مزودي خدمة محور',
+                      l10n?.signupProviderTitle ?? 'انضم لشبكة مزودي خدمة محور',
                       style: TextStyle(
                         fontFamily: isArabic ? 'Zain' : 'Poppins',
                         fontSize: 32,
@@ -72,7 +84,9 @@ class SignupProviderScreen extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+                        color: isDarkMode
+                            ? const Color(0xFF1E1E1E)
+                            : Colors.white,
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(

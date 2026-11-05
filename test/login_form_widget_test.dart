@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mahwar/core/auth/auth_cubit.dart';
 import 'package:mahwar/core/settings/app_settings_cubit.dart';
+import 'package:mahwar/core/theme/surface_palette.dart';
 import 'package:mahwar/features/auth/widgets/login_form_widget.dart';
 import 'package:mahwar/l10n/app_localizations.dart';
 
@@ -17,13 +18,13 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  Widget buildApp({
-    required void Function() onForgotPasswordTap,
-  }) {
+  Widget buildApp({required void Function() onForgotPasswordTap}) {
     return MultiBlocProvider(
       providers: [
         BlocProvider<AppSettingsCubit>(create: (_) => AppSettingsCubit()),
-        BlocProvider<AuthCubit>(create: (_) => AuthCubit(service: FakeAuthService())),
+        BlocProvider<AuthCubit>(
+          create: (_) => AuthCubit(service: FakeAuthService()),
+        ),
       ],
       child: MaterialApp(
         locale: const Locale('ar'),
@@ -32,6 +33,8 @@ void main() {
         home: Scaffold(
           body: LoginFormWidget(
             role: 'car_owner',
+            palette: SurfacePalette.lerp(0),
+            isArabic: true,
             onSubmit: (_, _) {},
             onSignupTap: () {},
             onForgotPasswordTap: onForgotPasswordTap,
@@ -41,7 +44,9 @@ void main() {
     );
   }
 
-  testWidgets('رابط "نسيت كلمة المرور؟" يظهر ويطلق الـ callback', (tester) async {
+  testWidgets('رابط "نسيت كلمة المرور؟" يظهر ويطلق الـ callback', (
+    tester,
+  ) async {
     var tapped = false;
     await tester.pumpWidget(buildApp(onForgotPasswordTap: () => tapped = true));
 
