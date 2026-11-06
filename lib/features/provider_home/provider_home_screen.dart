@@ -24,6 +24,7 @@ import '../../core/widgets/shimmer_box.dart';
 import '../../l10n/app_localizations.dart';
 import '../notifications/notification_actions.dart';
 import 'availability_resolution.dart';
+import 'owner_profiles_resolution.dart';
 import 'provider_heartbeat.dart';
 import 'provider_heartbeat_params.dart';
 import 'widgets/active_order_card.dart';
@@ -255,44 +256,45 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     }
   }
 
-  /// يجلب بيانات إضافية لكل طلب نشط — اسم العميل (عبر RPC آمن
-  /// لأن الـ RLS يخفي بقية المستخدمين) والعنوان العربي (reverse geocoding
-  /// لأن address_text لا يُحفظ عند إنشاء الطلب). النتائج تُخزّن مؤقتاً.
+  /// يجلب بيانات إضافية لكل طلب نشط — أسماء العملاء عبر RPC دُفعي واحد
+  /// آمن (الـ RLS يخفي بقية المستخدمين، والفحص الدُفعي يستبدل N رحلات
+  /// متسلسلة برحلة واحدة) والعنوان العربي (reverse geocoding لأن
+  /// address_text لا يُحفظ عند إنشاء الطلب، بدفعات متوازية محدودة).
+  /// النتائج تُخزّن مؤقتاً؛ والرقم غير المرئي خادميًا يسقط للبديل الافتراضي
+  /// كما في الفحص الفردي السابق (fail-closed بلا كشف وجود).
   Future<void> _enrichActiveOrders(List<Order> orders) async {
     if (orders.isEmpty) return;
     final l10n = AppLocalizations.of(context);
+    final fallbackName = l10n?.notificationCustomerFallback ?? 'العميل';
 
-    final ownerIds = orders.map((o) => o.carOwnerId).toSet();
-    for (final id in ownerIds) {
-      if (_ownerNames.containsKey(id)) continue;
+    final pendingOwnerIds = orders
+        .map((o) => o.carOwnerId)
+        .where((id) => !_ownerNames.containsKey(id))
+        .toSet();
+    if (pendingOwnerIds.isNotEmpty) {
       try {
         final res = await _client.rpc(
-          'get_public_profile',
-          params: {'p_user_id': id},
+          'get_public_profiles',
+          params: buildGetPublicProfilesParams(
+            userIds: pendingOwnerIds.toList(),
+          ),
         );
-        final rows = res as List;
-        if (rows.isNotEmpty) {
-          final row = rows.first as Map;
-          final name = row['full_name'] as String?;
-          _ownerNames[id] = (name == null || name.trim().isEmpty)
-              ? (l10n?.notificationCustomerFallback ?? 'العميل')
-              : name.trim();
-          final avatarId = row['avatar_id'] as String?;
-          final avatarUrl = row['avatar_url'] as String?;
-          if (avatarId != null && avatarId.isNotEmpty) {
-            _ownerAvatarIds[id] = avatarId;
-          }
-          if (avatarUrl != null && avatarUrl.isNotEmpty) {
-            _ownerAvatarUrls[id] = avatarUrl;
-          }
-        } else {
-          _ownerNames[id] = l10n?.notificationCustomerFallback ?? 'العميل';
-        }
+        final resolved = resolveOwnerProfiles(
+          rows: res as List<Object?>,
+          requestedIds: pendingOwnerIds,
+          fallbackName: fallbackName,
+        );
+        _ownerNames.addAll(resolved.names);
+        _ownerAvatarIds.addAll(resolved.avatarIds);
+        _ownerAvatarUrls.addAll(resolved.avatarUrls);
       } catch (_) {
-        _ownerNames[id] = l10n?.notificationCustomerFallback ?? 'العميل';
+        for (final id in pendingOwnerIds) {
+          _ownerNames[id] = fallbackName;
+        }
       }
     }
 
+    final toGeocode = <Order>[];
     for (final order in orders) {
       if (_orderAddresses.containsKey(order.id)) continue;
       final stored = order.addressText?.trim() ?? '';
@@ -303,10 +305,13 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
       if (stored.isNotEmpty && !isCoords) {
         _orderAddresses[order.id] = stored;
       } else {
-        _orderAddresses[order.id] = await LocationService.instance
-            .getAddressForLocation(order.latitude, order.longitude);
+        toGeocode.add(order);
       }
     }
+    await mapBounded<Order, void>(toGeocode, 4, (order) async {
+      _orderAddresses[order.id] = await LocationService.instance
+          .getAddressForLocation(order.latitude, order.longitude);
+    });
 
     if (mounted) setState(() {});
   }
