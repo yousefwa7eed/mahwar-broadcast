@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../models/vehicle_selection.dart';
 import '../services/push_notification_service.dart';
+import 'availability_check_guard.dart';
 import 'auth_service.dart';
 import 'phone_utils.dart';
 
@@ -448,6 +449,9 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   Future<void> signOut() async {
+    // نتيجة فحص التفرّد مرتبطة بحساب الجلسة (يستثني حساب المستخدم نفسه)،
+    // فتُسدّي نتائج الجلسة السابقة قبل أي جلسة جديدة.
+    AvailabilityCheckGuard.instance.clear();
     try {
       await _authService.signOut();
       _phoneVerified = null;

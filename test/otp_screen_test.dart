@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:mahwar/core/auth/auth_cubit.dart';
+import 'package:mahwar/core/auth/availability_check_guard.dart';
 import 'package:mahwar/core/auth/otp_error_mapper.dart';
 import 'package:mahwar/core/settings/app_settings_cubit.dart';
 import 'package:mahwar/features/auth/otp_cooldown_store.dart';
@@ -20,6 +21,7 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    AvailabilityCheckGuard.instance.clear();
     OtpCooldownStore.now = DateTime.now;
     OtpCooldownStore.clear('01000000000');
     OtpCooldownStore.clear('01110000000');
@@ -28,6 +30,7 @@ void main() {
   });
 
   tearDown(() {
+    AvailabilityCheckGuard.instance.clear();
     OtpCooldownStore.now = DateTime.now;
     OtpCooldownStore.clear('01000000000');
     OtpCooldownStore.clear('01110000000');

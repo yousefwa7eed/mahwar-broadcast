@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/auth/availability_check_guard.dart';
 import '../../core/auth/auth_cubit.dart';
 import '../../core/auth/home_route.dart';
 import '../../core/auth/otp_error_mapper.dart';
@@ -273,7 +274,11 @@ class _OtpScreenState extends State<OtpScreen> {
         // كودًا لرقم غير متاح، والفشل مُغلق: أي خطأ/مهلة/حدّ معدّل في الفحص
         // يعني أن التفرّد لم يُتحقَّق منه ⇒ لا نرسل الكود ولا نربط الرقم.
         try {
-          final available = await cubit.isPhoneAvailable(normalized);
+          final available =
+              await AvailabilityCheckGuard.instance.isPhoneAvailable(
+            normalized,
+            cubit.isPhoneAvailable,
+          );
           if (!available) {
             setState(() {
               _isBusy = false;
@@ -296,7 +301,10 @@ class _OtpScreenState extends State<OtpScreen> {
         // الخادمي (PHONE_CHANGE_REQUIRES_OTP + قيد التفرّد) خط الدفاع الأخير.
         String? ownerEmail;
         try {
-          ownerEmail = await cubit.emailForPhone(normalized);
+          ownerEmail = await AvailabilityCheckGuard.instance.emailForPhone(
+            normalized,
+            cubit.emailForPhone,
+          );
         } catch (_) {
           // فشل الفحص لا يحجب مسار التسجيل (fail-open).
         }
