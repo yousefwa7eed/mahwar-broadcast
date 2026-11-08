@@ -154,6 +154,21 @@ class _MahwarAppState extends State<MahwarApp> with WidgetsBindingObserver {
           themeAnimationDuration: const Duration(milliseconds: 350),
           themeAnimationCurve: Curves.easeInOutCubic,
           routerConfig: appRouter,
+          // قصّ تكبير خط النظام (٠٫٩–١٫٣): الخط الكبير جداً كان يفجّر صفوف
+          // البطاقات على الأجهزة الصغيرة/القديمة. القصّ هنا شامل لكل الشاشات،
+          // والاختبارات تضخ الودجتات مباشرة بدونه للتحقق من المرونة الذاتية.
+          builder: (context, child) {
+            final mediaQuery = MediaQuery.of(context);
+            return MediaQuery(
+              data: mediaQuery.copyWith(
+                textScaler: mediaQuery.textScaler.clamp(
+                  minScaleFactor: 0.9,
+                  maxScaleFactor: 1.3,
+                ),
+              ),
+              child: child ?? const SizedBox.shrink(),
+            );
+          },
           scaffoldMessengerKey: AppMessenger.messengerKey,
           locale: settings.locale,
           supportedLocales: AppLocalizations.supportedLocales,
