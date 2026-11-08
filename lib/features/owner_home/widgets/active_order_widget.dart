@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/models/order.dart';
+import '../../../core/widgets/order_meta_row.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../provider_home/widgets/order_live_badge.dart';
 import '../../provider_home/widgets/order_progress_stepper.dart';
@@ -89,49 +90,41 @@ class _ActiveOrderWidgetState extends State<ActiveOrderWidget> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _statusColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      order.statusLabel(l10n),
-                      style: TextStyle(
-                        fontFamily: 'Cairo',
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: _statusColor,
-                      ),
-                    ),
+              OrderMetaRow(
+                gap: 10,
+                badge: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  const SizedBox(width: 10),
-                  // كرة ملوّنة + توقيت حيّ: صفراء أثناء الانتظار وتصبح خضراء
-                  // عند وصول المزوّد لخطوة ما قبل الإتمام (التأكيد) واكتمالها.
-                  // ملاحظة: مساحة مرنة واحدة فقط (Expanded) بدلًا من
-                  // Flexible + Spacer — فلو تشاركت الشريحتان لتقسّمت المساحة
-                  // نصفين ووقف السهم في منتصف البطاقة على الشاشات العريضة.
-                  Expanded(
-                    child: Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: OrderLiveBadge(
-                        createdAt: order.createdAt,
-                        dotColor: _liveDotColor,
-                      ),
+                  child: Text(
+                    order.statusLabel(l10n),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: 'Cairo',
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: _statusColor,
                     ),
                   ),
-                  Icon(
-                    // سهم اتجاهي: يشير نحو جهة القراءة — يسار في العربي (RTL)
-                    // ويمين في الإنجليزي، بنفس نمط بانر S.O.S.
-                    Localizations.localeOf(context).languageCode == 'ar'
-                        ? Icons.arrow_back_ios_rounded
-                        : Icons.arrow_forward_ios_rounded,
-                    size: 16,
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                  ),
-                ],
+                ),
+                // كرة ملوّنة + توقيت حيّ: صفراء أثناء الانتظار وتصبح خضراء
+                // عند وصول المزوّد لخطوة ما قبل الإتمام (التأكيد) واكتمالها.
+                middle: OrderLiveBadge(
+                  createdAt: order.createdAt,
+                  dotColor: _liveDotColor,
+                ),
+                trailing: Icon(
+                  // سهم اتجاهي: يشير نحو جهة القراءة — يسار في العربي (RTL)
+                  // ويمين في الإنجليزي، بنفس نمط بانر S.O.S.
+                  Localizations.localeOf(context).languageCode == 'ar'
+                      ? Icons.arrow_back_ios_rounded
+                      : Icons.arrow_forward_ios_rounded,
+                  size: 16,
+                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                ),
               ),
               const SizedBox(height: 12),
               Text(

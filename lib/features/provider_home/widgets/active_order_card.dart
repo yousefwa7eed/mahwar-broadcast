@@ -4,6 +4,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/models/order.dart';
 import '../../../core/widgets/attachments_gallery.dart';
 import '../../../core/widgets/brand_mark.dart';
+import '../../../core/widgets/order_meta_row.dart';
 import '../../../l10n/app_localizations.dart';
 import 'order_live_badge.dart';
 import 'order_progress_stepper.dart';
@@ -105,55 +106,57 @@ class ActiveOrderCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Status chip + offered price
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _statusColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  statusLabel,
-                  style: TextStyle(
-                    fontFamily: 'Cairo',
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: _statusColor,
-                  ),
+          OrderMetaRow(
+            gap: 8,
+            badge: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: _statusColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                statusLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: _statusColor,
                 ),
               ),
-              const SizedBox(width: 8),
-              // دائرة خضراء + مدة الطلب — توحي أن الطلب جديد وحالي.
-              // مساحة مرنة واحدة (Expanded) لئلا تتقاسمها مساحتان فيتوسّط
-              // الزر/السعر على الشاشات العريضة (التابلت).
-              Expanded(
-                child: Align(
-                  alignment: AlignmentDirectional.centerStart,
-                  child: OrderLiveBadge(
-                    createdAt: createdAt,
-                    dotColor: AppColors.success,
+            ),
+            // دائرة خضراء + مدة الطلب — توحي أن الطلب جديد وحالي.
+            middle: OrderLiveBadge(
+              createdAt: createdAt,
+              dotColor: AppColors.success,
+            ),
+            trailing: offeredPrice == null
+                ? null
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.price_change_rounded,
+                        size: 16,
+                        color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          '${offeredPrice!.toStringAsFixed(0)} ${l10n?.egp ?? 'ج.م'}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: 'Cairo',
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.orangePrimary,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ),
-              if (offeredPrice != null) ...[
-                Icon(
-                  Icons.price_change_rounded,
-                  size: 16,
-                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '${offeredPrice!.toStringAsFixed(0)} ${l10n?.egp ?? 'ج.م'}',
-                  style: const TextStyle(
-                    fontFamily: 'Cairo',
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.orangePrimary,
-                  ),
-                ),
-              ],
-            ],
           ),
           const SizedBox(height: 12),
 

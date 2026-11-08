@@ -6,6 +6,7 @@ import '../../../core/services/server_clock.dart';
 import '../../../core/utils/distance_format.dart';
 import '../../../core/widgets/attachments_gallery.dart';
 import '../../../core/widgets/brand_mark.dart';
+import '../../../core/widgets/order_meta_row.dart';
 import '../../../l10n/app_localizations.dart';
 
 /// بطاقة الطلب الواصل للمزوّد في لوحة التحكم.
@@ -90,25 +91,27 @@ class NearbyRequestCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header: distance + service type
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.orangePrimary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.location_on_outlined, size: 14, color: AppColors.orangePrimary),
-                    const SizedBox(width: 4),
-                    Text(
+          OrderMetaRow(
+            badge: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.orangePrimary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.location_on_outlined, size: 14, color: AppColors.orangePrimary),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
                       formatApproxDistance(
                         distanceMeters,
                         meterUnit: l10n?.m ?? 'م',
                         kmUnit: l10n?.km ?? 'كم',
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontFamily: 'Cairo',
                         fontSize: 13,
@@ -116,27 +119,28 @@ class NearbyRequestCard extends StatelessWidget {
                         color: AppColors.orangePrimary,
                       ),
                     ),
-                  ],
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  issueType,
-                  style: const TextStyle(
-                    fontFamily: 'Cairo',
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.error,
                   ),
+                ],
+              ),
+            ),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                issueType,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.error,
                 ),
               ),
-            ],
+            ),
           ),
           const SizedBox(height: 12),
 
