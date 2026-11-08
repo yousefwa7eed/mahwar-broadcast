@@ -151,6 +151,8 @@ class _MahwarAppState extends State<MahwarApp> with WidgetsBindingObserver {
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: settings.themeMode,
+          themeAnimationDuration: const Duration(milliseconds: 350),
+          themeAnimationCurve: Curves.easeInOutCubic,
           routerConfig: appRouter,
           scaffoldMessengerKey: AppMessenger.messengerKey,
           locale: settings.locale,
