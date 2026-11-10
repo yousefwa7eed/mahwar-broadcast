@@ -1365,6 +1365,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get providersMapViewProfile => 'عرض الملف';
 
   @override
+  String get providersMapDirections => 'الاتجاهات';
+
+  @override
+  String get providersMapFilterAll => 'الكل';
+
+  @override
   String mapLoadFailed(String error) {
     return 'تعذّر تحميل بيانات الخريطة: $error';
   }

@@ -556,6 +556,8 @@
   "providersMapRefresh": "تحديث",
   "providersMapRecenter": "العودة لموقعي",
   "providersMapViewProfile": "عرض الملف",
+  "providersMapDirections": "الاتجاهات",
+  "providersMapFilterAll": "الكل",
   "mapLoadFailed": "تعذّر تحميل بيانات الخريطة: {error}",
   "@mapLoadFailed": {
     "placeholders": {

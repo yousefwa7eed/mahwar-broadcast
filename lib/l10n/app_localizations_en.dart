@@ -1390,6 +1390,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get providersMapViewProfile => 'View profile';
 
   @override
+  String get providersMapDirections => 'Directions';
+
+  @override
+  String get providersMapFilterAll => 'All';
+
+  @override
   String mapLoadFailed(String error) {
     return 'Couldn\'t load map data: $error';
   }

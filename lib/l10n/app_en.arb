@@ -457,6 +457,8 @@
   "providersMapRefresh": "Refresh",
   "providersMapRecenter": "Back to my location",
   "providersMapViewProfile": "View profile",
+  "providersMapDirections": "Directions",
+  "providersMapFilterAll": "All",
   "mapLoadFailed": "Couldn't load map data: {error}",
   "@mapLoadFailed": {
     "placeholders": {

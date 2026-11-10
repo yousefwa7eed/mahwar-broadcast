@@ -2639,6 +2639,18 @@ abstract class AppLocalizations {
   /// **'عرض الملف'**
   String get providersMapViewProfile;
 
+  /// No description provided for @providersMapDirections.
+  ///
+  /// In ar, this message translates to:
+  /// **'الاتجاهات'**
+  String get providersMapDirections;
+
+  /// No description provided for @providersMapFilterAll.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكل'**
+  String get providersMapFilterAll;
+
   /// No description provided for @mapLoadFailed.
   ///
   /// In ar, this message translates to:

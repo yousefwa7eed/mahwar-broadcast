@@ -3,8 +3,10 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/avatar_config.dart';
 import '../../core/models/provider_details.dart';
 import '../../core/services/location_service.dart';
 import '../../core/utils/distance_format.dart';
@@ -33,6 +35,9 @@ class _ProvidersMapScreenState extends State<ProvidersMapScreen>
 
   List<ProviderDetails> _providers = const [];
   Map<String, String> _serviceNames = {};
+  List<MapEntry<String, String>> _serviceOptions = const [];
+  Map<String, _ProviderAvatar> _avatars = const {};
+  String? _serviceFilter;
   LatLng? _myLocation;
   bool _isLoading = true;
   bool _fetching = false;
@@ -44,7 +49,12 @@ class _ProvidersMapScreenState extends State<ProvidersMapScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadServiceNames();
-    _load();
+    // التحميل الأول بعد أول إطار: `_load` يقرأ `AppLocalizations.of(context)`
+    // وقراءة وراثة السياق قبل اكتمال initState ترمي استثناءً يُترك الشاشة
+    // عالقة على دوّار التحميل (الاستثناء يقع قبل try فلا يُطفأ `_isLoading`).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _load();
+    });
   }
 
   @override
@@ -65,26 +75,55 @@ class _ProvidersMapScreenState extends State<ProvidersMapScreen>
   Future<void> _loadServiceNames() async {
     try {
       final response = await _client.from('service_types').select('id, name_ar');
-      _serviceNames = {
+      final names = {
         for (final row in response)
           row['id'] as String: row['name_ar'] as String? ?? row['id'] as String,
       };
+      final options = names.entries.toList()
+        ..sort((a, b) => a.value.compareTo(b.value));
+      if (!mounted) return;
+      setState(() {
+        _serviceNames = names;
+        _serviceOptions = options;
+      });
     } catch (_) {}
   }
 
+  /// صور/أفاتار المزوّدين الظاهرين بطلب واحد: الـ RPC لا يُرجع أعمدة الأفاتار،
+  /// و`public_provider_profiles` (view عام ممنوح للمستخدمين) هي مصدرها.
+  /// أي فشل هنا لا يُسقط الخريطة — نكمل بالأفاتار الافتراضي.
+  Future<Map<String, _ProviderAvatar>> _fetchAvatars(List<String> ids) async {
+    if (ids.isEmpty) return const {};
+    try {
+      final rows = await _client
+          .from('public_provider_profiles')
+          .select('provider_id, avatar_id, avatar_url')
+          .inFilter('provider_id', ids);
+      return {
+        for (final row in rows)
+          row['provider_id'] as String: _ProviderAvatar(
+            id: row['avatar_id'] as String?,
+            url: row['avatar_url'] as String?,
+          ),
+      };
+    } catch (_) {
+      return const {};
+    }
+  }
+
   Future<void> _load({bool silent = false}) async {
-    if (_fetching) return;
+    if (_fetching || !mounted) return;
     _fetching = true;
 
     final l10n = AppLocalizations.of(context);
-    if (!silent) {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
-    }
-
     try {
+      if (!silent) {
+        setState(() {
+          _isLoading = true;
+          _error = null;
+        });
+      }
+
       final position = await LocationService.instance.getCurrentPosition();
       if (!mounted) return;
       if (position == null) {
@@ -103,7 +142,7 @@ class _ProvidersMapScreenState extends State<ProvidersMapScreen>
         params: buildNearestProvidersParams(
           userLat: origin.latitude,
           userLng: origin.longitude,
-          serviceFilter: null,
+          serviceFilter: _serviceFilter,
           maxDistanceMeters: widget.maxDistanceMeters,
         ),
       );
@@ -116,10 +155,15 @@ class _ProvidersMapScreenState extends State<ProvidersMapScreen>
           .where((p) => p.latitude != 0 || p.longitude != 0)
           .toList();
 
+      final avatars = await _fetchAvatars(
+        providers.map((p) => p.providerId).toList(),
+      );
+
       if (!mounted) return;
       setState(() {
         _myLocation = origin;
         _providers = providers;
+        _avatars = avatars;
         _isLoading = false;
         _error = null;
       });
@@ -145,6 +189,10 @@ class _ProvidersMapScreenState extends State<ProvidersMapScreen>
       origin,
       ..._providers.map((p) => LatLng(p.latitude, p.longitude)),
     ];
+    if (!_hasSpread(points)) {
+      _mapController.move(origin, 14);
+      return;
+    }
     _mapController.fitCamera(
       CameraFit.bounds(
         bounds: LatLngBounds.fromPoints(points),
@@ -152,6 +200,46 @@ class _ProvidersMapScreenState extends State<ProvidersMapScreen>
         maxZoom: 16,
       ),
     );
+  }
+
+  /// هل النقاط متباعدة فعلًا؟ حدود بنقطة واحدة (أو نقاط متطابقة) تُنتج
+  /// تكبيرًا غير معرّف، فنكتفي بالتمركز اليدوي بدلًا من fitCamera.
+  bool _hasSpread(List<LatLng> points) {
+    if (points.length < 2) return false;
+    final first = points.first;
+    return points.any(
+      (p) =>
+          (p.latitude - first.latitude).abs() > 1e-6 ||
+          (p.longitude - first.longitude).abs() > 1e-6,
+    );
+  }
+
+  void _onFilterSelected(String? serviceId) {
+    if (_serviceFilter == serviceId || _fetching) return;
+    setState(() => _serviceFilter = serviceId);
+    _load(silent: true);
+  }
+
+  Future<void> _openDirections(ProviderDetails p) async {
+    final l10n = AppLocalizations.of(context);
+    final uri = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1'
+      '&destination=${p.latitude},${p.longitude}'
+      '&travelmode=driving',
+    );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            l10n?.noMapAppsAvailable ??
+                'لا توجد تطبيقات خرائط متاحة على جهازك',
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   void _recenter() {
@@ -204,7 +292,70 @@ class _ProvidersMapScreenState extends State<ProvidersMapScreen>
             )
           : _error != null
           ? _buildError(isDark)
-          : _buildMap(isDark),
+          : Column(
+              children: [
+                _buildFilterBar(isDark),
+                Expanded(child: _buildMap(isDark)),
+              ],
+            ),
+    );
+  }
+
+  /// شريط فلترة الخدمات فوق الخريطة — «الكل» + أنواع الخدمات المفروزة
+  /// أبجديًا. الفلترة على الخادم عبر `service_filter` في نفس الـ RPC.
+  Widget _buildFilterBar(bool isDark) {
+    if (_serviceOptions.isEmpty) return const SizedBox.shrink();
+    final l10n = AppLocalizations.of(context);
+    final secondary =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final entries = <MapEntry<String?, String>>[
+      MapEntry(null, l10n?.providersMapFilterAll ?? 'الكل'),
+      ..._serviceOptions.map(
+        (option) => MapEntry<String?, String>(option.key, option.value),
+      ),
+    ];
+
+    return SizedBox(
+      height: 48,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        itemCount: entries.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final entry = entries[index];
+          final selected = _serviceFilter == entry.key;
+          return GestureDetector(
+            onTap: () => _onFilterSelected(entry.key),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: selected
+                    ? AppColors.orangePrimary.withValues(alpha: 0.12)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: selected
+                      ? AppColors.orangePrimary
+                      : secondary.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Text(
+                entry.value,
+                maxLines: 1,
+                style: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 12.5,
+                  fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+                  color: selected ? AppColors.orangePrimary : secondary,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -269,11 +420,13 @@ class _ProvidersMapScreenState extends State<ProvidersMapScreen>
               initialZoom: 14,
               minZoom: 4,
               maxZoom: 18,
-              initialCameraFit: CameraFit.bounds(
-                bounds: LatLngBounds.fromPoints(points),
-                padding: const EdgeInsets.fromLTRB(56, 96, 56, 140),
-                maxZoom: 16,
-              ),
+              initialCameraFit: _hasSpread(points)
+                  ? CameraFit.bounds(
+                      bounds: LatLngBounds.fromPoints(points),
+                      padding: const EdgeInsets.fromLTRB(56, 96, 56, 140),
+                      maxZoom: 16,
+                    )
+                  : null,
               onMapReady: () => _mapReady = true,
             ),
             children: [
@@ -310,11 +463,12 @@ class _ProvidersMapScreenState extends State<ProvidersMapScreen>
                   ..._providers.map(
                     (p) => Marker(
                       point: LatLng(p.latitude, p.longitude),
-                      width: 46,
-                      height: 46,
+                      width: 52,
+                      height: 52,
                       child: GestureDetector(
                         onTap: () => _showProviderSheet(p),
                         child: Container(
+                          padding: const EdgeInsets.all(2),
                           decoration: BoxDecoration(
                             color: isDark ? AppColors.darkCard : Colors.white,
                             shape: BoxShape.circle,
@@ -330,10 +484,12 @@ class _ProvidersMapScreenState extends State<ProvidersMapScreen>
                               ),
                             ],
                           ),
-                          child: const Icon(
-                            Icons.storefront_rounded,
-                            color: AppColors.orangePrimary,
-                            size: 22,
+                          child: ClipOval(
+                            child: SizedBox(
+                              width: 43,
+                              height: 43,
+                              child: _avatarFace(p, size: 43),
+                            ),
                           ),
                         ),
                       ),
@@ -461,6 +617,40 @@ class _ProvidersMapScreenState extends State<ProvidersMapScreen>
     );
   }
 
+  /// وجه المزوّد: صورته المرفوعة، وإلا أفاتاره المختار، وإلا بديل عام
+  /// (دائرة رمادية بظلّ شخص أبيض على طريقة واتساب).
+  Widget _avatarFace(ProviderDetails p, {required double size}) {
+    final info = _avatars[p.providerId];
+    final url = (info?.url ?? p.avatarUrl ?? '').trim();
+    if (url.isNotEmpty) {
+      return Image.network(
+        url,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => _defaultAvatarFace(size),
+      );
+    }
+    final avatarId = (info?.id ?? p.avatarId ?? '').trim();
+    if (avatarId.isNotEmpty) {
+      return AvatarWidget(avatarId: avatarId, role: 'provider', size: size);
+    }
+    return _defaultAvatarFace(size);
+  }
+
+  Widget _defaultAvatarFace(double size) {
+    return Container(
+      width: size,
+      height: size,
+      color: const Color(0xFFBDBDBD),
+      child: Icon(
+        Icons.person_rounded,
+        color: Colors.white,
+        size: size * 0.58,
+      ),
+    );
+  }
+
   Future<void> _showProviderSheet(ProviderDetails p) async {
     final l10n = AppLocalizations.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -499,13 +689,18 @@ class _ProvidersMapScreenState extends State<ProvidersMapScreen>
               const SizedBox(height: 16),
               Row(
                 children: [
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundColor: AppColors.orangePrimary.withValues(alpha: 0.12),
-                    child: const Icon(
-                      Icons.storefront_rounded,
-                      color: AppColors.orangePrimary,
-                      size: 26,
+                  Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.orangePrimary.withValues(alpha: 0.10),
+                    ),
+                    child: ClipOval(
+                      child: SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: _avatarFace(p, size: 48),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -621,32 +816,60 @@ class _ProvidersMapScreenState extends State<ProvidersMapScreen>
                 ),
               ],
               const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(sheetContext).pop();
-                    context.push(
-                      '/request/provider-details?providerId=${p.providerId}',
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.orangePrimary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(sheetContext).pop();
+                        context.push(
+                          '/request/provider-details?providerId=${p.providerId}',
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.orangePrimary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: Text(
+                        l10n?.providersMapViewProfile ?? 'عرض الملف',
+                        style: const TextStyle(
+                          fontFamily: 'Cairo',
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
-                  child: Text(
-                    l10n?.providersMapViewProfile ?? 'عرض الملف',
-                    style: const TextStyle(
-                      fontFamily: 'Cairo',
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 2,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _openDirections(p),
+                      icon: const Icon(Icons.directions_rounded, size: 20),
+                      label: Text(
+                        l10n?.providersMapDirections ?? 'الاتجاهات',
+                        style: const TextStyle(
+                          fontFamily: 'Cairo',
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.orangePrimary,
+                        side: const BorderSide(color: AppColors.orangePrimary),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
             ],
           ),
@@ -654,4 +877,12 @@ class _ProvidersMapScreenState extends State<ProvidersMapScreen>
       ),
     );
   }
+}
+
+/// أفاتار مزوّد كما يعيده `public_provider_profiles` — الـ RPC لا يُرجعه.
+class _ProviderAvatar {
+  const _ProviderAvatar({this.id, this.url});
+
+  final String? id;
+  final String? url;
 }
