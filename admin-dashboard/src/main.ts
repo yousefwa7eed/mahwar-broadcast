@@ -66,6 +66,7 @@ const ICONS = {
   clipboard: I('<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/>'),
   refresh: I('<polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>'),
   chart: I('<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>'),
+  headset: I('<path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>'),
 };
 
 // ---------------------------------------------------------------------------
@@ -267,16 +268,14 @@ async function showEnroll(shellMsg?: string) {
 
   // التفعيل المهجور يُنشئ عاملًا غير موثّق في كل محاولة؛ ننظّفها قبل الإنشاء
   // حتى لا تتراكم عوامل يتيمة على الحساب.
-  const { data: factorsData, error: listError } = await (sb as any).mfa.listFactors();
-  if (listError) {
-    showLoadError(listError.message ?? String(listError), showEnroll);
+  const { data: factorsData, error: listError } = await sb.auth.mfa.listFactors();
+  if (listError || !factorsData) {
+    showLoadError(listError?.message ?? 'تعذّر جلب عوامل التحقق', showEnroll);
     return;
   }
-  const pendingFactors = ((factorsData?.all ?? []) as any[]).filter(
-    (f) => f.status !== 'verified',
-  );
+  const pendingFactors = factorsData.all.filter((f) => f.status !== 'verified');
   for (const pending of pendingFactors) {
-    const { error: unenrollError } = await (sb as any).mfa.unenroll({
+    const { error: unenrollError } = await sb.auth.mfa.unenroll({
       factorId: pending.id,
     });
     if (unenrollError) {
@@ -285,15 +284,15 @@ async function showEnroll(shellMsg?: string) {
     }
   }
 
-  const { data, error } = await (sb as any).mfa.enroll({
+  const { data, error } = await sb.auth.mfa.enroll({
     factorType: 'totp',
     friendlyName: 'mahwar-admin',
   });
-  if (error) {
+  if (error || !data) {
     app.innerHTML = '';
     const wrap = appEl();
     wrap.className = 'auth-wrap';
-    wrap.innerHTML = `<div class="auth-card"><h1>خطأ</h1><div class="sub">${esc(error.message)}</div><button id="out">تسجيل خروج</button></div>`;
+    wrap.innerHTML = `<div class="auth-card"><h1>خطأ</h1><div class="sub">${esc(error?.message ?? 'تعذّر إنشاء عامل التحقق')}</div><button id="out">تسجيل خروج</button></div>`;
     app.appendChild(wrap);
     (wrap.querySelector('#out') as HTMLButtonElement).onclick = async () => {
       await sb.auth.signOut();
@@ -302,9 +301,9 @@ async function showEnroll(shellMsg?: string) {
     return;
   }
 
-  const totp = (data as any).totp ?? {};
-  const qrSvg: string = totp.qr_code ?? '';
-  const secret: string = totp.secret ?? '';
+  const { totp } = data;
+  const qrSvg = totp.qr_code;
+  const secret = totp.secret;
 
   app.innerHTML = '';
   const wrap = appEl();
@@ -344,10 +343,11 @@ async function showEnroll(shellMsg?: string) {
       return;
     }
     try {
-      const challenge = await (sb as any).mfa.challenge({ factorId: data.id });
-      const { error: vErr } = await (sb as any).mfa.verify({
+      const challenge = await sb.auth.mfa.challenge({ factorId: data.id });
+      if (challenge.error) throw challenge.error;
+      const { error: vErr } = await sb.auth.mfa.verify({
         factorId: data.id,
-        challengeId: (challenge.data as any).id,
+        challengeId: challenge.data.id,
         code,
       });
       if (vErr) throw vErr;
@@ -364,16 +364,16 @@ async function showEnroll(shellMsg?: string) {
 // ---------------------------------------------------------------------------
 async function showAalVerify() {
   app.innerHTML = '<div class="auth-wrap"><div class="auth-card">جارٍ الفحص…</div></div>';
-  const { data: factorsData, error } = await (sb as any).mfa.listFactors();
-  if (error) {
+  const { data: factorsData, error } = await sb.auth.mfa.listFactors();
+  if (error || !factorsData) {
     // خطأ في القراءة لا يعني عدم وجود عامل: لا نوجّه إلى شاشة التفعيل.
-    showLoadError(error.message ?? String(error), showAalVerify);
+    showLoadError(error?.message ?? 'تعذّر جلب عوامل التحقق', showAalVerify);
     return;
   }
-  const factors = ((factorsData?.all ?? []) as any[]).filter(
+  const factors = factorsData.all.filter(
     (f) => f.factor_type === 'totp' && f.status === 'verified',
   );
-  const factor = (factors[0] ?? null) as any;
+  const factor = factors[0] ?? null;
   if (!factor) {
     await showEnroll();
     return;
@@ -397,10 +397,11 @@ async function showAalVerify() {
     const code = (wrap.querySelector('#code') as HTMLInputElement).value.trim();
     const err = wrap.querySelector('#err') as HTMLDivElement;
     try {
-      const challenge = await (sb as any).mfa.challenge({ factorId: factor.id });
-      const { error } = await (sb as any).mfa.verify({
+      const challenge = await sb.auth.mfa.challenge({ factorId: factor.id });
+      if (challenge.error) throw challenge.error;
+      const { error } = await sb.auth.mfa.verify({
         factorId: factor.id,
-        challengeId: (challenge.data as any).id,
+        challengeId: challenge.data.id,
         code,
       });
       if (error) throw error;
@@ -486,6 +487,7 @@ function showDashboard() {
         <button class="nav-item" data-view="orders">${ICONS.clipboard}<span>الطلبات</span></button>
         <button class="nav-item" data-view="bans">${ICONS.shield}<span>سجل الحظر</span></button>
         <button class="nav-item" data-view="messages">${ICONS.bell}<span>الرسائل والإشعارات</span></button>
+        <button class="nav-item" data-view="support">${ICONS.headset}<span>الدعم والشكاوى</span></button>
         <button class="nav-item" data-view="exports">${ICONS.download}<span>التصدير</span></button>
       </nav>
 
@@ -502,6 +504,7 @@ function showDashboard() {
       <section class="view hidden" id="view-orders"></section>
       <section class="view hidden" id="view-bans"></section>
       <section class="view hidden" id="view-messages"></section>
+      <section class="view hidden" id="view-support"></section>
       <section class="view hidden" id="view-exports"></section>
     </main>
 
@@ -526,6 +529,7 @@ function showDashboard() {
     orders: renderOrders,
     bans: renderBans,
     messages: renderMessages,
+    support: (el) => void renderSupport(el),
     exports: renderExports,
   };
   navButtons.forEach((b) => {
@@ -1230,7 +1234,10 @@ function renderDrawer(drawer: HTMLElement, d: any, notif: any, uid: string) {
     html: `
       <h3>${ICONS.star} تقييمات</h3>
       <div class="list-item">
-        استلماها: <b>${esc(d.ratings_received?.avg ?? '—')}</b> من 5 (${esc(d.ratings_received?.count ?? 0)}) ·
+        استلمها: <b>${esc(d.ratings_received?.avg ?? '—')}</b> من 5 —
+        تُحسب في المتوسط: ${esc(d.ratings_received?.count ?? 0)} من ${esc(d.ratings_received?.total ?? 0)} ·
+        مقيّمون مستقلون: ${esc(d.ratings_received?.distinct_raters ?? 0)}
+        <br/>
         أرسلتها: <b>${esc(d.ratings_given?.avg ?? '—')}</b> من 5 (${esc(d.ratings_given?.count ?? 0)})
       </div>
       <h3>${ICONS.shield} عمليات الأدمن على المستخدم ده</h3>
@@ -1569,6 +1576,252 @@ async function loadBans(v: HTMLElement) {
       `صفحة ${bansState.page} من ${bansState.totalPages} — إجمالي ${bansState.total}`;
   } catch (e: any) {
     rows.innerHTML = `<tr><td class="muted">${esc(e?.message ?? 'خطأ')}</td></tr>`;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// View: support inbox (item 10) — tickets submitted from the app + reply.
+// ---------------------------------------------------------------------------
+const supportState = { page: 1, pageSize: 25, status: '', search: '', total: 0, totalPages: 1 };
+let currentSupportRows: any[] = [];
+
+const SUPPORT_KIND_LABEL: Record<string, string> = {
+  complaint: 'شكوى',
+  suggestion: 'اقتراح',
+  inquiry: 'استفسار',
+};
+
+const SUPPORT_STATUS: Record<string, { label: string; cls: string }> = {
+  open: { label: 'قيد المراجعة', cls: 'st-pending' },
+  replied: { label: 'تم الرد', cls: 'st-completed' },
+  closed: { label: 'مغلقة', cls: 'st-cancelled' },
+};
+
+function renderSupport(v: HTMLElement) {
+  v.innerHTML = `
+    <h1 class="view-title">${ICONS.headset} الدعم والشكاوى</h1>
+    <div class="panel">
+      <div class="sub">تذاكر يرسلها المستخدمون من داخل التطبيق (قبل أو بعد تسجيل الدخول). الرد هنا يظهر لهم في «تذاكراتي».</div>
+      <div class="toolbar">
+        <div class="searchbox">${ICONS.search}<input type="text" id="s-search" value="${esc(supportState.search)}" placeholder="بحث بالإسم / الموبايل / الموضوع / النص…" /></div>
+        <select id="s-status">
+          <option value="" ${supportState.status === '' ? 'selected' : ''}>كل الحالات</option>
+          ${Object.entries(SUPPORT_STATUS)
+            .map(([k, m]) => `<option value="${k}" ${supportState.status === k ? 'selected' : ''}>${esc(m.label)}</option>`)
+            .join('')}
+        </select>
+        <button id="s-apply">بحث</button>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>الحالة</th><th>النوع</th><th>الموضوع</th><th>المرسل</th>
+          <th>الهاتف</th><th>مرفق</th><th>أُنشئت</th><th>آخر رد</th>
+        </tr></thead>
+        <tbody id="s-rows"><tr><td class="muted">جارٍ التحميل…</td></tr></tbody>
+      </table></div>
+      <div class="pager">
+        <button class="secondary" id="s-prev">${ICONS.chevronL}</button>
+        <span class="info" id="s-pageinfo"></span>
+        <button class="secondary" id="s-next">${ICONS.chevronR}</button>
+        <button class="secondary" id="s-refresh">${ICONS.refresh} تحديث</button>
+      </div>
+    </div>`;
+
+  (v.querySelector('#s-apply') as HTMLButtonElement).onclick = () => {
+    supportState.search = (v.querySelector('#s-search') as HTMLInputElement).value.trim();
+    supportState.status = (v.querySelector('#s-status') as HTMLSelectElement).value;
+    supportState.page = 1;
+    loadSupport(v);
+  };
+  (v.querySelector('#s-search') as HTMLInputElement).onkeydown = (ev) => {
+    if ((ev as KeyboardEvent).key === 'Enter')
+      (v.querySelector('#s-apply') as HTMLButtonElement).click();
+  };
+  (v.querySelector('#s-prev') as HTMLButtonElement).onclick = () => {
+    if (supportState.page > 1) {
+      supportState.page--;
+      loadSupport(v);
+    }
+  };
+  (v.querySelector('#s-next') as HTMLButtonElement).onclick = () => {
+    if (supportState.page < supportState.totalPages) {
+      supportState.page++;
+      loadSupport(v);
+    }
+  };
+  (v.querySelector('#s-refresh') as HTMLButtonElement).onclick = () => loadSupport(v);
+
+  loadSupport(v);
+}
+
+async function loadSupport(v: HTMLElement) {
+  const rows = v.querySelector('#s-rows') as HTMLElement;
+  rows.innerHTML = '<tr><td class="muted">جارٍ التحميل…</td></tr>';
+  try {
+    const data: any[] = await rpcSilent('admin_list_support_tickets', {
+      p_page: supportState.page,
+      p_page_size: supportState.pageSize,
+      p_status: supportState.status || null,
+      p_search: supportState.search || null,
+    });
+    supportState.total = Number(data[0]?.total_count ?? 0);
+    supportState.totalPages = Math.max(1, Math.ceil(supportState.total / supportState.pageSize));
+    currentSupportRows = data;
+
+    if (!data.length) {
+      rows.innerHTML = '<tr><td class="muted">لا تذاكر</td></tr>';
+    } else {
+      rows.innerHTML = data
+        .map((t, idx) => {
+          const st = SUPPORT_STATUS[t.status] ?? { label: t.status, cls: '' };
+          return `<tr data-sidx="${idx}">
+            <td><span class="badge ${st.cls}">${esc(st.label)}</span></td>
+            <td class="small">${esc(SUPPORT_KIND_LABEL[t.kind] ?? t.kind ?? '—')}</td>
+            <td>${esc(t.subject ?? '—')}</td>
+            <td>${esc(t.contact_name ?? '—')}<div class="tiny muted">${t.user_id ? 'مسجّل' : 'زائر'}</div></td>
+            <td class="small" dir="ltr">${esc(t.contact_phone ?? '—')}</td>
+            <td class="small">${t.has_attachment ? '📎' : '<span class="muted">—</span>'}</td>
+            <td class="small muted">${fmt(t.created_at)}</td>
+            <td class="small muted">${t.replied_at ? fmt(t.replied_at) : '—'}</td>
+          </tr>`;
+        })
+        .join('');
+      rows.querySelectorAll('tr[data-sidx]').forEach((tr) => {
+        (tr as HTMLElement).onclick = () =>
+          void openSupportDrawer(currentSupportRows[Number((tr as HTMLElement).dataset.sidx)], v);
+      });
+    }
+    (v.querySelector('#s-pageinfo') as HTMLElement).textContent =
+      `صفحة ${supportState.page} من ${supportState.totalPages} — إجمالي ${supportState.total}`;
+  } catch (e: any) {
+    rows.innerHTML = `<tr><td class="muted">${esc(e?.message ?? 'خطأ')}</td></tr>`;
+  }
+}
+
+async function openSupportDrawer(t: any, v: HTMLElement) {
+  const overlay = document.getElementById('drawer-overlay') as HTMLElement;
+  const drawer = document.getElementById('drawer') as HTMLElement;
+  overlay.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  overlay.onclick = (ev) => {
+    if (ev.target === overlay) closeDrawer();
+  };
+  drawer.innerHTML = '<div class="drawer-body"><span class="muted">جارٍ التحميل…</span></div>';
+
+  let d: any;
+  try {
+    d = await rpcSilent('admin_get_support_ticket', { p_ticket_id: t.id });
+  } catch (e: any) {
+    drawer.innerHTML = `<div class="drawer-body"><div class="msg err show">${esc(e?.message ?? 'خطأ')}</div></div>`;
+    return;
+  }
+
+  const st = SUPPORT_STATUS[d.status] ?? { label: d.status, cls: '' };
+  const user = d.user as null | { id: string; full_name?: string; phone_number?: string; role?: string };
+  const canReply = d.status !== 'closed';
+
+  drawer.innerHTML = `
+    <div class="drawer-head">
+      <div>
+        <h2>${esc(d.subject ?? 'تذكرة دعم')}</h2>
+        <div class="drawer-sub">
+          <span class="badge ${st.cls}">${esc(st.label)}</span>
+          <span class="badge">${esc(SUPPORT_KIND_LABEL[d.kind] ?? d.kind ?? '—')}</span>
+          <code dir="ltr" class="tiny muted">${esc(String(d.id).slice(0, 8))}…</code>
+        </div>
+      </div>
+      <button class="secondary icon-btn" id="drawer-close">${ICONS.x}</button>
+    </div>
+    <div class="drawer-body">
+      <dl class="kv">
+        <dt>المرسل</dt><dd>${esc(d.contact_name ?? '—')}${user ? ` · <span class="muted">${esc(ROLE_LABEL[user.role ?? ''] ?? 'حساب مسجّل')}</span>` : ' · <span class="muted">زائر</span>'}</dd>
+        <dt>الهاتف</dt><dd dir="ltr">${esc(d.contact_phone ?? '—')}</dd>
+        <dt>التصنيف</dt><dd>${esc(d.category ?? '—')}</dd>
+        <dt>تاريخ الإرسال</dt><dd>${fmt(d.created_at)}</dd>
+      </dl>
+      <div class="field"><label>نص الرسالة</label><div style="white-space:pre-wrap">${esc(d.body ?? '')}</div></div>
+      ${d.attachment_path ? `<div class="field"><label>المرفق</label><button class="secondary" id="st-attach">${ICONS.download} فتح الصورة</button></div>` : ''}
+      ${d.reply_body ? `<div class="field"><label>الرد الحالي (${esc(fmt(d.replied_at))})</label><div style="white-space:pre-wrap">${esc(d.reply_body)}</div></div>` : ''}
+      <div class="field">
+        <label>${canReply ? 'الرد على المستخدم (2–4000 حرف)' : 'التذكرة مغلقة — أعد فتحها للرد'}</label>
+        <textarea id="st-reply" maxlength="4000" ${canReply ? '' : 'disabled'}>${esc(d.reply_body ?? '')}</textarea>
+      </div>
+      <div class="btn-row">
+        ${canReply ? `<button id="st-send">${ICONS.headset} إرسال الرد</button>` : ''}
+        ${d.status === 'closed' ? `<button class="secondary" id="st-reopen">إعادة فتح</button>` : `<button class="secondary" id="st-close">إغلاق التذكرة</button>`}
+      </div>
+      <div class="msg info hidden" id="st-msg"></div>
+    </div>`;
+
+  (drawer.querySelector('#drawer-close') as HTMLButtonElement).onclick = closeDrawer;
+
+  const msgBox = drawer.querySelector('#st-msg') as HTMLElement;
+  const setMsg = (text: string) => {
+    msgBox.textContent = text;
+    msgBox.className = 'msg err show';
+    setTimeout(() => msgBox.classList.add('hidden'), 8000);
+  };
+
+  const attachBtn = drawer.querySelector('#st-attach') as HTMLButtonElement | null;
+  if (attachBtn) {
+    attachBtn.onclick = async () => {
+      try {
+        const { data: signed, error } = await sb.storage
+          .from('support-attachments')
+          .createSignedUrl(d.attachment_path, 3600);
+        if (error || !signed?.signedUrl) throw error ?? new Error('تعذّر إنشاء رابط الصورة');
+        window.open(signed.signedUrl, '_blank', 'noopener');
+      } catch (e: any) {
+        setMsg(e?.message ?? 'تعذّر فتح المرفق');
+      }
+    };
+  }
+
+  const sendBtn = drawer.querySelector('#st-send') as HTMLButtonElement | null;
+  if (sendBtn) {
+    sendBtn.onclick = async () => {
+      const body = (drawer.querySelector('#st-reply') as HTMLTextAreaElement).value.trim();
+      if (body.length < 2) {
+        setMsg('اكتب نص الرد أولًا');
+        return;
+      }
+      sendBtn.disabled = true;
+      try {
+        await rpcSilent('admin_reply_support_ticket', { p_ticket_id: d.id, p_reply_body: body });
+        closeDrawer();
+        loadSupport(v);
+      } catch (e: any) {
+        sendBtn.disabled = false;
+        setMsg(e?.message ?? 'خطأ');
+      }
+    };
+  }
+
+  const closeBtn = drawer.querySelector('#st-close') as HTMLButtonElement | null;
+  if (closeBtn) {
+    closeBtn.onclick = async () => {
+      if (!window.confirm('إغلاق التذكرة؟ لن يمكن الرد عليها بعد ذلك إلا بإعادة فتحها.')) return;
+      try {
+        await rpcSilent('admin_set_support_status', { p_ticket_id: d.id, p_status: 'closed' });
+        closeDrawer();
+        loadSupport(v);
+      } catch (e: any) {
+        setMsg(e?.message ?? 'خطأ');
+      }
+    };
+  }
+
+  const reopenBtn = drawer.querySelector('#st-reopen') as HTMLButtonElement | null;
+  if (reopenBtn) {
+    reopenBtn.onclick = async () => {
+      try {
+        await rpcSilent('admin_set_support_status', { p_ticket_id: d.id, p_status: 'open' });
+        closeDrawer();
+        loadSupport(v);
+      } catch (e: any) {
+        setMsg(e?.message ?? 'خطأ');
+      }
+    };
   }
 }
 
