@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/notifications/notification_cubit.dart';
 import '../../core/services/server_clock.dart';
+import '../../core/widgets/offline_view.dart';
+import '../../core/widgets/skeletons.dart';
 import '../../l10n/app_localizations.dart';
 import 'notification_actions.dart';
 
@@ -71,32 +73,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       ),
       body: BlocBuilder<NotificationCubit, NotificationsState>(
         builder: (context, state) {
-          if (state.isLoading) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppColors.orangePrimary),
-            );
+          final cubit = context.read<NotificationCubit>();
+
+          if (state.notifications.isEmpty && state.isLoading) {
+            return const NotificationListSkeleton();
           }
 
-          if (state.error != null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-                  const SizedBox(height: 12),
-                  Text(
-                    state.error!,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontFamily: 'Cairo', fontSize: 14),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => context.read<NotificationCubit>().loadNotifications(),
-                    child: Text(l10n?.retry ?? 'إعادة المحاولة'),
-                  ),
-                ],
-              ),
-            );
+          if (state.notifications.isEmpty && state.errorCode != null) {
+            return state.errorCode == NotificationCubit.errorOffline
+                ? OfflineView(
+                    onRetry: () => cubit.loadNotifications(force: true),
+                  )
+                : LoadFailedView(
+                    message:
+                        l10n?.notificationsLoadFailed ??
+                        'تعذّر تحميل الإشعارات',
+                    onRetry: () => cubit.loadNotifications(force: true),
+                  );
           }
 
           if (state.notifications.isEmpty) {
@@ -124,7 +117,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           }
 
           return RefreshIndicator(
-            onRefresh: () => context.read<NotificationCubit>().loadNotifications(),
+            onRefresh: () => cubit.loadNotifications(force: true),
             color: AppColors.orangePrimary,
             child: ListView.builder(
               padding: const EdgeInsets.all(20),
