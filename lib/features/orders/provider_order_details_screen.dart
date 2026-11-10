@@ -3,7 +3,9 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/models/order.dart';
+import '../../core/services/connectivity_service.dart';
 import '../../core/services/service_type_directory.dart';
+import '../../core/widgets/offline_view.dart';
 import '../../l10n/app_localizations.dart';
 
 /// شاشة تفاصيل الطلب من منظور المزوّد: تُفتح من بطاقة الطلب في سجل المزوّد
@@ -29,12 +31,14 @@ class _ProviderOrderDetailsScreenState
   final SupabaseClient _client = Supabase.instance.client;
 
   Order? _order;
-  String? _serviceName;
   int? _rating;
   String? _ratingComment;
   DateTime? _ratedAt;
   bool _isLoading = true;
   bool _isLoadingRating = false;
+
+  /// سبب فشل التحميل (أوفلاين / خطأ عام) — null قبل أي فشل.
+  LoadFailure? _failure;
 
   @override
   void initState() {
@@ -43,7 +47,12 @@ class _ProviderOrderDetailsScreenState
   }
 
   Future<void> _load() async {
-    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+    if (!_isLoading && mounted) {
+      setState(() {
+        _isLoading = true;
+        _failure = null;
+      });
+    }
     try {
       final response = await _client
           .from('orders')
@@ -62,16 +71,13 @@ class _ProviderOrderDetailsScreenState
       }
 
       final order = Order.fromJson(response);
+      // بلا locale: القراءة من context ممنوعة قبل اكتمال initState، وكانت
+      // تُسقط التحميل بصمت فيبقى المؤشّر دوّارًا. اسم الخدمة يُحلّ في البناء.
       await ServiceTypeDirectory.instance.ensureLoaded();
-      final serviceName = ServiceTypeDirectory.instance.nameFor(
-        order.serviceTypeId,
-        isArabic,
-      );
 
       if (!mounted) return;
       setState(() {
         _order = order;
-        _serviceName = serviceName;
         _isLoading = false;
       });
 
@@ -80,7 +86,13 @@ class _ProviderOrderDetailsScreenState
         await _loadRating();
       }
     } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+      final failure = await classifyLoadFailure();
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _failure = failure;
+        });
+      }
     }
   }
 
@@ -149,22 +161,13 @@ class _ProviderOrderDetailsScreenState
 
     final order = _order;
     if (order == null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            l10n?.orderDetailsLoadFailed ?? 'تعذّر تحميل تفاصيل الطلب',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'Cairo',
-              fontSize: 14,
-              color: isDark
-                  ? AppColors.darkTextSecondary
-                  : AppColors.lightTextSecondary,
-            ),
-          ),
-        ),
-      );
+      return _failure == LoadFailure.offline
+          ? OfflineView(onRetry: _load)
+          : LoadFailedView(
+              message:
+                  l10n?.orderDetailsLoadFailed ?? 'تعذّر تحميل تفاصيل الطلب',
+              onRetry: _load,
+            );
     }
 
     return RefreshIndicator(
@@ -255,8 +258,7 @@ class _ProviderOrderDetailsScreenState
           _infoRow(
             Icons.build_circle_outlined,
             l10n?.serviceLabel ?? 'خدمة:',
-            _serviceName ??
-                ServiceTypeDirectory.instance.nameFor(
+            ServiceTypeDirectory.instance.nameFor(
                   order.serviceTypeId,
                   Localizations.localeOf(context).languageCode == 'ar',
                 ) ??
