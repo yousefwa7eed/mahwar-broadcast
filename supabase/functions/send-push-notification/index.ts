@@ -122,6 +122,7 @@ async function getAccessToken(sa: Record<string, string>): Promise<string> {
   });
   const res = await fetch(TOKEN_URL, {
     method: "POST",
+    signal: AbortSignal.timeout(8000),
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
   });
@@ -320,6 +321,8 @@ Deno.serve(async (req: Request) => {
     notification: { title, body },
     data: {
       notification_id: String(notif.id),
+      // المستقبِل — يمنع فتح الإشعار في جلسة حساب آخر على جهاز مشترك.
+      user_id: String(notif.user_id ?? ""),
       order_id: notif.order_id ? String(notif.order_id) : "",
       type: String(notif.type),
       screen,
@@ -346,27 +349,37 @@ Deno.serve(async (req: Request) => {
     const accessToken = await getAccessToken(sa);
     for (const fcmToken of fcmTokens) {
       base.token = fcmToken;
-      const res = await fetch(`${FCM_SEND_URL}${sa.project_id}/messages:send`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ message: base }),
-      });
-      if (res.ok) {
-        sentCount++;
-        continue;
+      try {
+        const res = await fetch(`${FCM_SEND_URL}${sa.project_id}/messages:send`, {
+          method: "POST",
+          signal: AbortSignal.timeout(8000),
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ message: base }),
+        });
+        if (res.ok) {
+          sentCount++;
+          continue;
+        }
+        const text = await res.text();
+        if (isDeadTokenResponse(text)) {
+          deadTokens.push(fcmToken);
+          continue;
+        }
+        failedCount++;
+        console.error(
+          `[send-push-notification] FCM send FAILED (${res.status}) for ${notif.id} (${notif.type}): ${text}`,
+        );
+      } catch (e) {
+        // Timeout / network error for THIS device — count it and keep going so
+        // one hanging device never blocks the rest (fail fast, stay up).
+        failedCount++;
+        console.error(
+          `[send-push-notification] FCM send threw for ${notif.id} (${notif.type}): ${String(e)}`,
+        );
       }
-      const text = await res.text();
-      if (isDeadTokenResponse(text)) {
-        deadTokens.push(fcmToken);
-        continue;
-      }
-      failedCount++;
-      console.error(
-        `[send-push-notification] FCM send FAILED (${res.status}) for ${notif.id} (${notif.type}): ${text}`,
-      );
     }
 
     if (deadTokens.length > 0) {

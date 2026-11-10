@@ -112,6 +112,7 @@ async function zadxOtpSend(phoneE164: string, otp: string): Promise<{ ok: boolea
   try {
     res = await fetch(`${ZADX_BASE_URL}/otp/send`, {
       method: "POST",
+      signal: AbortSignal.timeout(8000),
       headers: {
         "Content-Type": "application/json",
         "X-Api-Key": ZADX_API_KEY,

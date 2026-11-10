@@ -110,6 +110,7 @@ serve(async (req: Request) => {
       `${supabaseUrl}/auth/v1/admin/users/${userId}`,
       {
         method: "DELETE",
+        signal: AbortSignal.timeout(10000),
         headers: {
           Authorization: `Bearer ${serviceRoleKey}`,
           apikey: serviceRoleKey!,
