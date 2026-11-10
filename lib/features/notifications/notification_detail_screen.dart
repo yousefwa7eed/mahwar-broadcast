@@ -1,23 +1,35 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/auth/auth_cubit.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/models/notification_model.dart';
 import '../../core/utils/supabase_time.dart';
 import '../../l10n/app_localizations.dart';
 
 /// شاشة التفاصيل الكاملة لإشعار:
-///   - إشعار عام (broadcast): العنوان والنص كاملاً + صورة الإشعار (إن وُجدت)
-///     ووقت الإرسال.
-///   - إشعار تقييم (rating_received) للمزوّد: مقدار التقييم (نجوم + X من 5)
-///     ومن أي عميل وتاريخ التقييم (والتعليق إن وُجد)، مع زر «عرض تفاصيل
-///     المعاملة» يفتح شاشة التتبع/ملخّص المعاملة من سجل الطلبات.
-/// يُفتح من لمس الإشعار في قوائم الإشعارات (صفحة الإشعارات + تبويب الرئيسية
-/// للعميل والمزوّد) ومن لمس إشعار الدفع نفسه.
+///   - إشعار عام (broadcast): العنوان والنص كاملًا + صورة الإشعار (إن وُجدت).
+///   - إشعار تقييم (rating_received) للمزوّد: النجوم والتعليق والتاريخ.
+///   - أي إشعار مرتبط بطلب: نص الإشعار + زر «تفاصيل الطلب» يوجّه المزوّد إلى
+///     شاشة تفاصيل الطلب الخاصة به والمالك إلى شاشة التتبع.
+///
+/// تُفتح بالمعرّف (`notificationId`) من الـ URL — من قائمة الإشعارات أو من إشعار
+/// الدفع — فتجلب الصفّ بنفسها مقيّدًا بـ `user_id` الجلسة الحالية. هذا يمنع فتح
+/// إشعار حساب آخر على نفس الجهاز، ويجعل المسار قابلًا للاستئناف بعد إعادة
+/// تشغيل التطبيق (extra لا يبقى).
 class NotificationDetailScreen extends StatefulWidget {
-  const NotificationDetailScreen({super.key, required this.notification});
+  const NotificationDetailScreen({
+    super.key,
+    this.notification,
+    this.notificationId,
+  }) : assert(
+         notification != null || notificationId != null,
+         'Either notification or notificationId is required',
+       );
 
-  final NotificationModel notification;
+  final NotificationModel? notification;
+  final String? notificationId;
 
   @override
   State<NotificationDetailScreen> createState() =>
@@ -25,6 +37,10 @@ class NotificationDetailScreen extends StatefulWidget {
 }
 
 class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
+  NotificationModel? _notification;
+  bool _isLoadingNotification = false;
+  bool _notificationFailed = false;
+
   // بيانات التقييم (تُجلب من جدول ratings حين يكون نوع الإشعار تقييمًا).
   int? _rating;
   String? _comment;
@@ -32,17 +48,73 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
   String? _customerName;
   bool _isLoadingRating = false;
 
-  bool get _isRating => widget.notification.type == 'rating_received';
+  /// دور الجلسة الحالية — يحدد وجهة زر «تفاصيل الطلب».
+  String? _role;
+
+  bool get _isRating => _notification?.type == 'rating_received';
 
   @override
   void initState() {
     super.initState();
-    if (_isRating) {
-      _rating = (widget.notification.metadata?['rating'] as num?)?.toInt();
-      if (widget.notification.orderId != null) {
-        _isLoadingRating = true;
-        _loadRating();
+    _notification = widget.notification;
+    final cubit = context.read<AuthCubit>();
+    _role = cubit.cachedRole;
+    if (_role == null) {
+      cubit.resolveCurrentRole().then((role) {
+        if (mounted) setState(() => _role = role);
+      });
+    }
+    if (_notification != null) {
+      _onNotificationReady();
+    } else {
+      _isLoadingNotification = true;
+      _loadNotification();
+    }
+  }
+
+  Future<void> _loadNotification() async {
+    final id = widget.notificationId;
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (id == null || id.isEmpty || userId == null) {
+      if (mounted) {
+        setState(() {
+          _isLoadingNotification = false;
+          _notificationFailed = true;
+        });
       }
+      return;
+    }
+    try {
+      final row = await Supabase.instance.client
+          .from('notifications')
+          .select()
+          .eq('id', id)
+          .eq('user_id', userId)
+          .maybeSingle();
+      if (!mounted) return;
+      setState(() {
+        _isLoadingNotification = false;
+        _notificationFailed = row == null;
+        _notification = row == null ? null : NotificationModel.fromJson(row);
+      });
+      if (_notification != null) _onNotificationReady();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingNotification = false;
+        _notificationFailed = true;
+      });
+    }
+  }
+
+  void _onNotificationReady() {
+    final notification = _notification;
+    if (notification == null) return;
+    if (notification.type != 'rating_received') return;
+    _rating = (notification.metadata?['rating'] as num?)?.toInt();
+    if (notification.orderId != null) {
+      _isLoadingRating = true;
+      _loadRating();
     }
   }
 
@@ -50,7 +122,7 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
   /// والتعليق وتاريخ التقييم والمعرّف)، ثم اسم العميل عبر get_public_profile.
   /// إن فشل الجلب نكتفي بالقيمة الموجودة في metadata الإشعار.
   Future<void> _loadRating() async {
-    final orderId = widget.notification.orderId;
+    final orderId = _notification?.orderId;
     if (orderId == null) return;
     // نؤجّل العمل للميكروتاسك التالي حتى لا نُستدعي setState أثناء initState.
     await Future<void>.value();
@@ -74,8 +146,7 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
             params: {'p_user_id': ownerId},
           );
           if (profile is List && profile.isNotEmpty) {
-            final name =
-                (profile.first as Map)['full_name'] as String?;
+            final name = (profile.first as Map)['full_name'] as String?;
             if (name != null && name.trim().isNotEmpty) {
               _customerName = name.trim();
             }
@@ -90,7 +161,7 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
 
   /// "أُرسل في <تاريخ> • <وقت>" — التاريخ/الوقت منسّقان حسب لغة التطبيق.
   String _sentAtLabel(BuildContext context) {
-    final created = widget.notification.createdAt?.toLocal();
+    final created = _notification?.createdAt?.toLocal();
     if (created == null) return '';
     return _dateTimeLabel(context, created, 'أُرسل في');
   }
@@ -108,7 +179,7 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
   }
 
   String _kindLabel(AppLocalizations? l10n) {
-    switch (widget.notification.type) {
+    switch (_notification?.type) {
       case 'broadcast':
         return l10n?.notificationBroadcast ?? 'إشعار عام';
       case 'rating_received':
@@ -118,23 +189,38 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
     }
   }
 
+  /// زر تفاصيل الطلب حسب دور الجلسة الحالية: المزوّد → شاشة تفاصيل الطلب
+  /// الخاصة به (تقييم العميل + بيانات الطلب)، والمالك → شاشة التتبع.
+  void _openOrder(String orderId) {
+    if (_role == 'provider') {
+      context.push('/orders/provider/detail?orderId=$orderId');
+    } else {
+      context.push('/request/track?orderId=$orderId');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final l10n = AppLocalizations.of(context);
-    final primary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final secondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-    final notification = widget.notification;
-    final imageUrl = notification.imageUrl;
+    final primary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final secondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+    final notification = _notification;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor: isDark
+          ? AppColors.darkBackground
+          : AppColors.lightBackground,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_rounded, color: primary),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => context.pop(),
         ),
         title: Text(
           l10n?.notificationDetails ?? 'تفاصيل الإشعار',
@@ -148,94 +234,149 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (imageUrl != null && !_isRating) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Image.network(
-                    imageUrl,
-                    height: 200,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, progress) {
-                      if (progress == null) return child;
-                      return Container(
-                        height: 200,
-                        color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-                        alignment: Alignment.center,
-                        child: const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.orangePrimary,
-                          ),
-                        ),
-                      );
-                    },
-                    errorBuilder: (context, error, stack) => const SizedBox.shrink(),
-                  ),
+        child: _isLoadingNotification
+            ? const Center(
+                child: CircularProgressIndicator(
+                  color: AppColors.orangePrimary,
                 ),
-                const SizedBox(height: 20),
-              ],
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: notification.color.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      notification.icon,
-                      color: notification.color,
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              )
+            : notification == null
+            ? _buildLoadError(secondary, l10n)
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (notification.imageUrl != null && !_isRating) ...[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.network(
+                          notification.imageUrl!,
+                          height: 200,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, progress) {
+                            if (progress == null) return child;
+                            return Container(
+                              height: 200,
+                              color: isDark
+                                  ? AppColors.darkBorder
+                                  : AppColors.lightBorder,
+                              alignment: Alignment.center,
+                              child: const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.orangePrimary,
+                                ),
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stack) =>
+                              const SizedBox.shrink(),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                    Row(
                       children: [
-                        Text(
-                          _kindLabel(l10n),
-                          style: TextStyle(
-                            fontFamily: 'Cairo',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: notification.color.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            notification.icon,
                             color: notification.color,
+                            size: 28,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _sentAtLabel(context),
-                          style: TextStyle(
-                            fontFamily: 'Cairo',
-                            fontSize: 12,
-                            color: secondary,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _kindLabel(l10n),
+                                style: TextStyle(
+                                  fontFamily: 'Cairo',
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: notification.color,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _sentAtLabel(context),
+                                style: TextStyle(
+                                  fontFamily: 'Cairo',
+                                  fontSize: 12,
+                                  color: secondary,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 20),
+                    if (_isRating)
+                      _buildRatingCard(context, isDark, primary, secondary)
+                    else
+                      _buildGenericCard(context, isDark, primary, secondary),
+                  ],
+                ),
               ),
-              const SizedBox(height: 20),
-              if (_isRating)
-                _buildRatingCard(context, isDark, primary, secondary)
-              else
-                _buildGenericCard(context, isDark, primary, secondary),
-            ],
-          ),
+      ),
+    );
+  }
+
+  Widget _buildLoadError(Color secondary, AppLocalizations? l10n) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.notifications_off_outlined, size: 48, color: secondary),
+            const SizedBox(height: 12),
+            Text(
+              _notificationFailed
+                  ? (l10n?.notificationLoadFailed ?? 'تعذّر تحميل الإشعار')
+                  : (l10n?.notificationNotFound ?? 'الإشعار غير موجود'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontSize: 14,
+                color: secondary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _isLoadingNotification = true;
+                  _notificationFailed = false;
+                });
+                _loadNotification();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.orangePrimary,
+              ),
+              child: Text(
+                l10n?.retry ?? 'إعادة المحاولة',
+                style: const TextStyle(fontFamily: 'Cairo'),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  /// بطاقة الإشعار العام: العنوان + النص الكامل.
+  /// بطاقة الإشعار العام: العنوان + النص الكامل + زر تفاصيل الطلب إن ارتبط
+  /// الإشعار بطلب.
   Widget _buildGenericCard(
     BuildContext context,
     bool isDark,
@@ -243,9 +384,10 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
     Color secondary,
   ) {
     final l10n = AppLocalizations.of(context);
-    final notification = widget.notification;
+    final notification = _notification!;
     final title = notification.localizedTitle(l10n);
     final body = notification.localizedBody(l10n);
+    final orderId = notification.orderId;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -279,13 +421,17 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
               ),
             ),
           ],
+          if (orderId != null) ...[
+            const SizedBox(height: 20),
+            _buildOrderCta(l10n, () => _openOrder(orderId)),
+          ],
         ],
       ),
     );
   }
 
   /// بطاقة التقييم: نجوم + X من 5 + اسم العميل + تاريخ التقييم + التعليق +
-  /// زر «عرض تفاصيل المعاملة» (يفتح شاشة التتبع/ملخّص المعاملة إن وُجد orderId).
+  /// زر «تفاصيل الطلب» (يفتح شاشة تفاصيل المزوّد أو تتبع المالك).
   Widget _buildRatingCard(
     BuildContext context,
     bool isDark,
@@ -293,7 +439,7 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
     Color secondary,
   ) {
     final l10n = AppLocalizations.of(context);
-    final notification = widget.notification;
+    final notification = _notification!;
     final orderId = notification.orderId;
 
     return Container(
@@ -339,8 +485,8 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
                     color: filled
                         ? AppColors.notifRating
                         : (isDark
-                            ? AppColors.darkTextSecondary
-                            : AppColors.lightTextSecondary),
+                              ? AppColors.darkTextSecondary
+                              : AppColors.lightTextSecondary),
                     size: 34,
                   );
                 }),
@@ -351,7 +497,7 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
               child: Text(
                 _rating != null
                     ? (l10n?.notificationRatingOfFive('$_rating') ??
-                        '$_rating من 5')
+                          '$_rating من 5')
                     : (l10n?.notificationTitleRatingReceived ?? 'تقييم جديد'),
                 style: TextStyle(
                   fontFamily: 'Zain',
@@ -376,13 +522,14 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
               Icons.event_rounded,
               l10n?.notificationRatingDate ?? 'تاريخ التقييم',
               _ratedAt != null
-                  ? _dateTimeLabel(context, _ratedAt!, '')
-                      .trim()
+                  ? _dateTimeLabel(context, _ratedAt!, '').trim()
                   : (notification.createdAt != null
-                      ? _dateTimeLabel(
-                              context, notification.createdAt!, '')
-                          .trim()
-                      : '—'),
+                        ? _dateTimeLabel(
+                            context,
+                            notification.createdAt!,
+                            '',
+                          ).trim()
+                        : '—'),
               primary,
               secondary,
             ),
@@ -399,32 +546,38 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
           ],
           if (orderId != null) ...[
             const SizedBox(height: 20),
-            SizedBox(
-              height: 52,
-              child: ElevatedButton.icon(
-                onPressed: () =>
-                    context.push('/request/track?orderId=$orderId'),
-                icon: const Icon(Icons.receipt_long_rounded,
-                    color: Colors.white, size: 20),
-                label: Text(
-                  l10n?.viewTransactionDetails ?? 'عرض تفاصيل المعاملة',
-                  style: const TextStyle(
-                    fontFamily: 'Zain',
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.orangePrimary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-              ),
-            ),
+            _buildOrderCta(l10n, () => _openOrder(orderId)),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildOrderCta(AppLocalizations? l10n, VoidCallback onPressed) {
+    return SizedBox(
+      height: 52,
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: const Icon(
+          Icons.receipt_long_rounded,
+          color: Colors.white,
+          size: 20,
+        ),
+        label: Text(
+          l10n?.orderDetails ?? 'تفاصيل الطلب',
+          style: const TextStyle(
+            fontFamily: 'Zain',
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.orangePrimary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
       ),
     );
   }
@@ -453,11 +606,7 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
         Expanded(
           child: Text(
             value,
-            style: TextStyle(
-              fontFamily: 'Cairo',
-              fontSize: 14,
-              color: primary,
-            ),
+            style: TextStyle(fontFamily: 'Cairo', fontSize: 14, color: primary),
           ),
         ),
       ],

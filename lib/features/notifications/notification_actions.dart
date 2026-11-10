@@ -5,17 +5,14 @@ import '../../core/auth/auth_cubit.dart';
 import '../../core/auth/home_route.dart';
 import '../../core/models/notification_model.dart';
 import '../../core/notifications/notification_cubit.dart';
-import '../../core/services/push_notification_service.dart';
 
 /// معالج اللمس الموحّد لأي إشعار داخل قوائم التطبيق — يُستخدم من صفحة
 /// الإشعارات ومن تبويب الإشعارات في الرئيسية (العميل والمزوّد) بحيث يتصرف
 /// الطرفان بشكل متطابق. الترتيب:
 ///   deep link خارجي → يُفتح في المتصفح.
 ///   deep_link=home → الرئيسية حسب دور المستخدم.
-///   rating_received → شاشة تفاصيل الإشعار (محتوى التقييم + رابط المعاملة).
-///   order_id → مسار الطلب حسب الدور والنوع (quote/track/…)، مع مراعاة **حالة
-///     الطلب الحالية**: الطلب المنتهي يُفتح على شاشة التتبع (ملخّص المعاملة)
-///     بدل شاشة إجراء لم يعد لها معنى.
+///   إشعار تقييم أو أي إشعار مرتبط بطلب → شاشة تفاصيل الإشعار بالمعرّف
+///     (تعرض المحتوى كاملًا وزر «تفاصيل الطلب» الموجّه حسب دور الجلسة).
 ///   broadcast → شاشة تفاصيل الإشعار العام (العنوان والنص كاملين + وقت الإرسال).
 ///
 /// أي إشعار ليس له أي من هذه الوجوه (نوع غير معروف بلا order_id) → لا تنقل
@@ -30,14 +27,17 @@ Future<void> openNotificationFromList(
 
   final deepLink = notification.deepLink;
 
-  if (deepLink != null && deepLink.isNotEmpty && NotificationModel.isExternalLink(deepLink)) {
+  if (deepLink != null &&
+      deepLink.isNotEmpty &&
+      NotificationModel.isExternalLink(deepLink)) {
     // رابط خارجي → يُفتح في المتصفح خارج التطبيق.
     await NotificationModel.launchExternal(deepLink);
     return;
   }
 
   if (deepLink == 'home') {
-    final role = await context.read<AuthCubit>().resolveCurrentRole();
+    final cubit = context.read<AuthCubit>();
+    final role = cubit.cachedRole ?? await cubit.resolveCurrentRole();
     if (!context.mounted) return;
     // go() لأن الرئيسية شاشة جذرية — نتجنب تكديس نسخة فوق الأخرى. بلا دور
     // صالح لا نتنقل (بدل افتراض car_owner بصمت).
@@ -46,26 +46,12 @@ Future<void> openNotificationFromList(
     return;
   }
 
-  // إشعار تقييم: شاشة التفاصيل تعرض مقدار التقييم والعميل وتاريخه ورابط
-  // «تفاصيل المعاملة». يُفحص قبل فرع order_id لأن إشعار التقييم يحمل order_id.
-  if (notification.type == 'rating_received') {
-    context.push('/notification/detail', extra: notification);
-    return;
-  }
-
-  if (notification.orderId != null) {
-    final role = await context.read<AuthCubit>().resolveCurrentRole();
-    if (!context.mounted) return;
-    // جدول مسارات الدفع الموحّد (حسب الدور ونوع الإشعار) + مراعاة حالة الطلب:
-    // الطلب المنتهي → شاشة التتبع (ملخّص المعاملة). الدور غير المعروف يُمرَّر
-    // فارغًا فيقع الجدول على شاشة التتبع الآمنة.
-    final route = await PushNotificationService.resolveOrderRoute(
-      orderId: notification.orderId!,
-      type: notification.type,
-      role: role ?? '',
-    );
-    if (!context.mounted) return;
-    context.push(route);
+  // أي إشعار مرتبط بطلب يفتح شاشة تفاصيل الإشعار بالمعرّف (لا بالكائن) — الشاشة
+  // تجلبه مقيّدًا بـ user_id الجلسة الحالية، وتعرض زر «تفاصيل الطلب» الذي يوجّه
+  // المزوّد لشاشة تفاصيل الطلب الخاصة به والمالك لشاشة التتبع. إشعار التقييم
+  // يتبع نفس المسار لأن فيه تفاصيل التقييم.
+  if (notification.type == 'rating_received' || notification.orderId != null) {
+    context.push('/notification/detail?notificationId=${notification.id}');
     return;
   }
 

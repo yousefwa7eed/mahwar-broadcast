@@ -12,6 +12,7 @@ import '../../core/auth/otp_error_mapper.dart';
 import '../../core/auth/phone_utils.dart';
 import '../../core/settings/app_settings_cubit.dart';
 import '../../core/settings/app_settings_state.dart';
+import '../../core/widgets/loading_form_lock.dart';
 import '../../l10n/app_localizations.dart';
 import 'otp_cooldown_store.dart';
 
@@ -370,11 +371,14 @@ class _OtpScreenState extends State<OtpScreen> {
             ),
           ),
           body: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: _showPhoneEntry
-                  ? _buildPhoneEntry(isArabic, isDarkMode, l10n)
-                  : _buildCodeEntry(isArabic, isDarkMode, l10n),
+            child: LoadingFormLock(
+              loading: _isBusy,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: _showPhoneEntry
+                    ? _buildPhoneEntry(isArabic, isDarkMode, l10n)
+                    : _buildCodeEntry(isArabic, isDarkMode, l10n),
+              ),
             ),
           ),
         );

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../config/app_config.dart';
 import '../services/screen_time_service.dart';
 import '../../core/auth/auth_cubit.dart';
+import '../../core/auth/home_route.dart';
 import '../../core/auth/role_gate.dart';
 import '../../core/models/notification_model.dart';
 import '../../features/auth/forgot_password_screen.dart';
@@ -22,6 +23,7 @@ import '../../features/provider_home/provider_home_screen.dart';
 import '../../features/provider_offer_price/provider_offer_price_screen.dart';
 import '../../features/provider_offer_price/provider_location_map_screen.dart';
 import '../../features/orders_history/orders_history_screen.dart';
+import '../../features/orders/provider_order_details_screen.dart';
 import '../../features/provider_selection/nearby_providers_screen.dart';
 import '../../features/provider_selection/provider_details_screen.dart';
 import '../../features/notifications/notifications_screen.dart';
@@ -52,8 +54,9 @@ const List<String> phoneGatePublicPaths = <String>[
 ];
 
 /// هل [location] مسار عام لا تخضع لبوابة توثيق الهاتف؟
-bool isPhoneGatePublicPath(String location) => phoneGatePublicPaths
-    .any((p) => location == p || location.startsWith('$p/'));
+bool isPhoneGatePublicPath(String location) => phoneGatePublicPaths.any(
+  (p) => location == p || location.startsWith('$p/'),
+);
 
 /// بوابة توثيق الهاتف: أي جلسة مصادَقة لكن رقمها غير موثّق تُحوَّل إلى
 /// `/otp-verify` قبل الوصول لأي مسار محمي — فلا يصل مستخدم غير موثّق للرئيسية.
@@ -78,9 +81,40 @@ Future<String?> phoneVerificationRedirect(
   return '/otp-verify?mode=signup';
 }
 
+/// البوابة الموحّدة للتوجيه: بوابة توثيق الهاتف أولًا، ثم حارس الدور على
+/// مسارات الرئيسية. حارس الدور يمنع بقاء جلسة دور داخل رئيسية الدور الآخر
+/// (تبديل حسابات على نفس الجهاز / مسار قديم مدفوع) بإعادة التوجيه إلى رئيسية
+/// `profiles.role` الفعلي. تعذّر تحديد الدور لا يُمرَّر بصمت إلى رئيسية ما:
+/// نعيد لشاشة الإقلاع حيث حالة خطأ واضحة بخيارَي المحاولة والخروج.
+Future<String?> appRedirect(BuildContext context, GoRouterState state) async {
+  final cubit = context.read<AuthCubit>();
+  final phoneRedirect = await phoneVerificationRedirect(context, state);
+  if (phoneRedirect != null) return phoneRedirect;
+
+  final path = state.matchedLocation;
+  if (path != AppRole.carOwner.homeRoute &&
+      path != AppRole.provider.homeRoute) {
+    return null;
+  }
+
+  if (!cubit.hasSession) return '/select-user-type';
+
+  var role = cubit.cachedRole;
+  if (role == null) {
+    try {
+      role = await cubit.resolveCurrentRole();
+    } catch (_) {
+      role = null;
+    }
+  }
+  if (!cubit.hasSession) return '/select-user-type';
+  if (role == null) return '/splash';
+  return roleHomeRedirectFor(path: path, role: role);
+}
+
 final GoRouter appRouter = GoRouter(
   initialLocation: '/splash',
-  redirect: phoneVerificationRedirect,
+  redirect: appRedirect,
   // تسجيل مسار المستخدم (شاشة/مدة/من→إلى) للوحلة الإدارية.
   observers: <NavigatorObserver>[ScreenTimeService.instance],
   routes: [
@@ -118,10 +152,8 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/signup',
       name: 'signup',
-      redirect: (context, state) => AppRole.tryParse(
-                state.uri.queryParameters['role'],
-              ) ==
-              null
+      redirect: (context, state) =>
+          AppRole.tryParse(state.uri.queryParameters['role']) == null
           ? '/select-user-type'
           : null,
       builder: (context, state) {
@@ -135,10 +167,8 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/forgot-password',
       name: 'forgot-password',
-      redirect: (context, state) => AppRole.tryParse(
-                state.uri.queryParameters['role'],
-              ) ==
-              null
+      redirect: (context, state) =>
+          AppRole.tryParse(state.uri.queryParameters['role']) == null
           ? '/select-user-type'
           : null,
       builder: (context, state) {
@@ -196,13 +226,11 @@ final GoRouter appRouter = GoRouter(
       name: 'request-providers',
       builder: (context, state) {
         final serviceId = state.uri.queryParameters['serviceId'] ?? 'crane';
-        final lat = double.tryParse(state.uri.queryParameters['lat'] ?? '') ?? 0;
-        final lng = double.tryParse(state.uri.queryParameters['lng'] ?? '') ?? 0;
-        return NearbyProvidersScreen(
-          serviceId: serviceId,
-          lat: lat,
-          lng: lng,
-        );
+        final lat =
+            double.tryParse(state.uri.queryParameters['lat'] ?? '') ?? 0;
+        final lng =
+            double.tryParse(state.uri.queryParameters['lng'] ?? '') ?? 0;
+        return NearbyProvidersScreen(serviceId: serviceId, lat: lat, lng: lng);
       },
     ),
     GoRoute(
@@ -237,8 +265,15 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/orders/provider',
       name: 'orders-provider',
-      builder: (context, state) =>
-          const OrdersHistoryScreen(forProvider: true),
+      builder: (context, state) => const OrdersHistoryScreen(forProvider: true),
+    ),
+    GoRoute(
+      path: '/orders/provider/detail',
+      name: 'orders-provider-detail',
+      builder: (context, state) {
+        final orderId = state.uri.queryParameters['orderId'] ?? '';
+        return ProviderOrderDetailsScreen(orderId: orderId);
+      },
     ),
     GoRoute(
       path: '/notifications',
@@ -249,11 +284,16 @@ final GoRouter appRouter = GoRouter(
       path: '/notification/detail',
       name: 'notification-detail',
       builder: (context, state) {
-        // الإشعار يُمرَّر كاملاً عبر extra (title/body/created_at/image…).
-        // إن غاب (مسار مباشر أو حالة قديمة) نعود لقائمة الإشعارات بأمان.
+        // المسار المفضّل: notificationId في الـ URL — الشاشة تجلب الصفّ بنفسها
+        // مقيّدًا بـ user_id (فتُغلق ثغرة فتح إشعار حساب آخر على نفس الجهاز).
+        // extra يبقى مدعومًا للنداءات الداخلية القديمة.
         final notification = state.extra;
         if (notification is NotificationModel) {
           return NotificationDetailScreen(notification: notification);
+        }
+        final id = state.uri.queryParameters['notificationId'];
+        if (id != null && id.isNotEmpty) {
+          return NotificationDetailScreen(notificationId: id);
         }
         return const NotificationsScreen();
       },
@@ -298,10 +338,8 @@ final GoRouter appRouter = GoRouter(
       name: 'profile-avatar',
       // دور الصورة يجب أن يكون صريحًا (يأتي من profile)؛ بدون دور صالح نرجع
       // لصفحة الملف الشخصي بدل افتراض car_owner.
-      redirect: (context, state) => AppRole.tryParse(
-                state.uri.queryParameters['role'],
-              ) ==
-              null
+      redirect: (context, state) =>
+          AppRole.tryParse(state.uri.queryParameters['role']) == null
           ? '/profile'
           : null,
       builder: (context, state) {

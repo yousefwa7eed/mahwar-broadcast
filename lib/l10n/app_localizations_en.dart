@@ -709,6 +709,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get serviceLabel => 'Service:';
 
   @override
+  String get orderDetails => 'Order details';
+
+  @override
+  String get orderDetailsLoadFailed => 'Couldn\'t load order details';
+
+  @override
+  String get customerRating => 'Customer rating';
+
+  @override
+  String get customerRatingEmpty => 'The customer hasn\'t rated this order yet';
+
+  @override
+  String get carLabel => 'Car:';
+
+  @override
+  String get addressLabel => 'Address:';
+
+  @override
+  String get notesLabel => 'Notes:';
+
+  @override
+  String get notificationLoadFailed => 'Couldn\'t load the notification';
+
+  @override
+  String get notificationNotFound => 'Notification not found';
+
+  @override
   String get orderConfirmedShort => 'Confirmed';
 
   @override

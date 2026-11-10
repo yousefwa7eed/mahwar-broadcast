@@ -1,9 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../core/auth/auth_cubit.dart';
+import '../../../core/auth/home_route.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/errors/rpc_error_translator.dart';
 import '../../../core/models/order.dart';
@@ -138,6 +141,33 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen>
   /// يجيب بيانات المزوّد المرتبط بالطلب عبر RPC آمن (profiles مخفي بالـ RLS)
   bool _isOwner(Order order) =>
       _client.auth.currentUser?.id == order.carOwnerId;
+
+  /// رجوع آمن: دور الخادم أولًا (لا افتراض مالك عند غياب الطلب — كان هذا
+  /// يفتح رئيسية المالك داخل حساب المزوّد)، ثم عضوية الطلب كاحتياط.
+  Future<void> _handleBack() async {
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+    final cubit = context.read<AuthCubit>();
+    var role = cubit.cachedRole;
+    if (role == null) {
+      try {
+        role = await cubit.resolveCurrentRole();
+      } catch (_) {
+        role = null;
+      }
+    }
+    final order = _order;
+    final route = trackingBackRouteFor(
+      serverRole: role,
+      userId: _client.auth.currentUser?.id,
+      ownerId: order?.carOwnerId,
+      providerId: order?.providerId,
+    );
+    if (!mounted || route == null) return;
+    context.go(route);
+  }
 
   Future<void> _loadProviderInfo(String providerId) async {
     try {
@@ -485,17 +515,7 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen>
                 ? AppColors.darkTextPrimary
                 : AppColors.lightTextPrimary,
           ),
-          onPressed: () {
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              // رجوع للرئيسية الصحيحة حسب دور المشاهد (وليست دائماً /home/owner).
-              final order = _order;
-              final userId = _client.auth.currentUser?.id;
-              final isOwner = order == null || order.carOwnerId == userId;
-              context.go(isOwner ? '/home/owner' : '/home/provider');
-            }
-          },
+          onPressed: _handleBack,
         ),
         title: Text(
           AppLocalizations.of(context)?.trackOrder ?? 'تتبع الطلب',
@@ -614,21 +634,25 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen>
               ),
             ],
 
-            // Completed - التقييم
+            // Completed - التقييم للمالك فقط. المزوّد يرى تقييم العميل في
+            // شاشة تفاصيل الطلب الخاصة به، ولا تُعرض له واجهة تقييم بصياغة
+            // موجّهة للمالك («كيف كانت تجربتك مع المزوّد؟»).
             if (order.status == OrderStatus.completed) ...[
-              const SizedBox(height: 24),
-              _isLoadingRating
-                  ? const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: CircularProgressIndicator(
-                          color: AppColors.orangePrimary,
+              if (_isOwner(order)) ...[
+                const SizedBox(height: 24),
+                _isLoadingRating
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: CircularProgressIndicator(
+                            color: AppColors.orangePrimary,
+                          ),
                         ),
-                      ),
-                    )
-                  : _isRated
-                  ? _buildRatedCard(context, isDark)
-                  : _buildRatingForm(context, isDark),
+                      )
+                    : _isRated
+                    ? _buildRatedCard(context, isDark)
+                    : _buildRatingForm(context, isDark),
+              ],
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,

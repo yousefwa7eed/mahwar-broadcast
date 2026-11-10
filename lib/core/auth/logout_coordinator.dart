@@ -8,6 +8,7 @@ import '../services/app_messenger.dart';
 import '../../l10n/app_localizations.dart';
 import 'auth_cubit.dart';
 import 'auth_service.dart';
+import 'availability_check_guard.dart';
 import 'role_hint_cache.dart';
 
 /// منسّق تسجيل الخروج الموحّد — بديل عن الكتل المكررة الثلاث (رئيسيتا
@@ -82,6 +83,9 @@ class LogoutCoordinator {
       } catch (e) {
         debugPrint('[LogoutCoordinator] RoleHintCache.clear failed: $e');
       }
+      // نتائج فحص التفرّد/الجاهزية تخصّ الحساب الخارج — لا تُترك لجلسة تالية
+      // على نفس الجهاز (كانت أحد مسارات تسريب حالة بين الحسابين).
+      AvailabilityCheckGuard.instance.clear();
       resetProfile();
       authCubit.markUnauthenticated();
       if (context.mounted) context.go('/select-user-type');

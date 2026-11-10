@@ -64,6 +64,47 @@ class PushNotificationService {
     _messaging.onTokenRefresh.listen(_onTokenRefresh);
   }
 
+  /// هل رسالة الدفع موجّهة للحساب الحالي؟
+  ///
+  /// الخادم يضيف `user_id` للمستقبِل في بيانات الرسالة. الرسائل القديمة (قبل
+  /// إضافة الحقل) تُترك للتحقق من ملكية الإشعار في قاعدة البيانات. هذا الحارس
+  /// يمنع فتح شاشات حساب سابق على جهاز بدّل حساباته — توكن الدفع يبقى مسجّلًا
+  /// للحساب عمدًا (هاتف ورشة مشترك)، فبدونه يفتح الإشعارُ شاشاتِ الحساب الخطأ.
+  static bool pushTargetsUser(
+    Map<String, dynamic> data,
+    String? currentUserId,
+  ) {
+    if (currentUserId == null) return false;
+    final target = data['user_id'] as String?;
+    if (target == null || target.isEmpty) {
+      return true; // يُتحقق من الملكية لاحقًا
+    }
+    return target == currentUserId;
+  }
+
+  /// هل تأكّدت ملكية الإشعار للحساب الحالي؟ `null` يعني تعذّر الفحص (أوفلاين/
+  /// فشل شبكة) — لا نفتح: التنقّل إلى شاشة قد تكون لحساب آخر أسوأ من عدم الفتح.
+  @visibleForTesting
+  static bool ownershipConfirmed(bool? owned) => owned == true;
+
+  /// هل صفّ الإشعار يخص [userId]؟ null عند تعذّر القراءة.
+  static Future<bool?> notificationBelongsToUser(
+    String notificationId,
+    String userId,
+  ) async {
+    try {
+      final row = await Supabase.instance.client
+          .from('notifications')
+          .select('id')
+          .eq('id', notificationId)
+          .eq('user_id', userId)
+          .maybeSingle();
+      return row != null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// يفحص إذن إشعارات النظام ويطلبه إن لم يُقرَّر بعد، وينبّه المستخدم مرة
   /// واحدة لكل جلسة عند تعطّله. بلا إذن لا يظهر أي دفع على الجهاز وإن كان
   /// التوكن سليماً والخادم أجاب `sent` — فشل صامت بالكامل من جهة المستخدم.
@@ -165,7 +206,7 @@ class PushNotificationService {
     }
     if (message == null) return;
     _syncAfterPush();
-    _openFromMessage(message);
+    await _openFromMessage(message);
   }
 
   // ---------------------------------------------------------------------------
@@ -186,7 +227,7 @@ class PushNotificationService {
 
   void _onMessageOpened(RemoteMessage message) {
     _syncAfterPush();
-    _openFromMessage(message);
+    unawaited(_openFromMessage(message));
   }
 
   /// الوجهة الصحيحة لمسة إشعار مرتبط بطلب — جدول موحّد واحد (نفس قواعد الخادم
@@ -257,21 +298,41 @@ class PushNotificationService {
     }
   }
 
-  void _openFromMessage(RemoteMessage message) {
+  Future<void> _openFromMessage(RemoteMessage message) async {
     final data = message.data;
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    // بلا جلسة لا معنى لأي تنقّل (شاشات الطلبات تتطلب مصادقة).
+    if (currentUserId == null) return;
+    if (!PushNotificationService.pushTargetsUser(data, currentUserId)) return;
+
+    final notificationId = data['notification_id'] as String?;
+    // رسالة قديمة بلا user_id: نتحقق أن الإشعار يخص الحساب الحالي قبل أي تنقّل.
+    if ((data['user_id'] as String?)?.isNotEmpty != true &&
+        notificationId != null &&
+        notificationId.isNotEmpty) {
+      final owned = await PushNotificationService.notificationBelongsToUser(
+        notificationId,
+        currentUserId,
+      );
+      if (!PushNotificationService.ownershipConfirmed(owned)) return;
+    }
+
     final screen = data['screen'] as String?;
     final orderId = data['order_id'] as String?;
     final type = data['type'] as String?;
     final deepLink = data['deep_link'] as String?;
 
-    // 1) رسالة تحمل order_id → ننفّذ وجهة الخادم الصريحة (quote/track/
-    //    provider_home/notifications)، وإن كانت قديمة أو القيمة غير معروفة
-    //    فنقرر بأمان حسب الدور والنوع (نفس الجدول).
+    // 1) رسالة تحمل order_id: كل إشعارات الطلبات تفتح شاشة تفاصيل الإشعار
+    //    بالمعرّف (تصميم المرحلة: زر «تفاصيل الطلب» داخل الشاشة يوجّه حسب
+    //    الدور). الرسائل القديمة بلا notification_id تحتفظ بالجدول القديم.
     if (orderId != null && orderId.isNotEmpty) {
-      // إشعار تقييم: يُفتح على شاشة تفاصيل الإشعار (محتوى التقييم + رابط
-      // تفاصيل المعاملة) بدل الاكتفاء بصفحة الإشعارات.
+      if (notificationId != null && notificationId.isNotEmpty) {
+        await _openNotificationDetail(notificationId);
+        return;
+      }
+      // إشعار تقييم قديم: شاشة التفاصيل كانت تعتمد على order_id داخلها.
       if (type == 'rating_received') {
-        _openNotificationDetail(data['notification_id'] as String?);
+        appRouter.push('/notifications');
         return;
       }
       switch (screen) {
@@ -279,7 +340,7 @@ class PushNotificationService {
         case 'provider_home':
           // شاشة إجرائية — قد يكون الطلب انتهى؛ نتحقق ونحوّل لشاشة التتبع
           // (ملخّص المعاملة) عند اللزوم.
-          _openActionableOrder(orderId, type, screen!);
+          await _openActionableOrder(orderId, type, screen!);
           return;
         case 'track':
           appRouter.push('/request/track?orderId=$orderId');
@@ -290,7 +351,7 @@ class PushNotificationService {
       }
       // 2) رسالة قديمة/غير مكتملة الحقل screen (null أو غير معروف) =>
       //    نقرر حسب دور المستقبِل ونوع الإشعار بدل افتراض شاشة العميل.
-      _openOrderByRole(orderId, type);
+      await _openOrderByRole(orderId, type);
       return;
     }
 
@@ -316,7 +377,7 @@ class PushNotificationService {
         _openHome();
         return;
       }
-      _openNotificationDetail(data['notification_id'] as String?);
+      _openNotificationDetail(notificationId);
       return;
     }
 
@@ -369,32 +430,23 @@ class PushNotificationService {
     );
   }
 
-  /// يفتح شاشة تفاصيل الإشعار (عام أو تقييم) قادمة من الـ push: نجلب صفّ الإشعار
-  /// من جدول notifications عبر notification_id (المصدر الوحيد للبيانات — كما في
-  /// send-push-notification) ثم نعرض شاشة التفاصيل الكاملة. إن تعذّر الجلب
-  /// (معرف ناقص/محذوف/خطأ) نلجأ إلى صفحة الإشعارات بأمان.
+  /// يفتح شاشة تفاصيل الإشعار (عام أو تقييم أو مرتبط بطلب) قادمة من الـ push.
+  /// نمرّر المعرّف في المسار (لا الكائن) والشاشة تجلبه بنفسها مقيّدًا بـ
+  /// `user_id` الجلسة الحالية؛ هذا يغلق فتح إشعار حساب آخر على جهاز مشترك.
+  /// إن تعذّر التحقق (معرف ناقص/محذوف/شبكة) لا نتنقّل.
   Future<void> _openNotificationDetail(String? notificationId) async {
     if (notificationId == null || notificationId.isEmpty) {
       appRouter.push('/notifications');
       return;
     }
-    try {
-      final response = await Supabase.instance.client
-          .from('notifications')
-          .select()
-          .eq('id', notificationId)
-          .maybeSingle();
-      if (response == null) {
-        appRouter.push('/notifications');
-        return;
-      }
-      appRouter.push(
-        '/notification/detail',
-        extra: NotificationModel.fromJson(response),
-      );
-    } catch (_) {
-      appRouter.push('/notifications');
-    }
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    final owned = await PushNotificationService.notificationBelongsToUser(
+      notificationId,
+      userId,
+    );
+    if (owned != true) return;
+    appRouter.push('/notification/detail?notificationId=$notificationId');
   }
 
   /// يفتح الرئيسية حسب دور المستخدم (إشعار عام بعمق link = home).

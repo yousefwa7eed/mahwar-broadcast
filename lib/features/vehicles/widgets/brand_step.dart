@@ -40,10 +40,12 @@ class _BrandStepState extends State<_BrandStep> {
     final filtered = normalized.isEmpty
         ? widget.brands
         : widget.brands
-            .where((brand) =>
-                brand.nameAr.toLowerCase().contains(normalized) ||
-                brand.nameEn.toLowerCase().contains(normalized))
-            .toList(growable: false);
+              .where(
+                (brand) =>
+                    brand.nameAr.toLowerCase().contains(normalized) ||
+                    brand.nameEn.toLowerCase().contains(normalized),
+              )
+              .toList(growable: false);
 
     if (filtered.isEmpty) {
       return CustomScrollView(
@@ -115,18 +117,15 @@ class _BrandStepState extends State<_BrandStep> {
           crossAxisSpacing: 10,
           childAspectRatio: 1.05,
         ),
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            final brand = brands[index];
-            return _BrandCard(
-              brand: brand,
-              selected: brand.id == widget.selectedId,
-              isArabic: widget.isArabic,
-              onTap: () => widget.onSelected(brand),
-            );
-          },
-          childCount: brands.length,
-        ),
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final brand = brands[index];
+          return _BrandCard(
+            brand: brand,
+            selected: brand.id == widget.selectedId,
+            isArabic: widget.isArabic,
+            onTap: () => widget.onSelected(brand),
+          );
+        }, childCount: brands.length),
       ),
     );
   }
@@ -164,25 +163,37 @@ class _BrandCard extends StatelessWidget {
             ),
           ),
           padding: const EdgeInsets.all(10),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              BrandLogo(brand: brand, size: 44, padding: 7),
-              const SizedBox(height: 8),
-              Text(
-                brand.name(isArabic),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontFamily: 'Cairo',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: isDark
-                      ? AppColors.darkTextPrimary
-                      : AppColors.lightTextPrimary,
+          // خلية الشبكة تصغر مع عرض الجهاز وتكبير حجم النظام: عند ضيقها تصغر
+          // محتويات البطاقة كلها بدل أن تفيض (الشعار + الاسم لا يتسعان معًا
+          // في خلية 64.7×60.5 على جهاز بعرض 254).
+          child: LayoutBuilder(
+            builder: (context, constraints) => FittedBox(
+              fit: BoxFit.scaleDown,
+              child: SizedBox(
+                width: constraints.maxWidth,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    BrandLogo(brand: brand, size: 44, padding: 7),
+                    const SizedBox(height: 8),
+                    Text(
+                      brand.name(isArabic),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: 'Cairo',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.lightTextPrimary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),

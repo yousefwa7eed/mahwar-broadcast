@@ -697,6 +697,33 @@ class AppLocalizationsAr extends AppLocalizations {
   String get serviceLabel => 'خدمة:';
 
   @override
+  String get orderDetails => 'تفاصيل الطلب';
+
+  @override
+  String get orderDetailsLoadFailed => 'تعذّر تحميل تفاصيل الطلب';
+
+  @override
+  String get customerRating => 'تقييم العميل';
+
+  @override
+  String get customerRatingEmpty => 'لم يقيّم العميل هذه المعاملة بعد';
+
+  @override
+  String get carLabel => 'السيارة:';
+
+  @override
+  String get addressLabel => 'العنوان:';
+
+  @override
+  String get notesLabel => 'ملاحظات:';
+
+  @override
+  String get notificationLoadFailed => 'تعذّر تحميل الإشعار';
+
+  @override
+  String get notificationNotFound => 'الإشعار غير موجود';
+
+  @override
   String get orderConfirmedShort => 'مؤكد';
 
   @override

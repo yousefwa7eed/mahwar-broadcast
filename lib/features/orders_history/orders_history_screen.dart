@@ -10,7 +10,9 @@ import '../../l10n/app_localizations.dart';
 bool orderMatchesDay(Order order, DateTime day) {
   final local = order.createdAt?.toLocal();
   if (local == null) return false;
-  return local.year == day.year && local.month == day.month && local.day == day.day;
+  return local.year == day.year &&
+      local.month == day.month &&
+      local.day == day.day;
 }
 
 class OrdersHistoryScreen extends StatefulWidget {
@@ -70,7 +72,8 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = l10n?.orderHistoryLoadFailed(e.toString()) ??
+          _error =
+              l10n?.orderHistoryLoadFailed(e.toString()) ??
               'تعذّر تحميل السجل: $e';
           _isLoading = false;
         });
@@ -82,16 +85,22 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
     switch (_selectedTab) {
       case 1:
         return _orders
-            .where((o) => o.status == OrderStatus.pending || o.status == OrderStatus.priced)
+            .where(
+              (o) =>
+                  o.status == OrderStatus.pending ||
+                  o.status == OrderStatus.priced,
+            )
             .toList();
       case 2:
         return _orders.where((o) => o.status == OrderStatus.completed).toList();
       case 3:
         return _orders
-            .where((o) =>
-                o.status == OrderStatus.cancelled ||
-                o.status == OrderStatus.rejectedByProvider ||
-                o.status == OrderStatus.rejectedByOwner)
+            .where(
+              (o) =>
+                  o.status == OrderStatus.cancelled ||
+                  o.status == OrderStatus.rejectedByProvider ||
+                  o.status == OrderStatus.rejectedByOwner,
+            )
             .toList();
       default:
         return _orders;
@@ -118,9 +127,9 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: Theme.of(context).colorScheme.copyWith(
-                primary: AppColors.orangePrimary,
-                onPrimary: Colors.white,
-              ),
+            primary: AppColors.orangePrimary,
+            onPrimary: Colors.white,
+          ),
         ),
         child: child!,
       ),
@@ -136,14 +145,18 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
     final l10n = AppLocalizations.of(context);
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor: isDark
+          ? AppColors.darkBackground
+          : AppColors.lightBackground,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back_ios_rounded,
-            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+            color: isDark
+                ? AppColors.darkTextPrimary
+                : AppColors.lightTextPrimary,
           ),
           onPressed: () => context.pop(),
         ),
@@ -153,20 +166,27 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
             fontFamily: 'Zain',
             fontSize: 22,
             fontWeight: FontWeight.bold,
-            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+            color: isDark
+                ? AppColors.darkTextPrimary
+                : AppColors.lightTextPrimary,
           ),
         ),
         centerTitle: true,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.orangePrimary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.orangePrimary),
+            )
           : _error != null
           ? _buildError(context, isDark, l10n)
           : Column(
               children: [
                 // Filter Tabs
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 8,
+                  ),
                   child: Row(
                     children: [
                       _buildTab(l10n?.allTab ?? 'الكل', 0, isDark),
@@ -182,19 +202,29 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
 
                 // فلترة بحث بالتاريخ (تاريخ المعاملة)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 4,
+                  ),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(12),
                     onTap: _pickFilterDate,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                        color: isDark
+                            ? AppColors.darkCard
+                            : AppColors.lightCard,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: _filterDate != null
                               ? AppColors.orangePrimary.withValues(alpha: 0.6)
-                              : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+                              : (isDark
+                                    ? AppColors.darkBorder
+                                    : AppColors.lightBorder),
                         ),
                       ),
                       child: Row(
@@ -209,7 +239,7 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
                             child: Text(
                               _filterDate == null
                                   ? (l10n?.filterByDateAllDays ??
-                                      'فلترة بحث بالتاريخ: كل الأيام')
+                                        'فلترة بحث بالتاريخ: كل الأيام')
                                   : '${l10n?.transactionDateLabel ?? 'تاريخ المعاملة'}: ${_formatDay(context, _filterDate!)}',
                               style: TextStyle(
                                 fontFamily: 'Cairo',
@@ -218,8 +248,8 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
                                 color: _filterDate != null
                                     ? AppColors.orangePrimary
                                     : (isDark
-                                        ? AppColors.darkTextPrimary
-                                        : AppColors.lightTextPrimary),
+                                          ? AppColors.darkTextPrimary
+                                          : AppColors.lightTextPrimary),
                               ),
                             ),
                           ),
@@ -252,14 +282,20 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
                           onRefresh: _loadOrders,
                           color: AppColors.orangePrimary,
                           child: ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 8,
+                            ),
                             itemCount: _filteredOrders.length,
                             itemBuilder: (context, index) {
                               final order = _filteredOrders[index];
                               return OrderHistoryCard(
                                 order: order,
-                                onTap: () =>
-                                    context.push('/request/track?orderId=${order.id}'),
+                                onTap: () => context.push(
+                                  widget.forProvider
+                                      ? '/orders/provider/detail?orderId=${order.id}'
+                                      : '/request/track?orderId=${order.id}',
+                                ),
                               );
                             },
                           ),
@@ -270,7 +306,11 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
     );
   }
 
-  Widget _buildError(BuildContext context, bool isDark, AppLocalizations? l10n) {
+  Widget _buildError(
+    BuildContext context,
+    bool isDark,
+    AppLocalizations? l10n,
+  ) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -283,16 +323,23 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
             style: TextStyle(
               fontFamily: 'Cairo',
               fontSize: 14,
-              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+              color: isDark
+                  ? AppColors.darkTextSecondary
+                  : AppColors.lightTextSecondary,
             ),
           ),
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: _loadOrders,
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.orangePrimary),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.orangePrimary,
+            ),
             child: Text(
               l10n?.retry ?? 'إعادة المحاولة',
-              style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontFamily: 'Cairo',
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
@@ -300,7 +347,11 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
     );
   }
 
-  Widget _buildEmpty(BuildContext context, bool isDark, AppLocalizations? l10n) {
+  Widget _buildEmpty(
+    BuildContext context,
+    bool isDark,
+    AppLocalizations? l10n,
+  ) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -308,7 +359,9 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
           Icon(
             Icons.receipt_long_rounded,
             size: 64,
-            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+            color: isDark
+                ? AppColors.darkTextSecondary
+                : AppColors.lightTextSecondary,
           ),
           const SizedBox(height: 16),
           Text(
@@ -316,7 +369,9 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
             style: TextStyle(
               fontFamily: 'Zain',
               fontSize: 20,
-              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+              color: isDark
+                  ? AppColors.darkTextSecondary
+                  : AppColors.lightTextSecondary,
             ),
           ),
         ],
@@ -335,7 +390,9 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
             color: isSelected ? AppColors.orangePrimary : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: isSelected ? AppColors.orangePrimary : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+              color: isSelected
+                  ? AppColors.orangePrimary
+                  : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
             ),
           ),
           child: Text(
@@ -345,7 +402,11 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
               fontFamily: 'Cairo',
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: isSelected ? Colors.white : (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+              color: isSelected
+                  ? Colors.white
+                  : (isDark
+                        ? AppColors.darkTextPrimary
+                        : AppColors.lightTextPrimary),
             ),
           ),
         ),

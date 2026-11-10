@@ -115,6 +115,12 @@ class AuthCubit extends Cubit<AuthState> {
   /// موثوقة واحدة بلا سؤال الخادم عند كل تنقّل.
   bool? _phoneVerified;
 
+  /// آخر دور حقيقي عُرف لهذه الجلسة من `profiles.role` (cache داخل الجلسة).
+  /// يُقرأ في بوابة التوجيه بدل مهلة شبكة عند كل تنقّل، ويُصفَّر عند أي تغيّر
+  /// جلسة حتى لا يحمل دور حساب سابق إلى حساب جديد على نفس الجهاز (كان هذا
+  /// أحد أسباب ظهور شاشات المالك داخل حساب المزوّد بعد تبديل الحسابات).
+  String? _currentRole;
+
   /// اشتراك «قاطع الجلسة» (Realtime kill switch) — يصغي لتحديثات
   /// `session_revoked_at` على صف المستخدم. عندما يحظر الأدمن المستخدم فجأة
   /// (عبر admin_ban_user) يصل الحدث خلال لحظات ويسجّل خروجًا فوريًا — عوض
@@ -164,8 +170,9 @@ class AuthCubit extends Cubit<AuthState> {
       if ((event == AuthChangeEvent.signedIn ||
               event == AuthChangeEvent.initialSession) &&
           session != null) {
-        // جلسة جديدة (أو تبديل حساب) → حالة التوثيق المخزّنة لا تصحّ لها.
+        // جلسة جديدة (أو تبديل حساب) → لا شيء من الحساب السابق يصحّ لها.
         _phoneVerified = null;
+        _currentRole = null;
         emit(AuthAuthenticated(session.user));
         // حراسة الجلسة للمعرف الجديد (يشترك على قناة معرف المستخدم الحالي).
         _beginSessionGuard(session.user.id);
@@ -174,6 +181,7 @@ class AuthCubit extends Cubit<AuthState> {
         unawaited(_subscribeToRoleTopic(session.user));
       } else if (event == AuthChangeEvent.signedOut) {
         _phoneVerified = null;
+        _currentRole = null;
         _endSessionGuard();
         emit(const AuthUnauthenticated());
       }
@@ -317,7 +325,17 @@ class AuthCubit extends Cubit<AuthState> {
   /// الموثوق للتوجيه). تُرجع null عندما لا يوجد مستخدم مسجّل، أو عندما يتعذّر
   /// تحديد الدور من الخادم — بلا أي افتراضي إلى `car_owner` وبلا رجوع إلى
   /// `user_metadata` (كان السبب في توجيه المزوّد إلى رئيسية مالك السيارة).
-  Future<String?> resolveCurrentRole() => resolveCurrentUserRole(_authService);
+  ///
+  /// النتيجة تُخزَّن في [_currentRole] فتُعيد [cachedRole] فورًا في التنقّلات
+  /// التالية بدل انتظار الشبكة، وتُصفَّر عند أي تغيّر جلسة.
+  Future<String?> resolveCurrentRole() async {
+    final role = await resolveCurrentUserRole(_authService);
+    if (role != null) _currentRole = role;
+    return role;
+  }
+
+  /// دور الجلسة الحالية المخزّن (null = لم يُحلّ بعد). قراءة متزامنة بلا شبكة.
+  String? get cachedRole => _currentRole;
 
   /// يحدّد الدور مع مهلة زمنية وإعادة محاولة — لمسار الدخول. أي انتهاء مهلة
   /// أو خطأ عابر يُعاد معه المحاولة حتى [attempts] مرة، ثم يُرجع null (يُعامل
@@ -455,6 +473,8 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       await _authService.signOut();
       _phoneVerified = null;
+      _currentRole = null;
+      _endSessionGuard();
       emit(const AuthUnauthenticated());
     } catch (e) {
       debugPrint('[AuthCubit] signOut failed: $e');
@@ -480,14 +500,22 @@ class AuthCubit extends Cubit<AuthState> {
     } catch (_) {
       // فشل السحب المحلي — لا يُبث خطأ (الواجهة ستُخرج على كل حال).
     }
+    _currentRole = null;
+    _endSessionGuard();
     if (!isClosed) emit(const AuthUnauthenticated());
   }
 
   /// يبثّ [AuthUnauthenticated] فورًا — الاستدعاء المحلي الوحيد الذي يسمّيه
   /// منسّق الخروج بعد التنظيف المحلي وقبل الانتقال (بلا أي شبكة). بلا تأثير
   /// عند إغلاق الـ cubit.
+  ///
+  /// يُنهي حراسة الجلسة أيضًا: منسّق الخروج لا يمرّ بـ [signOut] (الذي يبعث
+  /// signedOut عبر المستمع) لأن الخروج محلي فوري — فبدون الإنهاء هنا تظل
+  /// قناة الإبطال والمؤقّت الدوري يعملان لحساب خرج للتو.
   void markUnauthenticated() {
     _phoneVerified = null;
+    _currentRole = null;
+    _endSessionGuard();
     if (!isClosed) emit(const AuthUnauthenticated());
   }
 

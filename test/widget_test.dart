@@ -4,14 +4,18 @@
 // لا تتطلب أي plugin (Firebase/Supabase) لتشغيلها.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mahwar/core/auth/auth_cubit.dart';
 import 'package:mahwar/core/models/notification_model.dart';
 import 'package:mahwar/core/models/order.dart';
 import 'package:mahwar/core/utils/supabase_time.dart';
 import 'package:mahwar/features/notifications/notification_detail_screen.dart';
 import 'package:mahwar/features/provider_home/widgets/nearby_request_card.dart';
 import 'package:mahwar/features/request_tracking/widgets/provider_offer_card.dart';
+
+import 'fakes/fake_auth_service.dart';
 
 void main() {
   group('Order.fromJson — respond_deadline', () {
@@ -91,7 +95,9 @@ void main() {
       );
     }
 
-    testWidgets('يعرض الوقت المتبقي عندما تكون المهلة مستقبلية', (tester) async {
+    testWidgets('يعرض الوقت المتبقي عندما تكون المهلة مستقبلية', (
+      tester,
+    ) async {
       final deadline = DateTime.now().add(const Duration(minutes: 2));
       await tester.pumpWidget(buildCard(deadline));
 
@@ -99,7 +105,9 @@ void main() {
       expect(find.textContaining('انتهت المهلة'), findsNothing);
     });
 
-    testWidgets('لا يعرض رسالة مهلة ثابتة عندما تكون المهلة في الماضي', (tester) async {
+    testWidgets('لا يعرض رسالة مهلة ثابتة عندما تكون المهلة في الماضي', (
+      tester,
+    ) async {
       final deadline = DateTime.now().subtract(const Duration(seconds: 5));
       await tester.pumpWidget(buildCard(deadline));
 
@@ -171,8 +179,10 @@ void main() {
         'created_at': '2026-09-15T10:30:00+00:00',
       });
 
-      expect(notification.timeAgo(DateTime.parse('2026-09-15T10:30:12+00:00')),
-          'الآن');
+      expect(
+        notification.timeAgo(DateTime.parse('2026-09-15T10:30:12+00:00')),
+        'الآن',
+      );
     });
   });
 
@@ -213,7 +223,12 @@ void main() {
       });
 
       await tester.pumpWidget(
-        MaterialApp(home: NotificationDetailScreen(notification: notification)),
+        BlocProvider<AuthCubit>(
+          create: (_) => AuthCubit(service: FakeAuthService()),
+          child: MaterialApp(
+            home: NotificationDetailScreen(notification: notification),
+          ),
+        ),
       );
 
       // شارة "إشعار عام" + العنوان + النص الكامل + "أُرسل في ...".
@@ -241,7 +256,9 @@ void main() {
       );
     }
 
-    testWidgets('distanceMeters 3500 يعرض "≈ 3.5" ولا يعرض "3500"', (tester) async {
+    testWidgets('distanceMeters 3500 يعرض "≈ 3.5" ولا يعرض "3500"', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildCard(distanceMeters: 3500));
 
       // المُنسّق يُنتج "≈ 3.5 كم" (أو "≈ 3.5 km" بالإنجليزية)
@@ -274,7 +291,9 @@ void main() {
       );
     }
 
-    testWidgets('عند distanceMeters null لا تظهر شريحة المسافة', (tester) async {
+    testWidgets('عند distanceMeters null لا تظهر شريحة المسافة', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildCard(distanceMeters: null));
 
       // شريحة الوقت تبقى، المسافة تختفي
@@ -283,7 +302,9 @@ void main() {
       expect(find.textContaining('كم'), findsNothing);
     });
 
-    testWidgets('عند distanceMeters 3500 تظهر المسافة المنسّقة', (tester) async {
+    testWidgets('عند distanceMeters 3500 تظهر المسافة المنسّقة', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildCard(distanceMeters: 3500));
 
       expect(find.textContaining('≈ 3.5'), findsOneWidget);

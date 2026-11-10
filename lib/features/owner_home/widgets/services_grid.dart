@@ -77,7 +77,9 @@ class ServicesGrid extends StatelessWidget {
               fontFamily: 'Zain',
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+              color: isDark
+                  ? AppColors.darkTextPrimary
+                  : AppColors.lightTextPrimary,
             ),
           ),
           const SizedBox(height: 12),
@@ -136,29 +138,45 @@ class _ServiceCard extends StatelessWidget {
             ),
           ],
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: service.color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
+        // ارتفاع الخلية يتبع عرضها (aspectRatio) ويزيد نصُّها مع تكبير حجم
+        // النظام؛ عند عدم الاتساع نُصغّر المحتوى بدل فيض RenderFlex (كان يفيض
+        // 5.6px على عرض 320 مع حجم 1.3).
+        child: LayoutBuilder(
+          builder: (context, constraints) => FittedBox(
+            fit: BoxFit.scaleDown,
+            child: SizedBox(
+              width: constraints.maxWidth,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: service.color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(service.icon, color: service.color, size: 28),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    Localizations.localeOf(context).languageCode == 'ar'
+                        ? service.nameAr
+                        : service.nameEn,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'Cairo',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.lightTextPrimary,
+                    ),
+                  ),
+                ],
               ),
-              child: Icon(service.icon, color: service.color, size: 28),
             ),
-            const SizedBox(height: 8),
-            Text(
-              Localizations.localeOf(context).languageCode == 'ar' ? service.nameAr : service.nameEn,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Cairo',
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

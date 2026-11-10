@@ -1424,6 +1424,60 @@ abstract class AppLocalizations {
   /// **'خدمة:'**
   String get serviceLabel;
 
+  /// No description provided for @orderDetails.
+  ///
+  /// In ar, this message translates to:
+  /// **'تفاصيل الطلب'**
+  String get orderDetails;
+
+  /// No description provided for @orderDetailsLoadFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل تفاصيل الطلب'**
+  String get orderDetailsLoadFailed;
+
+  /// No description provided for @customerRating.
+  ///
+  /// In ar, this message translates to:
+  /// **'تقييم العميل'**
+  String get customerRating;
+
+  /// No description provided for @customerRatingEmpty.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يقيّم العميل هذه المعاملة بعد'**
+  String get customerRatingEmpty;
+
+  /// No description provided for @carLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'السيارة:'**
+  String get carLabel;
+
+  /// No description provided for @addressLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'العنوان:'**
+  String get addressLabel;
+
+  /// No description provided for @notesLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'ملاحظات:'**
+  String get notesLabel;
+
+  /// No description provided for @notificationLoadFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الإشعار'**
+  String get notificationLoadFailed;
+
+  /// No description provided for @notificationNotFound.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإشعار غير موجود'**
+  String get notificationNotFound;
+
   /// No description provided for @orderConfirmedShort.
   ///
   /// In ar, this message translates to:
