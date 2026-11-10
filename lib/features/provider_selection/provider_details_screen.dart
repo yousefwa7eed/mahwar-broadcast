@@ -408,7 +408,30 @@ return SingleChildScrollView(
                 ? (l10n?.availableNow ?? 'متاح الآن')
                 : (l10n?.availabilityOfflineTitle ?? 'غير متاح حالياً'),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
+          // الملف العام: التخصصات + عدد الطلبات المكتملة + آراء العملاء.
+          // شاشة منفصلة لأنها تُفتح أيضًا من رابط QR خارجي ومن ملف المزوّد.
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: TextButton.icon(
+              onPressed: () => context.push(
+                '/provider/profile?providerId=${p.providerId}',
+              ),
+              icon: const Icon(Icons.reviews_outlined, size: 18),
+              label: Text(
+                l10n?.viewProviderProfileAndReviews ??
+                    'الملف الشخصي والتقييمات',
+                style: const TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.orangePrimary,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
 
           SizedBox(
             width: double.infinity,

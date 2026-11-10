@@ -30,8 +30,7 @@ String? roleHomeRedirectFor({required String path, required String? role}) {
   return null;
 }
 
-/// مسار الرجوع الآمن من شاشة تتبّع طلب: دور الخادم أولًا (مصدر الحقيقة)، ثم
-/// عضوية الطلب كاحتياط، و null إذا لم يُعرف أي منهما — عندها لا نتنقّل بدل
+/// مسار الرجوع الآمن من شاشة تتبّع طلب: دور الخادم أولًا (مصدر الحقيقة)، ثم/// عضوية الطلب كاحتياط، و null إذا لم يُعرف أي منهما — عندها لا نتنقّل بدل
 /// إرسال المستخدم إلى رئيسية الدور الخاطئ (كان `order == null` يُعامَل كمالك
 /// فتظهر رئيسية المالك داخل حساب المزوّد).
 String? trackingBackRouteFor({
@@ -47,6 +46,27 @@ String? trackingBackRouteFor({
   if (userId == providerId) return AppRole.provider.homeRoute;
   return null;
 }
+
+/// يتحقق من مسار رجوع داخلي قادم من رابط خارجي (مثل `next` في رابط QR).
+///
+/// يرفض أي قيمة فيها مخطط (`javascript:`، `https:`)، أو سلطة (`//evil`)، أو
+/// شرطة مائلة معكوسة — فلا يمكن استخدام شاشة الدخول كقفزة إلى خارج التطبيق.
+String? safeInternalRoute(String? raw) {
+  if (raw == null) return null;
+  final value = raw.trim();
+  if (value.isEmpty || !value.startsWith('/') || value.startsWith('//')) {
+    return null;
+  }
+  if (value.contains('\\')) return null;
+  final uri = Uri.tryParse(value);
+  if (uri == null || uri.hasScheme || uri.hasAuthority) return null;
+  return value;
+}
+
+/// رابط صفحة دخول تعيد المستخدم إلى [next] بعد النجاح — يُستخدم لروابط QR
+/// التي تصل بدون جلسة.
+String loginRouteWithNext({required AppRole role, required String next}) =>
+    '${role.loginRoute}&next=${Uri.encodeQueryComponent(next)}';
 
 /// هل المسار الحالي في أعلى حزمة التنقل (topmost route) هو [path]؟
 /// يُستخدم لمنع أكثر من شاشة من الاستجابة لنفس حدث AuthAuthenticated: شاشة

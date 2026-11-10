@@ -526,47 +526,54 @@ class _WorkingHoursScreenState extends State<WorkingHoursScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  if (isToday)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      margin: const EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.orangePrimary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
+              Flexible(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isToday)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        margin: const EdgeInsets.only(right: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.orangePrimary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                           l10n?.today ?? 'اليوم',
+                          style: const TextStyle(
+                            fontFamily: 'Cairo',
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.orangePrimary,
+                          ),
+                        ),
                       ),
+                    Flexible(
                       child: Text(
-                         l10n?.today ?? 'اليوم',
-                        style: const TextStyle(
+                         () {
+                           final days = [
+                             l10n?.weekdaySunday ?? _arDays[0],
+                             l10n?.weekdayMonday ?? _arDays[1],
+                             l10n?.weekdayTuesday ?? _arDays[2],
+                             l10n?.weekdayWednesday ?? _arDays[3],
+                             l10n?.weekdayThursday ?? _arDays[4],
+                             l10n?.weekdayFriday ?? _arDays[5],
+                             l10n?.weekdaySaturday ?? _arDays[6],
+                           ];
+                           return days[index];
+                         }(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
                           fontFamily: 'Cairo',
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.orangePrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                         ),
                       ),
                     ),
-                  Text(
-                     () {
-                       final days = [
-                         l10n?.weekdaySunday ?? _arDays[0],
-                         l10n?.weekdayMonday ?? _arDays[1],
-                         l10n?.weekdayTuesday ?? _arDays[2],
-                         l10n?.weekdayWednesday ?? _arDays[3],
-                         l10n?.weekdayThursday ?? _arDays[4],
-                         l10n?.weekdayFriday ?? _arDays[5],
-                         l10n?.weekdaySaturday ?? _arDays[6],
-                       ];
-                       return days[index];
-                     }(),
-                    style: TextStyle(
-                      fontFamily: 'Cairo',
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               Row(
                 children: [

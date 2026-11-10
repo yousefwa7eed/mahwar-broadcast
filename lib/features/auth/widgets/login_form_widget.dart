@@ -5,6 +5,7 @@ import '../../../core/auth/auth_cubit.dart';
 import '../../../core/auth/phone_utils.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/theme/surface_palette.dart';
+import '../../../core/widgets/loading_form_lock.dart';
 import '../../../l10n/app_localizations.dart';
 
 class LoginFormWidget extends StatefulWidget {
@@ -202,171 +203,175 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
 
     final hasIdentifier = _identifierController.text.trim().isNotEmpty;
 
-    return Form(
-      key: _formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // طريقة الدخول: أيقونتان بلا خلفية، والمختارة أكبر من الأخرى.
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  l10n?.loginMethod ?? 'طريقة الدخول',
-                  style: TextStyle(
-                    fontFamily: labelFont,
-                    fontSize: 13,
+    return LoadingFormLock(
+      loading: isAuthLoading,
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // طريقة الدخول: أيقونتان بلا خلفية، والمختارة أكبر من الأخرى.
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n?.loginMethod ?? 'طريقة الدخول',
+                    style: TextStyle(
+                      fontFamily: labelFont,
+                      fontSize: 13,
+                      color: palette.textSecondary,
+                    ),
+                  ),
+                ),
+                _MethodToggle(
+                  isPhoneMode: _isPhoneMode,
+                  onChanged: (isPhone) =>
+                      setState(() => _isPhoneMode = isPhone),
+                  palette: palette,
+                  phoneLabel: l10n?.phoneTab ?? 'هاتف',
+                  emailLabel: l10n?.emailTab ?? 'بريد',
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            TextFormField(
+              controller: _identifierController,
+              keyboardType: _identifierKeyboardType,
+              inputFormatters: _identifierInputFormatters,
+              textDirection: TextDirection.ltr,
+              style: TextStyle(color: palette.textPrimary, fontSize: 15),
+              cursorColor: accent,
+              decoration: fieldDecoration(
+                hint: _isPhoneMode ? '01xxxxxxxxx' : 'example@domain.com',
+                prefixIcon: fieldIcon(
+                  hasText: hasIdentifier,
+                  outlined: _isPhoneMode
+                      ? Icons.phone_outlined
+                      : Icons.mail_outlined,
+                  solid: _isPhoneMode ? Icons.phone : Icons.mail,
+                ),
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return _isPhoneMode
+                      ? (l10n?.enterPhonePrompt ?? 'يرجى إدخال رقم الهاتف')
+                      : (l10n?.enterEmailPrompt ??
+                            'يرجى إدخال البريد الإلكتروني');
+                }
+                if (_isPhoneMode &&
+                    !PhoneUtils.isValidEgyptianMobile(value.trim())) {
+                  return l10n?.invalidPhoneShort ??
+                      'رقم هاتف مصري غير صحيح (مثال: 01012345678)';
+                }
+                if (!_isPhoneMode &&
+                    !RegExp(
+                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                    ).hasMatch(value.trim())) {
+                  return l10n?.invalidEmailFormat ??
+                      'صيغة البريد الإلكتروني غير صحيحة';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // كلمة المرور
+            TextFormField(
+              controller: _passwordController,
+              obscureText: _obscurePassword,
+              style: TextStyle(color: palette.textPrimary, fontSize: 15),
+              cursorColor: accent,
+              decoration: fieldDecoration(
+                hint: l10n?.password ?? 'كلمة المرور',
+                prefixIcon: fieldIcon(
+                  hasText: _passwordController.text.isNotEmpty,
+                  outlined: Icons.lock_outline,
+                  solid: Icons.lock,
+                ),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
+                    size: 21,
                     color: palette.textSecondary,
                   ),
+                  onPressed: () {
+                    setState(() => _obscurePassword = !_obscurePassword);
+                  },
                 ),
               ),
-              _MethodToggle(
-                isPhoneMode: _isPhoneMode,
-                onChanged: (isPhone) => setState(() => _isPhoneMode = isPhone),
-                palette: palette,
-                phoneLabel: l10n?.phoneTab ?? 'هاتف',
-                emailLabel: l10n?.emailTab ?? 'بريد',
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          TextFormField(
-            controller: _identifierController,
-            keyboardType: _identifierKeyboardType,
-            inputFormatters: _identifierInputFormatters,
-            textDirection: TextDirection.ltr,
-            style: TextStyle(color: palette.textPrimary, fontSize: 15),
-            cursorColor: accent,
-            decoration: fieldDecoration(
-              hint: _isPhoneMode ? '01xxxxxxxxx' : 'example@domain.com',
-              prefixIcon: fieldIcon(
-                hasText: hasIdentifier,
-                outlined: _isPhoneMode
-                    ? Icons.phone_outlined
-                    : Icons.mail_outlined,
-                solid: _isPhoneMode ? Icons.phone : Icons.mail,
-              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return l10n?.enterPasswordPrompt ?? 'يرجى إدخال كلمة المرور';
+                }
+                return null;
+              },
             ),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return _isPhoneMode
-                    ? (l10n?.enterPhonePrompt ?? 'يرجى إدخال رقم الهاتف')
-                    : (l10n?.enterEmailPrompt ??
-                          'يرجى إدخال البريد الإلكتروني');
-              }
-              if (_isPhoneMode &&
-                  !PhoneUtils.isValidEgyptianMobile(value.trim())) {
-                return l10n?.invalidPhoneShort ??
-                    'رقم هاتف مصري غير صحيح (مثال: 01012345678)';
-              }
-              if (!_isPhoneMode &&
-                  !RegExp(
-                    r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                  ).hasMatch(value.trim())) {
-                return l10n?.invalidEmailFormat ??
-                    'صيغة البريد الإلكتروني غير صحيحة';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 10),
 
-          // كلمة المرور
-          TextFormField(
-            controller: _passwordController,
-            obscureText: _obscurePassword,
-            style: TextStyle(color: palette.textPrimary, fontSize: 15),
-            cursorColor: accent,
-            decoration: fieldDecoration(
-              hint: l10n?.password ?? 'كلمة المرور',
-              prefixIcon: fieldIcon(
-                hasText: _passwordController.text.isNotEmpty,
-                outlined: Icons.lock_outline,
-                solid: Icons.lock,
-              ),
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscurePassword
-                      ? Icons.visibility_off_rounded
-                      : Icons.visibility_rounded,
-                  size: 21,
-                  color: palette.textSecondary,
-                ),
-                onPressed: () {
-                  setState(() => _obscurePassword = !_obscurePassword);
-                },
-              ),
-            ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return l10n?.enterPasswordPrompt ?? 'يرجى إدخال كلمة المرور';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 10),
-
-          Align(
-            alignment: AlignmentDirectional.centerEnd,
-            child: GestureDetector(
-              onTap: widget.onForgotPasswordTap,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Text(
-                  l10n?.forgotPassword ?? 'نسيت كلمة المرور؟',
-                  style: TextStyle(
-                    fontFamily: labelFont,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: accent,
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: GestureDetector(
+                onTap: widget.onForgotPasswordTap,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Text(
+                    l10n?.forgotPassword ?? 'نسيت كلمة المرور؟',
+                    style: TextStyle(
+                      fontFamily: labelFont,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: accent,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 18),
+            const SizedBox(height: 18),
 
-          _PrimaryActionButton(
-            isBusy: isAuthLoading,
-            isArabic: isArabic,
-            label: l10n?.login ?? 'تسجيل الدخول',
-            gradient: buttonGradient,
-            glow: buttonGlow,
-            onTap: _submit,
-          ),
-          const SizedBox(height: 20),
+            _PrimaryActionButton(
+              isBusy: isAuthLoading,
+              isArabic: isArabic,
+              label: l10n?.login ?? 'تسجيل الدخول',
+              gradient: buttonGradient,
+              glow: buttonGlow,
+              onTap: _submit,
+            ),
+            const SizedBox(height: 20),
 
-          // الانتقال لإنشاء حساب
-          Wrap(
-            alignment: WrapAlignment.center,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 4,
-            children: [
-              Text(
-                l10n?.dontHaveAccount ?? 'ليس لديك حساب؟ ',
-                style: TextStyle(
-                  fontFamily: labelFont,
-                  fontSize: 14,
-                  color: palette.textSecondary,
-                ),
-              ),
-              GestureDetector(
-                onTap: widget.onSignupTap,
-                child: Text(
-                  l10n?.signup ?? 'إنشاء حساب جديد',
+            // الانتقال لإنشاء حساب
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 4,
+              children: [
+                Text(
+                  l10n?.dontHaveAccount ?? 'ليس لديك حساب؟ ',
                   style: TextStyle(
                     fontFamily: labelFont,
                     fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: accent,
-                    decoration: TextDecoration.underline,
-                    decorationColor: accent.withValues(alpha: 0.5),
+                    color: palette.textSecondary,
                   ),
                 ),
-              ),
-            ],
-          ),
-        ],
+                GestureDetector(
+                  onTap: widget.onSignupTap,
+                  child: Text(
+                    l10n?.signup ?? 'إنشاء حساب جديد',
+                    style: TextStyle(
+                      fontFamily: labelFont,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: accent,
+                      decoration: TextDecoration.underline,
+                      decorationColor: accent.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -440,6 +440,23 @@
   },
   "selectProvider": "Select provider",
   "noNearbyProviders": "No providers available nearby",
+  "nearbyMapEntryTitle": "Providers around you on the map",
+  "nearbyMapEntrySubtitle": "See the workshops and providers available around your location",
+  "providersMapTitle": "Providers around you",
+  "providersMapCount": "Available now: {count} providers",
+  "@providersMapCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "providersMapEmpty": "No providers are available right now — try refreshing the map in a moment",
+  "providersMapLocationFailed": "Could not determine your location. Enable location services and try again.",
+  "providersMapLoadFailed": "Could not load providers on the map.",
+  "providersMapRefresh": "Refresh",
+  "providersMapRecenter": "Back to my location",
+  "providersMapViewProfile": "View profile",
   "mapLoadFailed": "Couldn't load map data: {error}",
   "@mapLoadFailed": {
     "placeholders": {
@@ -798,5 +815,53 @@
   "rpcErrorVehicleTrimNotFound": "The selected trim is unavailable. Please pick the car again.",
   "rpcErrorInvalidModelYear": "The model year does not match the selected generation. Check the car details.",
   "rpcErrorVehicleColorNotFound": "The selected color is unavailable. Please pick the color again.",
-  "rpcErrorInvalidPlate": "Invalid plate details. Use 3 letters and 3 or 4 digits."
+  "rpcErrorInvalidPlate": "Invalid plate details. Use 3 letters and 3 or 4 digits.",
+  "providerPublicProfileTitle": "Provider profile",
+  "viewProviderProfileAndReviews": "Profile & reviews",
+  "providerCompletedOrdersCount": "{count} completed orders",
+  "@providerCompletedOrdersCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "providerReviewsTitle": "Customer reviews",
+  "providerReviewsEmpty": "No reviews yet",
+  "providerReviewsLoadMore": "Show more",
+  "providerReviewAnonymous": "Mahwar customer",
+  "providerProfileLoadFailed": "Could not load the provider profile",
+  "providerPublicProfileMenu": "My public profile",
+  "providerQrTitle": "My QR code",
+  "providerQrBody": "Print this code so customers can open your public profile and rate you.",
+  "providerQrShare": "Share / save image",
+  "providerQrShareFailed": "Could not share the image",
+  "providerQrScanHint": "Scan the code to open the workshop profile and reviews",
+  "supportInboxSubtitle": "Your message reaches our support team inside the app, and you can follow the reply from \"My tickets\".",
+  "supportLink": "Support",
+  "supportNewMessage": "New message",
+  "supportMyTickets": "My tickets",
+  "supportTicketsEmpty": "No previous messages yet",
+  "supportTicketsLoadFailed": "Could not load your previous messages",
+  "supportSendButton": "Send message",
+  "supportSendSuccess": "Your message was sent",
+  "supportTicketNumber": "Ticket number: {id}",
+  "supportFollowReplyHint": "You can follow the support team's reply from \"My tickets\" at any time.",
+  "supportSendAnother": "Send another message",
+  "supportAttachmentNeedsLogin": "Sign in to attach an image. You can still send the message without an attachment now.",
+  "supportAttachmentUploadFailed": "Could not upload the attached image. Try another image or send without an attachment.",
+  "supportAttachmentTooLarge": "The image is larger than 10 MB.",
+  "supportAttachmentUnsupported": "Unsupported image format. Use JPG, PNG, or WebP.",
+  "supportStatusOpen": "Under review",
+  "supportStatusReplied": "Replied",
+  "supportStatusClosed": "Closed",
+  "supportReplyLabel": "Support team reply",
+  "rpcErrorSupportInvalidKind": "Invalid message type.",
+  "rpcErrorSupportInvalidSubject": "The subject must be between 3 and 120 characters.",
+  "rpcErrorSupportInvalidBody": "The message must be between 10 and 4000 characters.",
+  "rpcErrorSupportInvalidCategory": "The selected category is too long.",
+  "rpcErrorSupportInvalidContact": "Check the name and phone number (11 digits starting with 01).",
+  "rpcErrorSupportInvalidAttachment": "Could not verify the attached image. Upload it again and retry.",
+  "rpcErrorSupportRateLimited": "You reached today's message limit. Try again later.",
+  "rpcErrorUnauthenticated": "Sign in to view your messages."
 }

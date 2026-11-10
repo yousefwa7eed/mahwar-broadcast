@@ -539,6 +539,23 @@
   },
   "selectProvider": "اختر المزوّد",
   "noNearbyProviders": "لا يوجد مزودون متاحون قريباً",
+  "nearbyMapEntryTitle": "المزوّدون حولك على الخريطة",
+  "nearbyMapEntrySubtitle": "شوف الورش والمزوّدين المتاحين حوالين موقعك",
+  "providersMapTitle": "المزوّدون حولك",
+  "providersMapCount": "متاح الآن: {count} مزوّد",
+  "@providersMapCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "providersMapEmpty": "لا يوجد مزوّدون متاحون حاليًا — جرّب تحديث الخريطة بعد قليل",
+  "providersMapLocationFailed": "تعذّر تحديد موقعك. فعّل خدمة الموقع ثم أعد المحاولة.",
+  "providersMapLoadFailed": "تعذّر تحميل المزوّدين على الخريطة.",
+  "providersMapRefresh": "تحديث",
+  "providersMapRecenter": "العودة لموقعي",
+  "providersMapViewProfile": "عرض الملف",
   "mapLoadFailed": "تعذّر تحميل بيانات الخريطة: {error}",
   "@mapLoadFailed": {
     "placeholders": {
@@ -959,5 +976,60 @@
   "rpcErrorVehicleTrimNotFound": "فئة السيارة المختارة غير متاحة. يرجى اختيار السيارة مرة أخرى.",
   "rpcErrorInvalidModelYear": "سنة الصنع لا تتوافق مع الجيل المختار. يرجى مراجعة بيانات السيارة.",
   "rpcErrorVehicleColorNotFound": "اللون المختار غير متاح. يرجى اختيار اللون مرة أخرى.",
-  "rpcErrorInvalidPlate": "بيانات اللوحة غير صحيحة. استخدم 3 حروف و3 أو 4 أرقام."
+  "rpcErrorInvalidPlate": "بيانات اللوحة غير صحيحة. استخدم 3 حروف و3 أو 4 أرقام.",
+  "providerPublicProfileTitle": "ملف المزوّد",
+  "viewProviderProfileAndReviews": "الملف الشخصي والتقييمات",
+  "providerCompletedOrdersCount": "{count} طلب مكتمل",
+  "@providerCompletedOrdersCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "providerReviewsTitle": "آراء العملاء",
+  "providerReviewsEmpty": "لا توجد آراء بعد",
+  "providerReviewsLoadMore": "عرض المزيد",
+  "providerReviewAnonymous": "عميل محور",
+  "providerProfileLoadFailed": "تعذّر تحميل ملف المزوّد",
+  "providerPublicProfileMenu": "ملفي العام",
+  "providerQrTitle": "رمز QR الخاص بي",
+  "providerQrBody": "اطبع هذا الرمز ليتمكن العملاء من فتح ملفك العام وتقييمك.",
+  "providerQrShare": "مشاركة / حفظ الصورة",
+  "providerQrShareFailed": "تعذّر مشاركة الصورة",
+  "providerQrScanHint": "امسح الرمز لعرض ملف الورشة والتقييمات",
+  "supportInboxSubtitle": "رسالتك تصل لفريق الدعم داخل التطبيق، وتقدر تتابع الرد من «تذاكراتي».",
+  "supportLink": "الدعم",
+  "supportNewMessage": "رسالة جديدة",
+  "supportMyTickets": "تذاكراتي",
+  "supportTicketsEmpty": "لا توجد رسائل سابقة",
+  "supportTicketsLoadFailed": "تعذّر تحميل رسائلك السابقة",
+  "supportSendButton": "إرسال الرسالة",
+  "supportSendSuccess": "تم إرسال رسالتك",
+  "supportTicketNumber": "رقم التذكرة: {id}",
+  "@supportTicketNumber": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "supportFollowReplyHint": "تقدر تتابع رد فريق الدعم من «تذاكراتي» في أي وقت.",
+  "supportSendAnother": "إرسال رسالة أخرى",
+  "supportAttachmentNeedsLogin": "لإرفاق صورة، سجّل الدخول أولًا. يمكنك إرسال الرسالة بدون مرفق الآن.",
+  "supportAttachmentUploadFailed": "تعذّر رفع الصورة المرفقة. جرّب صورة أخرى أو أرسل بدون مرفق.",
+  "supportAttachmentTooLarge": "حجم الصورة أكبر من 10 ميجابايت.",
+  "supportAttachmentUnsupported": "صيغة الصورة غير مدعومة. استخدم JPG أو PNG أو WebP.",
+  "supportStatusOpen": "قيد المراجعة",
+  "supportStatusReplied": "تم الرد",
+  "supportStatusClosed": "مغلقة",
+  "supportReplyLabel": "رد فريق الدعم",
+  "rpcErrorSupportInvalidKind": "نوع الرسالة غير صحيح.",
+  "rpcErrorSupportInvalidSubject": "عنوان الموضوع يجب أن يكون بين 3 و120 حرفًا.",
+  "rpcErrorSupportInvalidBody": "نص الرسالة يجب أن يكون بين 10 و4000 حرف.",
+  "rpcErrorSupportInvalidCategory": "التصنيف المختار طويل جدًا.",
+  "rpcErrorSupportInvalidContact": "تحقق من الاسم ورقم الهاتف (11 رقمًا يبدأ بـ 01).",
+  "rpcErrorSupportInvalidAttachment": "تعذّر التحقق من الصورة المرفقة. أعد رفعها وحاول مجددًا.",
+  "rpcErrorSupportRateLimited": "وصلت للحد الأقصى من الرسائل اليوم. حاول مرة أخرى لاحقًا.",
+  "rpcErrorUnauthenticated": "يلزم تسجيل الدخول لعرض رسائلك."
 }

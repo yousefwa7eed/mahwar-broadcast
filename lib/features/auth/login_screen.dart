@@ -7,6 +7,8 @@ import '../../core/auth/role_gate.dart';
 import '../../core/settings/app_settings_cubit.dart';
 import '../../core/settings/app_settings_state.dart';
 import '../../core/theme/surface_palette.dart';
+import '../../core/widgets/legal_footer.dart';
+import '../../core/widgets/support_dialog.dart';
 import '../../l10n/app_localizations.dart';
 import 'widgets/error_dialog.dart';
 import 'widgets/login_form_widget.dart';
@@ -18,6 +20,10 @@ import 'widgets/login_header_widget.dart';
 class LoginScreen extends StatefulWidget {
   final String role;
 
+  /// مسار داخلي يُفتح بعد نجاح الدخول (رابط QR مثلًا). يُمرَّر عبر
+  /// [safeInternalRoute] قبل الاستخدام، وأي قيمة غير آمنة تُتجاهل.
+  final String? next;
+
   /// المهلة القصوى لقراءة الدور من الخادم (كل محاولة). قابلة للحقن للاختبارات.
   final Duration roleFetchTimeout;
 
@@ -27,6 +33,7 @@ class LoginScreen extends StatefulWidget {
   const LoginScreen({
     super.key,
     required this.role,
+    this.next,
     this.roleFetchTimeout = const Duration(seconds: 10),
     this.roleFetchAttempts = 2,
   });
@@ -42,6 +49,11 @@ class _LoginScreenState extends State<LoginScreen>
   /// يمنع إعادة الدخول للمستمع أثناء معالجة توجيه/خروج (خاصةً خطأ الخروج
   /// الذي ينبعث نتيجة تسجيل خروج عدم التطابق — لا نعرضه فوق رسالة عدم التطابق).
   bool _resolving = false;
+
+  /// مفتاح لقراءة ارتفاع محتوى النموذج بعد التخطيط، لتقرير «لوحة مدمجة» في
+  /// التابلت فقط (لا يُستخدم مطلقًا على الموبايل).
+  final GlobalKey _formContentKey = GlobalKey(debugLabel: 'loginFormContent');
+  bool _compactCard = false;
 
   late final AnimationController _entrance = AnimationController(
     vsync: this,
@@ -110,7 +122,7 @@ class _LoginScreenState extends State<LoginScreen>
             return;
           }
 
-          context.go(actualRole.homeRoute);
+          context.go(safeInternalRoute(widget.next) ?? actualRole.homeRoute);
         } finally {
           if (mounted) setState(() => _resolving = false);
         }
@@ -138,6 +150,7 @@ class _LoginScreenState extends State<LoginScreen>
                   child: LayoutBuilder(
                     builder: (context, constraints) {
                       final screenW = constraints.maxWidth;
+                      final availableH = constraints.maxHeight;
                       final maxBodyWidth = screenW >= 1100
                           ? 780.0
                           : screenW >= 760
@@ -146,172 +159,242 @@ class _LoginScreenState extends State<LoginScreen>
                           ? screenW * 0.90
                           : screenW * 0.92;
 
+                      final bottomInset = MediaQuery.paddingOf(context).bottom;
+                      const horizontal = 20.0;
+
+                      // رأس البطاقة: رجوع + شارة النسخة التجريبية.
+                      Widget cardTopBar() => _LoginCardTopBar(
+                        palette: palette,
+                        isArabic: isArabic,
+                        onBack: () => context.go('/select-user-type'),
+                      );
+
+                      // كتلة الرسمة + النموذج (المحتوى الفعلي للبطاقة).
+                      Widget formBlock() => Column(
+                        key: _formContentKey,
+                        children: [
+                          _buildEntrance(
+                            interval: const Interval(0.15, 0.8),
+                            offset: 22,
+                            child: LoginHeaderWidget(
+                              role: widget.role,
+                              palette: palette,
+                              isArabic: isArabic,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          _buildEntrance(
+                            interval: const Interval(0.25, 0.95),
+                            offset: 22,
+                            child: LoginFormWidget(
+                              role: widget.role,
+                              palette: palette,
+                              isArabic: isArabic,
+                              isBusy: _resolving,
+                              onSubmit: (identifier, password) {
+                                context.read<AuthCubit>().signIn(
+                                  identifier: identifier,
+                                  password: password,
+                                );
+                              },
+                              onSignupTap: () =>
+                                  context.push('/signup?role=${widget.role}'),
+                              onForgotPasswordTap: () => context.push(
+                                '/forgot-password?role=${widget.role}',
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+
+                      // روابط الدعم والشروط والخصوصية — مثبّتة أسفل الكرت.
+                      Widget legalFooterRow({required double bottomPadding}) =>
+                          Padding(
+                            padding: EdgeInsets.fromLTRB(
+                              horizontal,
+                              4,
+                              horizontal,
+                              bottomPadding,
+                            ),
+                            child: LegalFooter(
+                              textColor: palette.footerText,
+                              isArabic: isArabic,
+                              onSupportTap: () => showSupportDialog(context),
+                              onTermsTap: () => context.push('/terms'),
+                              onPrivacyTap: () => context.push('/privacy'),
+                            ),
+                          );
+
+                      // البطاقة بحد ذاتها: [compact] = لوحة بحجم محتواها وحواف
+                      // دائرية من كل الجهات (للتابلت)؛ وإلا فهي ممتدة حتى أسفل
+                      // الشاشة بحواف علوية دائرية فقط (للموبايل — بلا تغيير).
+                      Widget card({required bool compact}) {
+                        final radius = compact
+                            ? BorderRadius.circular(28)
+                            : const BorderRadius.vertical(
+                                top: Radius.circular(32),
+                              );
+
+                        final Widget body;
+                        if (compact) {
+                          // المحتوى يدخل بالكامل في المتاح، فلا حاجة للتمرير.
+                          body = Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              cardTopBar(),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  horizontal,
+                                  6,
+                                  horizontal,
+                                  16,
+                                ),
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 520,
+                                  ),
+                                  child: formBlock(),
+                                ),
+                              ),
+                              legalFooterRow(bottomPadding: 18),
+                            ],
+                          );
+                        } else {
+                          body = Column(
+                            children: [
+                              cardTopBar(),
+                              Expanded(
+                                child: LayoutBuilder(
+                                  builder: (context, inner) {
+                                    final minContentHeight =
+                                        (inner.maxHeight - 22 - bottomInset)
+                                            .clamp(0.0, double.infinity);
+                                    return SingleChildScrollView(
+                                      physics: const BouncingScrollPhysics(),
+                                      padding: EdgeInsets.fromLTRB(
+                                        horizontal,
+                                        6,
+                                        horizontal,
+                                        16,
+                                      ),
+                                      child: ConstrainedBox(
+                                        constraints: BoxConstraints(
+                                          minHeight: minContentHeight,
+                                        ),
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            ConstrainedBox(
+                                              constraints: const BoxConstraints(
+                                                maxWidth: 520,
+                                              ),
+                                              child: formBlock(),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                              legalFooterRow(bottomPadding: 12 + bottomInset),
+                            ],
+                          );
+                        }
+
+                        return Container(
+                          width: double.infinity,
+                          clipBehavior: Clip.antiAlias,
+                          decoration: BoxDecoration(
+                            borderRadius: radius,
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                palette.cardTop,
+                                palette.cardMid,
+                                palette.cardBottom,
+                              ],
+                              stops: const [0.0, 0.45, 1.0],
+                            ),
+                            border: Border.all(color: palette.cardBorder),
+                            boxShadow: [
+                              BoxShadow(
+                                color: palette.cardShadow,
+                                blurRadius: 28,
+                                offset: const Offset(0, 12),
+                              ),
+                            ],
+                          ),
+                          child: body,
+                        );
+                      }
+
+                      // تمييز التابلت/الشاشات الكبيرة عن الموبايل بالعرض فقط،
+                      // حتى لا يلمس المسار الممتدَّ أدناه أيَّ موبايل: الموبايل
+                      // يبقى ممتدًا بكل محتواه بلا فراغات ولا تصغير.
+                      final isLargeScreen = screenW >= 600;
+
+                      if (isLargeScreen) {
+                        // نقيس ارتفاع المحتوى بعد التخطيط ثم نُقرّر: لوحة مدمجة
+                        // فقط إن زاد المتاح عنه بفارق واضح (الفراغ القاتل في
+                        // التابلت). الموبايل لا يدخل هذا المسار أصلًا.
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (!mounted) return;
+                          final ro = _formContentKey.currentContext
+                              ?.findRenderObject();
+                          if (ro is! RenderBox || !ro.hasSize) return;
+                          // نضيف حصة رأس البطاقة والحشو (~150) للمقارنة العادلة.
+                          final want = ro.size.height + 150 < availableH;
+                          if (want != _compactCard) {
+                            setState(() => _compactCard = want);
+                          }
+                        });
+                      }
+
+                      if (isLargeScreen && _compactCard) {
+                        // التوسيط «البصري» يكون داخل المنطقة الآمنة (بين شريط
+                        // الحالة وشريط التنقّل السفلي). الحشو العلوي استهلكته
+                        // SafeArea، فنعوّض شريط التنقّل بحشو سفلي مماثل؛ وإلا
+                        // بدا الكرت مائلًا للأسفل رغم توسيطه هندسيًا.
+                        return SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          padding: EdgeInsets.only(bottom: bottomInset),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minWidth: screenW,
+                              minHeight: availableH - bottomInset,
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: maxBodyWidth,
+                                  child: _buildEntrance(
+                                    interval: const Interval(0.0, 0.75),
+                                    offset: 30,
+                                    child: card(compact: true),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+
                       return Center(
                         child: SizedBox(
                           width: maxBodyWidth,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              // الكرت الرئيسي: ممتد حتى أسفل الشاشة دون فاصل.
                               Expanded(
                                 child: _buildEntrance(
                                   interval: const Interval(0.0, 0.75),
                                   offset: 30,
-                                  child: Container(
-                                    width: double.infinity,
-                                    clipBehavior: Clip.antiAlias,
-                                    decoration: BoxDecoration(
-                                      borderRadius: const BorderRadius.vertical(
-                                        top: Radius.circular(32),
-                                      ),
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                        colors: [
-                                          palette.cardTop,
-                                          palette.cardMid,
-                                          palette.cardBottom,
-                                        ],
-                                        stops: const [0.0, 0.45, 1.0],
-                                      ),
-                                      border: Border.all(
-                                        color: palette.cardBorder,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: palette.cardShadow,
-                                          blurRadius: 28,
-                                          offset: const Offset(0, 12),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Column(
-                                      children: [
-                                        // اللوجو والاسم وزر الرجوع داخل البطاقة.
-                                        _LoginCardTopBar(
-                                          palette: palette,
-                                          isArabic: isArabic,
-                                          onBack: () =>
-                                              context.go('/select-user-type'),
-                                        ),
-                                        Expanded(
-                                          child: LayoutBuilder(
-                                            builder: (context, inner) {
-                                              final bottomInset =
-                                                  MediaQuery.paddingOf(
-                                                    context,
-                                                  ).bottom;
-                                              const horizontal = 20.0;
-                                              final minContentHeight =
-                                                  (inner.maxHeight -
-                                                          22 -
-                                                          bottomInset)
-                                                      .clamp(
-                                                        0.0,
-                                                        double.infinity,
-                                                      );
-
-                                              return SingleChildScrollView(
-                                                physics:
-                                                    const BouncingScrollPhysics(),
-                                                padding: EdgeInsets.fromLTRB(
-                                                  horizontal,
-                                                  6,
-                                                  horizontal,
-                                                  16 + bottomInset,
-                                                ),
-                                                child: ConstrainedBox(
-                                                  constraints: BoxConstraints(
-                                                    minHeight: minContentHeight,
-                                                  ),
-                                                  child: Column(
-                                                    mainAxisAlignment:
-                                                        MainAxisAlignment
-                                                            .center,
-                                                    children: [
-                                                      ConstrainedBox(
-                                                        constraints:
-                                                            const BoxConstraints(
-                                                              maxWidth: 520,
-                                                            ),
-                                                        child: Column(
-                                                          children: [
-                                                            _buildEntrance(
-                                                              interval:
-                                                                  const Interval(
-                                                                    0.15,
-                                                                    0.8,
-                                                                  ),
-                                                              offset: 22,
-                                                              child:
-                                                                  LoginHeaderWidget(
-                                                                    role: widget
-                                                                        .role,
-                                                                    palette:
-                                                                        palette,
-                                                                    isArabic:
-                                                                        isArabic,
-                                                                  ),
-                                                            ),
-                                                            const SizedBox(
-                                                              height: 24,
-                                                            ),
-                                                            _buildEntrance(
-                                                              interval:
-                                                                  const Interval(
-                                                                    0.25,
-                                                                    0.95,
-                                                                  ),
-                                                              offset: 22,
-                                                              child: LoginFormWidget(
-                                                                role:
-                                                                    widget.role,
-                                                                palette:
-                                                                    palette,
-                                                                isArabic:
-                                                                    isArabic,
-                                                                isBusy:
-                                                                    _resolving,
-                                                                onSubmit:
-                                                                    (
-                                                                      identifier,
-                                                                      password,
-                                                                    ) {
-                                                                      context
-                                                                          .read<
-                                                                            AuthCubit
-                                                                          >()
-                                                                          .signIn(
-                                                                            identifier:
-                                                                                identifier,
-                                                                            password:
-                                                                                password,
-                                                                          );
-                                                                    },
-                                                                onSignupTap: () =>
-                                                                    context.push(
-                                                                      '/signup?role=${widget.role}',
-                                                                    ),
-                                                                onForgotPasswordTap:
-                                                                    () => context
-                                                                        .push(
-                                                                          '/forgot-password?role=${widget.role}',
-                                                                        ),
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                                  child: card(compact: false),
                                 ),
                               ),
                             ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/support_dialog.dart';
 import '../../../l10n/app_localizations.dart';
 
 void showErrorDialog(BuildContext context, String message) {
@@ -43,6 +44,22 @@ void showErrorDialog(BuildContext context, String message) {
         ),
       ),
       actions: [
+        if (message.toLowerCase().contains('banned'))
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              showSupportDialog(context);
+            },
+            child: const Text(
+              'تواصل مع الدعم الفني',
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontWeight: FontWeight.bold,
+                color: Color(0xFFFF6B00),
+                fontSize: 14,
+              ),
+            ),
+          ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: Text(

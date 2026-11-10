@@ -2579,6 +2579,66 @@ abstract class AppLocalizations {
   /// **'لا يوجد مزودون متاحون قريباً'**
   String get noNearbyProviders;
 
+  /// No description provided for @nearbyMapEntryTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'المزوّدون حولك على الخريطة'**
+  String get nearbyMapEntryTitle;
+
+  /// No description provided for @nearbyMapEntrySubtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'شوف الورش والمزوّدين المتاحين حوالين موقعك'**
+  String get nearbyMapEntrySubtitle;
+
+  /// No description provided for @providersMapTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'المزوّدون حولك'**
+  String get providersMapTitle;
+
+  /// No description provided for @providersMapCount.
+  ///
+  /// In ar, this message translates to:
+  /// **'متاح الآن: {count} مزوّد'**
+  String providersMapCount(int count);
+
+  /// No description provided for @providersMapEmpty.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد مزوّدون متاحون حاليًا — جرّب تحديث الخريطة بعد قليل'**
+  String get providersMapEmpty;
+
+  /// No description provided for @providersMapLocationFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحديد موقعك. فعّل خدمة الموقع ثم أعد المحاولة.'**
+  String get providersMapLocationFailed;
+
+  /// No description provided for @providersMapLoadFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل المزوّدين على الخريطة.'**
+  String get providersMapLoadFailed;
+
+  /// No description provided for @providersMapRefresh.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحديث'**
+  String get providersMapRefresh;
+
+  /// No description provided for @providersMapRecenter.
+  ///
+  /// In ar, this message translates to:
+  /// **'العودة لموقعي'**
+  String get providersMapRecenter;
+
+  /// No description provided for @providersMapViewProfile.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض الملف'**
+  String get providersMapViewProfile;
+
   /// No description provided for @mapLoadFailed.
   ///
   /// In ar, this message translates to:
@@ -4522,6 +4582,252 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'بيانات اللوحة غير صحيحة. استخدم 3 حروف و3 أو 4 أرقام.'**
   String get rpcErrorInvalidPlate;
+
+  /// No description provided for @providerPublicProfileTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'ملف المزوّد'**
+  String get providerPublicProfileTitle;
+
+  /// No description provided for @viewProviderProfileAndReviews.
+  ///
+  /// In ar, this message translates to:
+  /// **'الملف الشخصي والتقييمات'**
+  String get viewProviderProfileAndReviews;
+
+  /// No description provided for @providerCompletedOrdersCount.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} طلب مكتمل'**
+  String providerCompletedOrdersCount(int count);
+
+  /// No description provided for @providerReviewsTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'آراء العملاء'**
+  String get providerReviewsTitle;
+
+  /// No description provided for @providerReviewsEmpty.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد آراء بعد'**
+  String get providerReviewsEmpty;
+
+  /// No description provided for @providerReviewsLoadMore.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض المزيد'**
+  String get providerReviewsLoadMore;
+
+  /// No description provided for @providerReviewAnonymous.
+  ///
+  /// In ar, this message translates to:
+  /// **'عميل محور'**
+  String get providerReviewAnonymous;
+
+  /// No description provided for @providerProfileLoadFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل ملف المزوّد'**
+  String get providerProfileLoadFailed;
+
+  /// No description provided for @providerPublicProfileMenu.
+  ///
+  /// In ar, this message translates to:
+  /// **'ملفي العام'**
+  String get providerPublicProfileMenu;
+
+  /// No description provided for @providerQrTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز QR الخاص بي'**
+  String get providerQrTitle;
+
+  /// No description provided for @providerQrBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'اطبع هذا الرمز ليتمكن العملاء من فتح ملفك العام وتقييمك.'**
+  String get providerQrBody;
+
+  /// No description provided for @providerQrShare.
+  ///
+  /// In ar, this message translates to:
+  /// **'مشاركة / حفظ الصورة'**
+  String get providerQrShare;
+
+  /// No description provided for @providerQrShareFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر مشاركة الصورة'**
+  String get providerQrShareFailed;
+
+  /// No description provided for @providerQrScanHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'امسح الرمز لعرض ملف الورشة والتقييمات'**
+  String get providerQrScanHint;
+
+  /// No description provided for @supportInboxSubtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'رسالتك تصل لفريق الدعم داخل التطبيق، وتقدر تتابع الرد من «تذاكراتي».'**
+  String get supportInboxSubtitle;
+
+  /// No description provided for @supportLink.
+  ///
+  /// In ar, this message translates to:
+  /// **'الدعم'**
+  String get supportLink;
+
+  /// No description provided for @supportNewMessage.
+  ///
+  /// In ar, this message translates to:
+  /// **'رسالة جديدة'**
+  String get supportNewMessage;
+
+  /// No description provided for @supportMyTickets.
+  ///
+  /// In ar, this message translates to:
+  /// **'تذاكراتي'**
+  String get supportMyTickets;
+
+  /// No description provided for @supportTicketsEmpty.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد رسائل سابقة'**
+  String get supportTicketsEmpty;
+
+  /// No description provided for @supportTicketsLoadFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل رسائلك السابقة'**
+  String get supportTicketsLoadFailed;
+
+  /// No description provided for @supportSendButton.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال الرسالة'**
+  String get supportSendButton;
+
+  /// No description provided for @supportSendSuccess.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إرسال رسالتك'**
+  String get supportSendSuccess;
+
+  /// No description provided for @supportTicketNumber.
+  ///
+  /// In ar, this message translates to:
+  /// **'رقم التذكرة: {id}'**
+  String supportTicketNumber(String id);
+
+  /// No description provided for @supportFollowReplyHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'تقدر تتابع رد فريق الدعم من «تذاكراتي» في أي وقت.'**
+  String get supportFollowReplyHint;
+
+  /// No description provided for @supportSendAnother.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال رسالة أخرى'**
+  String get supportSendAnother;
+
+  /// No description provided for @supportAttachmentNeedsLogin.
+  ///
+  /// In ar, this message translates to:
+  /// **'لإرفاق صورة، سجّل الدخول أولًا. يمكنك إرسال الرسالة بدون مرفق الآن.'**
+  String get supportAttachmentNeedsLogin;
+
+  /// No description provided for @supportAttachmentUploadFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر رفع الصورة المرفقة. جرّب صورة أخرى أو أرسل بدون مرفق.'**
+  String get supportAttachmentUploadFailed;
+
+  /// No description provided for @supportAttachmentTooLarge.
+  ///
+  /// In ar, this message translates to:
+  /// **'حجم الصورة أكبر من 10 ميجابايت.'**
+  String get supportAttachmentTooLarge;
+
+  /// No description provided for @supportAttachmentUnsupported.
+  ///
+  /// In ar, this message translates to:
+  /// **'صيغة الصورة غير مدعومة. استخدم JPG أو PNG أو WebP.'**
+  String get supportAttachmentUnsupported;
+
+  /// No description provided for @supportStatusOpen.
+  ///
+  /// In ar, this message translates to:
+  /// **'قيد المراجعة'**
+  String get supportStatusOpen;
+
+  /// No description provided for @supportStatusReplied.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الرد'**
+  String get supportStatusReplied;
+
+  /// No description provided for @supportStatusClosed.
+  ///
+  /// In ar, this message translates to:
+  /// **'مغلقة'**
+  String get supportStatusClosed;
+
+  /// No description provided for @supportReplyLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'رد فريق الدعم'**
+  String get supportReplyLabel;
+
+  /// No description provided for @rpcErrorSupportInvalidKind.
+  ///
+  /// In ar, this message translates to:
+  /// **'نوع الرسالة غير صحيح.'**
+  String get rpcErrorSupportInvalidKind;
+
+  /// No description provided for @rpcErrorSupportInvalidSubject.
+  ///
+  /// In ar, this message translates to:
+  /// **'عنوان الموضوع يجب أن يكون بين 3 و120 حرفًا.'**
+  String get rpcErrorSupportInvalidSubject;
+
+  /// No description provided for @rpcErrorSupportInvalidBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'نص الرسالة يجب أن يكون بين 10 و4000 حرف.'**
+  String get rpcErrorSupportInvalidBody;
+
+  /// No description provided for @rpcErrorSupportInvalidCategory.
+  ///
+  /// In ar, this message translates to:
+  /// **'التصنيف المختار طويل جدًا.'**
+  String get rpcErrorSupportInvalidCategory;
+
+  /// No description provided for @rpcErrorSupportInvalidContact.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحقق من الاسم ورقم الهاتف (11 رقمًا يبدأ بـ 01).'**
+  String get rpcErrorSupportInvalidContact;
+
+  /// No description provided for @rpcErrorSupportInvalidAttachment.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر التحقق من الصورة المرفقة. أعد رفعها وحاول مجددًا.'**
+  String get rpcErrorSupportInvalidAttachment;
+
+  /// No description provided for @rpcErrorSupportRateLimited.
+  ///
+  /// In ar, this message translates to:
+  /// **'وصلت للحد الأقصى من الرسائل اليوم. حاول مرة أخرى لاحقًا.'**
+  String get rpcErrorSupportRateLimited;
+
+  /// No description provided for @rpcErrorUnauthenticated.
+  ///
+  /// In ar, this message translates to:
+  /// **'يلزم تسجيل الدخول لعرض رسائلك.'**
+  String get rpcErrorUnauthenticated;
 }
 
 class _AppLocalizationsDelegate

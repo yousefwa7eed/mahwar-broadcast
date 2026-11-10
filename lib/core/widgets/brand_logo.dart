@@ -3,8 +3,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../models/vehicle_catalog.dart';
 
-/// شعار ماركة السيارة داخل مربع محايد. يسقط إلى حرف الماركة عند غياب الملف
-/// أو فشل تحميله، فلا تظهر مساحة فارغة أبدًا.
+/// شعار ماركة السيارة داخل مربع أبيض مطفي محايد — اللون للشعار وحده. يسقط
+/// إلى حرف الماركة عند غياب الملف أو فشل تحميله، فلا تظهر مساحة فارغة أبدًا.
 class BrandLogo extends StatelessWidget {
   const BrandLogo({
     super.key,
@@ -17,6 +17,9 @@ class BrandLogo extends StatelessWidget {
   final double size;
   final double padding;
 
+  /// أبيض مطفي (لا أبيض صريح) حتى لا يتوه الشعار الملون في خلفية البطاقة.
+  static const Color _tile = Color(0xFFF7F7F5);
+
   @override
   Widget build(BuildContext context) {
     final color = _parseColor(brand.brandColor) ?? const Color(0xFFFF6B00);
@@ -26,9 +29,9 @@ class BrandLogo extends StatelessWidget {
       height: size,
       padding: EdgeInsets.all(padding),
       decoration: BoxDecoration(
-        color: Color.alphaBlend(color.withValues(alpha: 0.06), Colors.white),
+        color: _tile,
         borderRadius: BorderRadius.circular(size * 0.24),
-        border: Border.all(color: color.withValues(alpha: 0.12)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
       ),
       child: brand.logoAsset == null
           ? _Monogram(brand: brand, color: color)

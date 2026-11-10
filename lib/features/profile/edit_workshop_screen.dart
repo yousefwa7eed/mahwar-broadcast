@@ -335,21 +335,28 @@ class _EditWorkshopScreenState extends State<EditWorkshopScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.fire_truck_outlined, color: AppColors.orangePrimary),
-                              const SizedBox(width: 12),
-                              Text(
-                                l10n?.hasVehicle ?? (isArabic ? 'هل لديك سيارة خدمة مجهزة؟' : 'Has Service Vehicle?'),
-                                style: TextStyle(
-                                  fontFamily: isArabic ? 'Cairo' : 'Poppins',
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                          Expanded(
+                            child: Row(
+                              children: [
+                                const Icon(Icons.fire_truck_outlined, color: AppColors.orangePrimary),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    l10n?.hasVehicle ?? (isArabic ? 'هل لديك سيارة خدمة مجهزة؟' : 'Has Service Vehicle?'),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontFamily: isArabic ? 'Cairo' : 'Poppins',
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           Switch(
                             value: _hasServiceVehicle,
                             activeTrackColor: AppColors.orangePrimary,

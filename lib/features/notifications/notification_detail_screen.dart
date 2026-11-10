@@ -5,7 +5,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/auth/auth_cubit.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/models/notification_model.dart';
+import '../../core/services/connectivity_service.dart';
 import '../../core/utils/supabase_time.dart';
+import '../../core/widgets/offline_view.dart';
 import '../../l10n/app_localizations.dart';
 
 /// شاشة التفاصيل الكاملة لإشعار:
@@ -41,6 +43,9 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
   bool _isLoadingNotification = false;
   bool _notificationFailed = false;
 
+  /// فشل بسبب انقطاع الشبكة — تُعرض رسالة «لا يوجد اتصال» بدل خطأ عام.
+  bool _offline = false;
+
   // بيانات التقييم (تُجلب من جدول ratings حين يكون نوع الإشعار تقييمًا).
   int? _rating;
   String? _comment;
@@ -73,6 +78,13 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
   }
 
   Future<void> _loadNotification() async {
+    if (!_isLoadingNotification && mounted) {
+      setState(() {
+        _isLoadingNotification = true;
+        _notificationFailed = false;
+        _offline = false;
+      });
+    }
     final id = widget.notificationId;
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (id == null || id.isEmpty || userId == null) {
@@ -99,10 +111,12 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
       });
       if (_notification != null) _onNotificationReady();
     } catch (_) {
+      final failure = await classifyLoadFailure();
       if (!mounted) return;
       setState(() {
         _isLoadingNotification = false;
         _notificationFailed = true;
+        _offline = failure == LoadFailure.offline;
       });
     }
   }
@@ -240,6 +254,8 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
                   color: AppColors.orangePrimary,
                 ),
               )
+            : _offline
+            ? OfflineView(onRetry: _loadNotification)
             : notification == null
             ? _buildLoadError(secondary, l10n)
             : SingleChildScrollView(

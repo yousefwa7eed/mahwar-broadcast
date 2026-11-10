@@ -21,6 +21,7 @@ class _ProgressHeader extends StatelessWidget {
       l10n?.vehicleStepTrim ?? 'الفئة',
       l10n?.vehicleStepColor ?? 'اللون',
       l10n?.vehicleStepPlate ?? 'اللوحة',
+      l10n?.vehicleStepReview ?? 'المراجعة',
     ];
 
     return Padding(
@@ -59,8 +60,9 @@ class _ProgressHeader extends StatelessWidget {
             child: LinearProgressIndicator(
               value: (step + 1) / total,
               minHeight: 5,
-              backgroundColor:
-                  isDark ? AppColors.darkBorder : AppColors.lightBorder,
+              backgroundColor: isDark
+                  ? AppColors.darkBorder
+                  : AppColors.lightBorder,
               color: AppColors.orangePrimary,
             ),
           ),
@@ -95,30 +97,14 @@ class _SelectionSummary extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final chips = <Widget>[
-      _SummaryChip(
-        label: brand!.name(isArabic),
-        onTap: () => onTapStep(0),
-      ),
+      _SummaryChip(label: brand!.name(isArabic), onTap: () => onTapStep(0)),
       if (model != null)
-        _SummaryChip(
-          label: model!.name(isArabic),
-          onTap: () => onTapStep(1),
-        ),
-      if (year != null)
-        _SummaryChip(
-          label: '$year',
-          onTap: () => onTapStep(2),
-        ),
+        _SummaryChip(label: model!.name(isArabic), onTap: () => onTapStep(1)),
+      if (year != null) _SummaryChip(label: '$year', onTap: () => onTapStep(2)),
       if (trim != null)
-        _SummaryChip(
-          label: trim!.name(isArabic),
-          onTap: () => onTapStep(3),
-        ),
+        _SummaryChip(label: trim!.name(isArabic), onTap: () => onTapStep(3)),
       if (color != null)
-        _SummaryChip(
-          label: color!.name(isArabic),
-          onTap: () => onTapStep(4),
-        ),
+        _SummaryChip(label: color!.name(isArabic), onTap: () => onTapStep(4)),
     ];
 
     return Container(
@@ -136,13 +122,7 @@ class _SelectionSummary extends StatelessWidget {
         children: [
           BrandLogo(brand: brand!, size: 38, padding: 6),
           const SizedBox(width: 10),
-          Expanded(
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: chips,
-            ),
-          ),
+          Expanded(child: Wrap(spacing: 6, runSpacing: 6, children: chips)),
         ],
       ),
     );
@@ -184,16 +164,17 @@ class _BottomBar extends StatelessWidget {
   const _BottomBar({
     required this.visible,
     required this.enabled,
-    required this.onSave,
+    required this.label,
+    required this.onPressed,
   });
 
   final bool visible;
   final bool enabled;
-  final VoidCallback onSave;
+  final String label;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     return SafeArea(
       top: false,
       child: Padding(
@@ -203,7 +184,7 @@ class _BottomBar extends StatelessWidget {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: enabled ? onSave : null,
+                  onPressed: enabled ? onPressed : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.orangePrimary,
                     shape: RoundedRectangleBorder(
@@ -211,7 +192,7 @@ class _BottomBar extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    l10n?.vehicleSave ?? 'حفظ السيارة',
+                    label,
                     style: const TextStyle(
                       fontFamily: 'Cairo',
                       fontSize: 16,

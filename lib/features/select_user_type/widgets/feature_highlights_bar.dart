@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../core/theme/surface_palette.dart';
 
 class FeatureHighlightsBar extends StatelessWidget {
-  final bool isDarkMode;
+  final SurfacePalette palette;
   final bool isArabic;
 
   const FeatureHighlightsBar({
     super.key,
-    required this.isDarkMode,
+    required this.palette,
     required this.isArabic,
   });
 
@@ -29,14 +30,6 @@ class FeatureHighlightsBar extends StatelessWidget {
       },
     ];
 
-    final textColor = isDarkMode ? Colors.white.withValues(alpha: 0.9) : const Color(0xFF1E1E1E);
-    final bgColor = isDarkMode
-        ? Colors.white.withValues(alpha: 0.07)
-        : Colors.black.withValues(alpha: 0.04);
-    final borderColor = isDarkMode
-        ? Colors.white.withValues(alpha: 0.12)
-        : Colors.black.withValues(alpha: 0.06);
-
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       physics: const BouncingScrollPhysics(),
@@ -49,18 +42,14 @@ class FeatureHighlightsBar extends StatelessWidget {
             margin: const EdgeInsets.only(left: 8, right: 2),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: bgColor,
+              color: palette.highlightBackground,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: borderColor),
+              border: Border.all(color: palette.highlightBorder),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  icon,
-                  size: 16,
-                  color: const Color(0xFFFF6B00),
-                ),
+                Icon(icon, size: 16, color: const Color(0xFFFF6B00)),
                 const SizedBox(width: 6),
                 Text(
                   title,
@@ -68,7 +57,7 @@ class FeatureHighlightsBar extends StatelessWidget {
                     fontFamily: isArabic ? 'Cairo' : 'Poppins',
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: textColor,
+                    color: palette.highlightText,
                   ),
                 ),
               ],

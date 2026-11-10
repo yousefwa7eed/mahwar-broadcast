@@ -5,6 +5,7 @@ import 'package:mahwar/l10n/app_localizations.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/settings/app_settings_cubit.dart';
 import '../../core/settings/app_settings_state.dart';
+import '../../core/widgets/support_dialog.dart';
 
 // ──────────────────────────────────────────
 //  Shared Legal Screen Shell
@@ -218,12 +219,34 @@ class _LegalScreen extends StatelessWidget {
                             const SizedBox(height: 10),
                             Text(
                               l10n?.legalContactBody ??
-                                  'إذا كان لديك أي استفسارات حول هذه السياسة، يرجى التواصل معنا على:\nsupport@mahwar.app\nأو الاتصال بخط الدعم: 19000',
+                                  'إذا كان لديك أي استفسارات أو شكاوى، يرجى التواصل معنا عبر البريد الإلكتروني:\nsupport@mahwar.app',
                               style: TextStyle(
                                 fontFamily: isArabic ? 'Cairo' : 'Poppins',
                                 fontSize: 13,
                                 height: 1.8,
                                 color: secondary,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(color: accentColor),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                onPressed: () => showSupportDialog(context),
+                                icon: Icon(Icons.email_outlined, color: accentColor, size: 18),
+                                label: Text(
+                                  isArabic ? 'إرسال شكوى أو اقتراح' : 'Send Complaint or Suggestion',
+                                  style: TextStyle(
+                                    fontFamily: isArabic ? 'Cairo' : 'Poppins',
+                                    fontWeight: FontWeight.bold,
+                                    color: accentColor,
+                                  ),
+                                ),
                               ),
                             ),
                           ],

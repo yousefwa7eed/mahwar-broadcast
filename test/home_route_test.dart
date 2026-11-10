@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mahwar/core/auth/home_route.dart';
+import 'package:mahwar/core/auth/role_gate.dart';
 
 void main() {
   test(
@@ -104,5 +105,40 @@ void main() {
         isNull,
       );
     });
+  });
+
+  group('safeInternalRoute — مسار الرجوع من رابط خارجي', () {
+    test('يقبل المسارات الداخلية مع الاستعلام', () {
+      expect(
+        safeInternalRoute('/provider/profile?providerId=p-1'),
+        '/provider/profile?providerId=p-1',
+      );
+      expect(safeInternalRoute('/orders/owner'), '/orders/owner');
+    });
+
+    test('يرفض القيم الفارغة والمسارات النسبية', () {
+      expect(safeInternalRoute(null), isNull);
+      expect(safeInternalRoute(''), isNull);
+      expect(safeInternalRoute('   '), isNull);
+      expect(safeInternalRoute('provider/profile'), isNull);
+    });
+
+    test('يرفض أي مخطط أو سلطة (منع القفز خارج التطبيق)', () {
+      expect(safeInternalRoute('https://evil.example'), isNull);
+      expect(safeInternalRoute('javascript:alert(1)'), isNull);
+      expect(safeInternalRoute('//evil.example/path'), isNull);
+      expect(safeInternalRoute('/\\evil.example'), isNull);
+    });
+  });
+
+  test('loginRouteWithNext يحافظ على الدور ويرمّز مسار الرجوع', () {
+    final route = loginRouteWithNext(
+      role: AppRole.carOwner,
+      next: '/provider/profile?providerId=p-1',
+    );
+
+    expect(route, startsWith('/login?role=car_owner&next='));
+    final next = Uri.parse(route).queryParameters['next'];
+    expect(next, '/provider/profile?providerId=p-1');
   });
 }

@@ -3,11 +3,14 @@
 // ولا فيض على عرض ضيق مع خط كبير، والبطاقة تعمل ببيانات محقونة بلا Supabase.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mahwar/core/models/order.dart';
 import 'package:mahwar/core/widgets/order_history_card.dart';
 import 'package:mahwar/core/widgets/order_meta_row.dart';
+import 'package:mahwar/features/provider_home/widgets/active_order_card.dart';
+import 'package:mahwar/features/provider_home/widgets/order_live_badge.dart';
 import 'package:mahwar/l10n/app_localizations.dart';
 
 Widget _wrap(Widget child, {required Locale locale, double width = 320}) {
@@ -82,6 +85,67 @@ void main() {
         expect(tester.takeException(), isNull);
       });
     }
+  });
+
+  group('OrderMetaRow — Middle على 320x568 بخط 1.3', () {
+    // متطلب Stage 3: الشارة الحيّة (middle) لا تفجّر الصف على أصغر
+    // شاشة مستهدفة مع خط النظام الكبير — تُقتطع بـ ellipsis ولا تختفي.
+    Future<void> pumpCard(WidgetTester tester, Locale locale) async {
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: locale,
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: MediaQuery(
+            data: const MediaQueryData(textScaler: TextScaler.linear(1.3)),
+            child: Scaffold(
+              body: SingleChildScrollView(
+                child: ActiveOrderCard(
+                  customerName: 'أحمد محمود عبدالرحمن',
+                  carMake: 'Toyota',
+                  carModel: 'Corolla',
+                  carYear: 2020,
+                  issueType: 'ونش إنقاذ',
+                  address: 'شارع التحرير، وسط البلد، القاهرة',
+                  status: OrderStatus.priced,
+                  statusLabel: 'تم تقديم عرض السعر بانتظار التأكيد',
+                  offeredPrice: 123456,
+                  createdAt: DateTime.now().toUtc().subtract(const Duration(minutes: 4)),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+    }
+
+    bool liveBadgeTruncated(WidgetTester tester) {
+      final badgeFinder = find.byType(OrderLiveBadge);
+      final paragraph = tester.renderObject<RenderParagraph>(
+        find.descendant(of: badgeFinder, matching: find.byType(Text)).first,
+      );
+      return paragraph.didExceedMaxLines;
+    }
+
+    testWidgets('ar: لا فيض، والشارة الحيّة ظاهرة (مقتطعة إن لزم)', (tester) async {
+      await pumpCard(tester, const Locale('ar'));
+      expect(tester.takeException(), isNull);
+      expect(find.byType(OrderLiveBadge), findsOneWidget);
+      debugPrint('320x568@1.3 ar — live badge truncated: ${liveBadgeTruncated(tester)}');
+    });
+
+    testWidgets('en: لا فيض، والشارة الحيّة ظاهرة (مقتطعة إن لزم)', (tester) async {
+      await pumpCard(tester, const Locale('en'));
+      expect(tester.takeException(), isNull);
+      expect(find.byType(OrderLiveBadge), findsOneWidget);
+      debugPrint('320x568@1.3 en — live badge truncated: ${liveBadgeTruncated(tester)}');
+    });
   });
 
   group('OrderHistoryCard — بيانات محقونة', () {

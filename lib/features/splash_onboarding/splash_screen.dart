@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/auth/auth_cubit.dart';
 import '../../core/auth/role_hint_cache.dart';
 import '../../core/auth/role_gate.dart';
+import '../../core/constants/app_colors.dart';
 import '../../l10n/app_localizations.dart';
 import 'widgets/splash_animation_widget.dart';
 import 'widgets/splash_logo_widget.dart';
@@ -26,13 +27,52 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  static const Duration _fadeInDuration = Duration(milliseconds: 650);
+  static const Duration _fadeOutDuration = Duration(milliseconds: 300);
+
   SplashStatus _status = SplashStatus.initial;
+
+  late final AnimationController _fadeController;
+  late final CurvedAnimation _fade;
+  late final Animation<double> _scale;
+  bool _leaving = false;
 
   @override
   void initState() {
     super.initState();
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: _fadeInDuration,
+      reverseDuration: _fadeOutDuration,
+    );
+    _fade = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+    _scale = Tween<double>(begin: 0.96, end: 1).animate(_fade);
+    _fadeController.forward();
     _bootstrap();
+  }
+
+  @override
+  void dispose() {
+    _fade.dispose();
+    _fadeController.dispose();
+    super.dispose();
+  }
+
+  /// تلاشٍ ناعم للخروج قبل التوجيه، ثم الانتقال للوجهة.
+  Future<void> _leave(String location) async {
+    if (_leaving) return;
+    _leaving = true;
+    if (!_fadeController.isDismissed) {
+      await _fadeController.reverse();
+    }
+    if (!mounted) return;
+    context.go(location);
   }
 
   /// تدفّق الإقلاع الصارم:
@@ -54,7 +94,7 @@ class _SplashScreenState extends State<SplashScreen> {
       await cubit.signOut();
       await RoleHintCache().clear();
       if (!mounted) return;
-      context.go('/select-user-type');
+      await _leave('/select-user-type');
       return;
     } catch (_) {
       // تعذّر التحقّق (شبكة) → حالة خطأ قابلة لإعادة المحاولة.
@@ -67,7 +107,7 @@ class _SplashScreenState extends State<SplashScreen> {
       // لا مستخدم خادمي → لا جلسة صالحة.
       await RoleHintCache().clear();
       if (!mounted) return;
-      context.go('/select-user-type');
+      await _leave('/select-user-type');
       return;
     }
 
@@ -92,7 +132,7 @@ class _SplashScreenState extends State<SplashScreen> {
     // ونوجّه حسب الدور الخادمي حتى لو اختلف عن الـ hint المخزّن مسبقًا.
     await RoleHintCache().write(role);
     if (!mounted) return;
-    context.go(role.homeRoute);
+    await _leave(role.homeRoute);
   }
 
   void _onRetry() {
@@ -110,6 +150,7 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget _buildError() {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
+      backgroundColor: AppColors.splashBackground,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -142,17 +183,31 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Widget _buildSkeleton() {
     // هيكل الإقلاع فقط — لا يُعرض أي دور للمستخدم.
-    return const Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SplashAnimationWidget(),
-            SplashLogoWidget(),
-            SizedBox(height: 8),
-            SplashVersionWidget(versionText: 'v1.0.0'),
-            SizedBox(height: 24),
-          ],
+    // الخلفية مطابقة لخلفية الـ GIF حتى لا تظهر حواف المربّع، والنصوص في الأسفل.
+    return Scaffold(
+      backgroundColor: AppColors.splashBackground,
+      body: SafeArea(
+        child: FadeTransition(
+          opacity: _fade,
+          child: ScaleTransition(
+            scale: _scale,
+            child: const Column(
+              children: [
+                Expanded(child: Center(child: SplashAnimationWidget())),
+                Padding(
+                  padding: EdgeInsetsDirectional.only(bottom: 40),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SplashLogoWidget(),
+                      SizedBox(height: 10),
+                      SplashVersionWidget(versionText: 'v1.0.0'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

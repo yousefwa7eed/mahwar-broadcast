@@ -165,13 +165,17 @@ class TransactionSummaryCard extends StatelessWidget {
               const Icon(Icons.receipt_long_rounded,
                   color: AppColors.orangePrimary, size: 22),
               const SizedBox(width: 8),
-              Text(
-                l10n?.transactionSummaryTitle ?? 'ملخّص المعاملة',
-                style: TextStyle(
-                  fontFamily: 'Zain',
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: textPrimary,
+              Flexible(
+                child: Text(
+                  l10n?.transactionSummaryTitle ?? 'ملخّص المعاملة',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: 'Zain',
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: textPrimary,
+                  ),
                 ),
               ),
             ],

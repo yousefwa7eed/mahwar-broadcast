@@ -26,6 +26,10 @@ import '../../features/orders_history/orders_history_screen.dart';
 import '../../features/orders/provider_order_details_screen.dart';
 import '../../features/provider_selection/nearby_providers_screen.dart';
 import '../../features/provider_selection/provider_details_screen.dart';
+import '../../features/provider_map/providers_map_screen.dart';
+import '../../features/provider_profile/provider_deep_link.dart';
+import '../../features/provider_profile/provider_public_profile_screen.dart';
+import '../../features/provider_profile/provider_qr_screen.dart';
 import '../../features/notifications/notifications_screen.dart';
 import '../../features/notifications/notification_detail_screen.dart';
 import '../../features/profile/profile_screen.dart';
@@ -91,6 +95,18 @@ Future<String?> appRedirect(BuildContext context, GoRouterState state) async {
   final phoneRedirect = await phoneVerificationRedirect(context, state);
   if (phoneRedirect != null) return phoneRedirect;
 
+  // روابط QR تصل بصيغة `mahwar://provider?id=…`: go_router يرى المضيف
+  // provider والمسار `/`، فلا يطابق أي GoRoute. نحوّلها هنا إلى الملف
+  // العام، وبدون جلسة نمر على شاشة الدخول مع مسار رجوع آمن.
+  if (isProviderDeepLink(state.uri)) {
+    final target = providerProfileTargetFromUri(state.uri);
+    if (target == null) return '/select-user-type';
+    if (!cubit.hasSession) {
+      return loginRouteWithNext(role: AppRole.carOwner, next: target);
+    }
+    return target;
+  }
+
   final path = state.matchedLocation;
   if (path != AppRole.carOwner.homeRoute &&
       path != AppRole.provider.homeRoute) {
@@ -131,22 +147,45 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/select-user-type',
       name: 'select-user-type',
-      builder: (context, state) => const SelectUserTypeScreen(),
+      // انتقال ناعم عند فتح الشاشة: شفافية + انزلاق خفيف لأعلى.
+      pageBuilder: (context, state) => CustomTransitionPage(
+        key: state.pageKey,
+        child: const SelectUserTypeScreen(),
+        transitionDuration: const Duration(milliseconds: 420),
+        reverseTransitionDuration: const Duration(milliseconds: 320),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
+          return FadeTransition(
+            opacity: curved,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.04),
+                end: Offset.zero,
+              ).animate(curved),
+              child: child,
+            ),
+          );
+        },
+      ),
     ),
     GoRoute(
       path: '/login',
       name: 'login',
       // نقطة دخول مقيّدة بالدور: بدون دور صالح نعيد المستخدم لاختيار النوع
       // بدلاً من افتراض car_owner بصمت.
-      redirect: (context, state) => AppRole.tryParse(
-                state.uri.queryParameters['role'],
-              ) ==
-              null
+      redirect: (context, state) =>
+          AppRole.tryParse(state.uri.queryParameters['role']) == null
           ? '/select-user-type'
           : null,
       builder: (context, state) {
         final role = AppRole.tryParse(state.uri.queryParameters['role'])!;
-        return LoginScreen(role: role.dbValue);
+        return LoginScreen(
+          role: role.dbValue,
+          next: state.uri.queryParameters['next'],
+        );
       },
     ),
     GoRoute(
@@ -232,6 +271,11 @@ final GoRouter appRouter = GoRouter(
             double.tryParse(state.uri.queryParameters['lng'] ?? '') ?? 0;
         return NearbyProvidersScreen(serviceId: serviceId, lat: lat, lng: lng);
       },
+    ),
+    GoRoute(
+      path: '/request/providers-map',
+      name: 'request-providers-map',
+      builder: (context, state) => const ProvidersMapScreen(),
     ),
     GoRoute(
       path: '/request/provider-details',
@@ -322,6 +366,22 @@ final GoRouter appRouter = GoRouter(
       path: '/provider/workshop',
       name: 'provider-workshop',
       builder: (context, state) => const EditWorkshopScreen(),
+    ),
+    GoRoute(
+      path: '/provider/profile',
+      name: 'provider-public-profile',
+      builder: (context, state) {
+        final providerId = state.uri.queryParameters['providerId'] ?? '';
+        return ProviderPublicProfileScreen(providerId: providerId);
+      },
+    ),
+    GoRoute(
+      path: '/provider/qr',
+      name: 'provider-qr',
+      builder: (context, state) {
+        final providerId = state.uri.queryParameters['providerId'] ?? '';
+        return ProviderQrScreen(providerId: providerId);
+      },
     ),
     GoRoute(
       path: '/provider/specialties',

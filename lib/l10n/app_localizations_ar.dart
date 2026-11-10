@@ -1330,6 +1330,41 @@ class AppLocalizationsAr extends AppLocalizations {
   String get noNearbyProviders => 'لا يوجد مزودون متاحون قريباً';
 
   @override
+  String get nearbyMapEntryTitle => 'المزوّدون حولك على الخريطة';
+
+  @override
+  String get nearbyMapEntrySubtitle =>
+      'شوف الورش والمزوّدين المتاحين حوالين موقعك';
+
+  @override
+  String get providersMapTitle => 'المزوّدون حولك';
+
+  @override
+  String providersMapCount(int count) {
+    return 'متاح الآن: $count مزوّد';
+  }
+
+  @override
+  String get providersMapEmpty =>
+      'لا يوجد مزوّدون متاحون حاليًا — جرّب تحديث الخريطة بعد قليل';
+
+  @override
+  String get providersMapLocationFailed =>
+      'تعذّر تحديد موقعك. فعّل خدمة الموقع ثم أعد المحاولة.';
+
+  @override
+  String get providersMapLoadFailed => 'تعذّر تحميل المزوّدين على الخريطة.';
+
+  @override
+  String get providersMapRefresh => 'تحديث';
+
+  @override
+  String get providersMapRecenter => 'العودة لموقعي';
+
+  @override
+  String get providersMapViewProfile => 'عرض الملف';
+
+  @override
   String mapLoadFailed(String error) {
     return 'تعذّر تحميل بيانات الخريطة: $error';
   }
@@ -2428,4 +2463,142 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get rpcErrorInvalidPlate =>
       'بيانات اللوحة غير صحيحة. استخدم 3 حروف و3 أو 4 أرقام.';
+
+  @override
+  String get providerPublicProfileTitle => 'ملف المزوّد';
+
+  @override
+  String get viewProviderProfileAndReviews => 'الملف الشخصي والتقييمات';
+
+  @override
+  String providerCompletedOrdersCount(int count) {
+    return '$count طلب مكتمل';
+  }
+
+  @override
+  String get providerReviewsTitle => 'آراء العملاء';
+
+  @override
+  String get providerReviewsEmpty => 'لا توجد آراء بعد';
+
+  @override
+  String get providerReviewsLoadMore => 'عرض المزيد';
+
+  @override
+  String get providerReviewAnonymous => 'عميل محور';
+
+  @override
+  String get providerProfileLoadFailed => 'تعذّر تحميل ملف المزوّد';
+
+  @override
+  String get providerPublicProfileMenu => 'ملفي العام';
+
+  @override
+  String get providerQrTitle => 'رمز QR الخاص بي';
+
+  @override
+  String get providerQrBody =>
+      'اطبع هذا الرمز ليتمكن العملاء من فتح ملفك العام وتقييمك.';
+
+  @override
+  String get providerQrShare => 'مشاركة / حفظ الصورة';
+
+  @override
+  String get providerQrShareFailed => 'تعذّر مشاركة الصورة';
+
+  @override
+  String get providerQrScanHint => 'امسح الرمز لعرض ملف الورشة والتقييمات';
+
+  @override
+  String get supportInboxSubtitle =>
+      'رسالتك تصل لفريق الدعم داخل التطبيق، وتقدر تتابع الرد من «تذاكراتي».';
+
+  @override
+  String get supportLink => 'الدعم';
+
+  @override
+  String get supportNewMessage => 'رسالة جديدة';
+
+  @override
+  String get supportMyTickets => 'تذاكراتي';
+
+  @override
+  String get supportTicketsEmpty => 'لا توجد رسائل سابقة';
+
+  @override
+  String get supportTicketsLoadFailed => 'تعذّر تحميل رسائلك السابقة';
+
+  @override
+  String get supportSendButton => 'إرسال الرسالة';
+
+  @override
+  String get supportSendSuccess => 'تم إرسال رسالتك';
+
+  @override
+  String supportTicketNumber(String id) {
+    return 'رقم التذكرة: $id';
+  }
+
+  @override
+  String get supportFollowReplyHint =>
+      'تقدر تتابع رد فريق الدعم من «تذاكراتي» في أي وقت.';
+
+  @override
+  String get supportSendAnother => 'إرسال رسالة أخرى';
+
+  @override
+  String get supportAttachmentNeedsLogin =>
+      'لإرفاق صورة، سجّل الدخول أولًا. يمكنك إرسال الرسالة بدون مرفق الآن.';
+
+  @override
+  String get supportAttachmentUploadFailed =>
+      'تعذّر رفع الصورة المرفقة. جرّب صورة أخرى أو أرسل بدون مرفق.';
+
+  @override
+  String get supportAttachmentTooLarge => 'حجم الصورة أكبر من 10 ميجابايت.';
+
+  @override
+  String get supportAttachmentUnsupported =>
+      'صيغة الصورة غير مدعومة. استخدم JPG أو PNG أو WebP.';
+
+  @override
+  String get supportStatusOpen => 'قيد المراجعة';
+
+  @override
+  String get supportStatusReplied => 'تم الرد';
+
+  @override
+  String get supportStatusClosed => 'مغلقة';
+
+  @override
+  String get supportReplyLabel => 'رد فريق الدعم';
+
+  @override
+  String get rpcErrorSupportInvalidKind => 'نوع الرسالة غير صحيح.';
+
+  @override
+  String get rpcErrorSupportInvalidSubject =>
+      'عنوان الموضوع يجب أن يكون بين 3 و120 حرفًا.';
+
+  @override
+  String get rpcErrorSupportInvalidBody =>
+      'نص الرسالة يجب أن يكون بين 10 و4000 حرف.';
+
+  @override
+  String get rpcErrorSupportInvalidCategory => 'التصنيف المختار طويل جدًا.';
+
+  @override
+  String get rpcErrorSupportInvalidContact =>
+      'تحقق من الاسم ورقم الهاتف (11 رقمًا يبدأ بـ 01).';
+
+  @override
+  String get rpcErrorSupportInvalidAttachment =>
+      'تعذّر التحقق من الصورة المرفقة. أعد رفعها وحاول مجددًا.';
+
+  @override
+  String get rpcErrorSupportRateLimited =>
+      'وصلت للحد الأقصى من الرسائل اليوم. حاول مرة أخرى لاحقًا.';
+
+  @override
+  String get rpcErrorUnauthenticated => 'يلزم تسجيل الدخول لعرض رسائلك.';
 }

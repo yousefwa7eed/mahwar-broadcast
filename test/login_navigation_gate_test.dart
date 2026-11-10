@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mahwar/core/auth/auth_cubit.dart' hide AuthState;
 import 'package:mahwar/core/settings/app_settings_cubit.dart';
 import 'package:mahwar/features/auth/login_screen.dart';
+import 'package:mahwar/features/auth/widgets/login_header_widget.dart';
 import 'package:mahwar/l10n/app_localizations.dart';
 
 import 'fakes/fake_auth_service.dart';
@@ -95,6 +96,34 @@ void main() {
         aud: 'authenticated',
         createdAt: 'now',
       );
+
+  for (final screenWidth in [600.0, 800.0, 1200.0]) {
+    testWidgets('بطاقة الدخول تتوسط شاشة بعرض $screenWidth', (tester) async {
+      tester.view.physicalSize = Size(screenWidth, 1200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final (app, _) = buildApp(FakeAuthService());
+      await tester.pumpWidget(app);
+      await tester.pumpAndSettle();
+
+      final cardFinder = find.ancestor(
+        of: find.byType(LoginHeaderWidget),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is Container &&
+              widget.constraints?.maxWidth == double.infinity,
+        ),
+      );
+      expect(cardFinder, findsOneWidget);
+
+      final cardCenterX = tester.getCenter(cardFinder).dx;
+      expect(cardCenterX, closeTo(screenWidth / 2, 0.1));
+
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
 
   testWidgets(
       'شاشة الدخول لا تتنقل حين تكون شاشة OTP أعلى منها، وتنتقل فقط حين تكون هي الأعلى',

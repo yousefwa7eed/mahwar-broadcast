@@ -17,6 +17,7 @@ part 'widgets/year_step.dart';
 part 'widgets/trim_step.dart';
 part 'widgets/color_step.dart';
 part 'widgets/plate_step.dart';
+part 'widgets/review_step.dart';
 
 /// معالج اختيار سيارة كامل من الكتالوج.
 ///
@@ -32,7 +33,8 @@ class VehiclePickerScreen extends StatefulWidget {
 }
 
 class _VehiclePickerScreenState extends State<VehiclePickerScreen> {
-  static const int _stepCount = 6;
+  static const int _stepCount = 7;
+  static const int _reviewStep = _stepCount - 1;
 
   final TextEditingController _digitsController = TextEditingController();
 
@@ -41,22 +43,24 @@ class _VehiclePickerScreenState extends State<VehiclePickerScreen> {
   bool _isLoading = true;
 
   int _step = 0;
+
+  /// عند التعديل من صفحة المراجعة نتخطى البنود المكتملة بدل إعادة المسار كله.
+  bool _editingFromReview = false;
+
   VehicleBrand? _brand;
   VehicleModel? _model;
   VehicleGeneration? _generation;
   int? _year;
   VehicleTrim? _trim;
   VehicleColor? _color;
-  String? _plateLetter1;
-  String? _plateLetter2;
-  String? _plateLetter3;
+  List<String> _plateLetters = <String>[];
 
   bool get _isArabic => Localizations.localeOf(context).languageCode == 'ar';
 
   @override
   void initState() {
     super.initState();
-    if (widget.initial != null) _step = _stepCount - 1;
+    if (widget.initial != null) _step = _reviewStep;
     _loadCatalog();
   }
 
@@ -101,13 +105,15 @@ class _VehiclePickerScreenState extends State<VehiclePickerScreen> {
     _year = initial.modelYear;
 
     final letters = initial.plateLetters;
-    if (letters != null && letters.length == 3) {
-      _plateLetter1 = letters[0];
-      _plateLetter2 = letters[1];
-      _plateLetter3 = letters[2];
+    if (letters != null) {
+      _plateLetters = letters.runes
+          .map(String.fromCharCode)
+          .where((letter) => letter.trim().isNotEmpty)
+          .toList();
     }
     if (initial.plateDigits != null) {
-      _digitsController.text = initial.plateDigits!;
+      // الحقل يعرض أرقامًا عربية-هندية دائمًا.
+      _digitsController.text = PlateUtils.toArabicIndic(initial.plateDigits!);
     }
   }
 
@@ -121,6 +127,49 @@ class _VehiclePickerScreenState extends State<VehiclePickerScreen> {
     _goTo(_step - 1);
   }
 
+  bool _isStepComplete(int step) {
+    switch (step) {
+      case 0:
+        return _brand != null;
+      case 1:
+        return _model != null;
+      case 2:
+        return _year != null;
+      case 3:
+        return _trim != null;
+      case 4:
+        return _color != null;
+      default:
+        // اللوحة اختيارية، فهي لا تحجب المراجعة.
+        return true;
+    }
+  }
+
+  /// من صفحة المراجعة: انتقل لخطوة البند المطلوب مع استكمال أي بند ناقص بعدها.
+  void _editFromReview(int step) {
+    setState(() {
+      _editingFromReview = true;
+      _step = step;
+    });
+  }
+
+  void _advanceFrom(int step) {
+    if (!_editingFromReview) {
+      setState(() => _step = step + 1);
+      return;
+    }
+    setState(() {
+      for (var next = step + 1; next < _reviewStep; next++) {
+        if (!_isStepComplete(next)) {
+          _step = next;
+          return;
+        }
+      }
+      _step = _reviewStep;
+      _editingFromReview = false;
+    });
+  }
+
   void _selectBrand(VehicleBrand brand) {
     setState(() {
       if (_brand?.id != brand.id) {
@@ -130,8 +179,8 @@ class _VehiclePickerScreenState extends State<VehiclePickerScreen> {
         _trim = null;
       }
       _brand = brand;
-      _step = 1;
     });
+    _advanceFrom(0);
   }
 
   void _selectModel(VehicleModel model) {
@@ -142,8 +191,8 @@ class _VehiclePickerScreenState extends State<VehiclePickerScreen> {
         _trim = null;
       }
       _model = model;
-      _step = 2;
     });
+    _advanceFrom(1);
   }
 
   /// سنوات الموديل كلها (اتحاد الأجيال)، الأحدث أولًا.
@@ -175,38 +224,53 @@ class _VehiclePickerScreenState extends State<VehiclePickerScreen> {
       if (_year != year) _trim = null;
       _year = year;
       _generation = generation;
-      _step = 3;
     });
+    _advanceFrom(2);
   }
 
   void _selectTrim(VehicleTrim trim) {
-    setState(() {
-      _trim = trim;
-      _step = 4;
-    });
+    setState(() => _trim = trim);
+    _advanceFrom(3);
   }
 
   void _selectColor(VehicleColor color) {
-    setState(() {
-      _color = color;
-      _step = 5;
-    });
+    setState(() => _color = color);
+    _advanceFrom(4);
   }
 
-  void _setPlateLetters(List<String?> letters) {
-    setState(() {
-      _plateLetter1 = letters[0];
-      _plateLetter2 = letters[1];
-      _plateLetter3 = letters[2];
-    });
+  void _setPlateLetters(List<String> letters) {
+    setState(() => _plateLetters = letters);
   }
 
   void _clearPlate() {
     setState(() {
-      _plateLetter1 = null;
-      _plateLetter2 = null;
-      _plateLetter3 = null;
+      _plateLetters = <String>[];
       _digitsController.clear();
+    });
+  }
+
+  /// يتحقق من تناسق اللوحة إن أُدخلت، ويعيد الحروف/الأرقام الجاهزة للحفظ.
+  ({String letters, String digits, bool hasPlate})? _readPlate() {
+    final l10n = AppLocalizations.of(context);
+    final letters = _plateLetters.join();
+    final digits = PlateUtils.toWesternDigits(_digitsController.text.trim());
+    final hasPlate = letters.isNotEmpty || digits.isNotEmpty;
+
+    if (hasPlate && !PlateUtils.isValidPlate(letters, digits)) {
+      _showMessage(
+        l10n?.vehiclePlateInvalid ??
+            'أدخل الحروف والأرقام معًا (حتى 5 حروف و7 أرقام)، أو امسح اللوحة',
+      );
+      return null;
+    }
+    return (letters: letters, digits: digits, hasPlate: hasPlate);
+  }
+
+  void _openReview() {
+    if (_readPlate() == null) return;
+    setState(() {
+      _editingFromReview = false;
+      _step = _reviewStep;
     });
   }
 
@@ -229,25 +293,8 @@ class _VehiclePickerScreenState extends State<VehiclePickerScreen> {
       return;
     }
 
-    final digits = PlateUtils.toWesternDigits(_digitsController.text.trim());
-    final hasPlate =
-        _plateLetter1 != null ||
-        _plateLetter2 != null ||
-        _plateLetter3 != null ||
-        digits.isNotEmpty;
-
-    if (hasPlate &&
-        !PlateUtils.isValidPlate(
-          _plateLetter1,
-          _plateLetter2,
-          _plateLetter3,
-          digits,
-        )) {
-      _showMessage(
-        l10n?.vehiclePlateInvalid ?? 'أدخل 3 حروف و3-4 أرقام، أو امسح اللوحة',
-      );
-      return;
-    }
+    final plate = _readPlate();
+    if (plate == null) return;
 
     Navigator.of(context).pop(
       VehicleSelection(
@@ -257,10 +304,8 @@ class _VehiclePickerScreenState extends State<VehiclePickerScreen> {
         trim: trim,
         modelYear: year,
         color: color,
-        plateLetters: hasPlate
-            ? '$_plateLetter1$_plateLetter2$_plateLetter3'
-            : null,
-        plateDigits: hasPlate ? digits : null,
+        plateLetters: plate.hasPlate ? plate.letters : null,
+        plateDigits: plate.hasPlate ? plate.digits : null,
       ),
     );
   }
@@ -331,15 +376,16 @@ class _VehiclePickerScreenState extends State<VehiclePickerScreen> {
           : Column(
               children: [
                 _ProgressHeader(step: _step, total: _stepCount),
-                _SelectionSummary(
-                  brand: _brand,
-                  model: _model,
-                  year: _year,
-                  trim: _trim,
-                  color: _color,
-                  isArabic: _isArabic,
-                  onTapStep: _goTo,
-                ),
+                if (_step != _reviewStep)
+                  _SelectionSummary(
+                    brand: _brand,
+                    model: _model,
+                    year: _year,
+                    trim: _trim,
+                    color: _color,
+                    isArabic: _isArabic,
+                    onTapStep: _goTo,
+                  ),
                 Expanded(
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 180),
@@ -347,9 +393,12 @@ class _VehiclePickerScreenState extends State<VehiclePickerScreen> {
                   ),
                 ),
                 _BottomBar(
-                  visible: _step == _stepCount - 1,
+                  visible: _step >= _reviewStep - 1,
                   enabled: _canProceed,
-                  onSave: _finish,
+                  label: _step == _reviewStep
+                      ? (l10n?.vehicleSave ?? 'حفظ السيارة')
+                      : (l10n?.vehicleReviewAction ?? 'مراجعة البيانات'),
+                  onPressed: _step == _reviewStep ? _finish : _openReview,
                 ),
               ],
             ),
@@ -399,13 +448,28 @@ class _VehiclePickerScreenState extends State<VehiclePickerScreen> {
           isArabic: _isArabic,
           onSelected: _selectColor,
         );
-      default:
+      case 5:
         return _PlateStep(
           key: const ValueKey('plate'),
-          letters: [_plateLetter1, _plateLetter2, _plateLetter3],
+          letters: _plateLetters,
           digitsController: _digitsController,
           onLettersChanged: _setPlateLetters,
           onClear: _clearPlate,
+        );
+      default:
+        return _ReviewStep(
+          key: const ValueKey('review'),
+          brand: _brand,
+          model: _model,
+          year: _year,
+          trim: _trim,
+          color: _color,
+          plateLetters: _plateLetters.join(),
+          plateDigits: PlateUtils.toWesternDigits(
+            _digitsController.text.trim(),
+          ),
+          isArabic: _isArabic,
+          onEdit: _editFromReview,
         );
     }
   }

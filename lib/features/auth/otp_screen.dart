@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:otp_autofill/otp_autofill.dart';
 
 import '../../core/auth/availability_check_guard.dart';
 import '../../core/auth/auth_cubit.dart';
@@ -59,6 +61,10 @@ class _OtpScreenState extends State<OtpScreen> {
   Timer? _ticker;
   Duration _cooldown = Duration.zero;
 
+  // Android SMS User Consent — يقرأ رسالة الـ OTP بعد موافقة المستخدم من غير
+  // إذن قراءة الرسائل. iOS يعتمد على الاقتراح الأصلي عبر AutofillHints أدناه.
+  final OTPInteractor _otpInteractor = OTPInteractor();
+
   @override
   void initState() {
     super.initState();
@@ -80,12 +86,16 @@ class _OtpScreenState extends State<OtpScreen> {
           if (mounted) _codeFocusNode.requestFocus();
         });
       }
+      _startUserConsent();
     }
   }
 
   @override
   void dispose() {
     _ticker?.cancel();
+    if (_isAndroid) {
+      _otpInteractor.stopListenForCode().catchError((_) => null);
+    }
     _codeController.removeListener(_onCodeChanged);
     _codeController.dispose();
     _codeFocusNode.dispose();
@@ -93,9 +103,37 @@ class _OtpScreenState extends State<OtpScreen> {
     super.dispose();
   }
 
+  bool get _isAndroid =>
+      defaultTargetPlatform == TargetPlatform.android && !kIsWeb;
+
+  /// يبدأ الاستماع لرسالة الـ OTP عبر User Consent على Android فقط. الرسالة
+  /// الكاملة تُرجَع بعد موافقة المستخدم، فنستخرج منها الكود المكوّن من
+  /// [_codeLength] رقمًا ونضعه في الحقل — فيُطلق [‎_onCodeChanged] التحقق تلقائيًا.
+  /// الفشل صامت: الإدخال اليدوي يظل متاحًا.
+  void _startUserConsent() {
+    if (!_isAndroid) return;
+    _otpInteractor
+        .startListenUserConsent()
+        .then((message) {
+          if (!mounted) return;
+          final code = _extractCode(message);
+          if (code != null) _codeController.text = code;
+        })
+        .catchError((_) {});
+  }
+
+  String? _extractCode(String? message) {
+    if (message == null) return null;
+    final match = RegExp('\\d{$_codeLength}').firstMatch(message);
+    return match?.group(0);
+  }
+
   void _startTicker() {
     _ticker?.cancel();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _syncCooldown());
+    _ticker = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _syncCooldown(),
+    );
   }
 
   void _syncCooldown() {
@@ -178,23 +216,24 @@ class _OtpScreenState extends State<OtpScreen> {
     setState(() => _isBusy = false);
 
     switch (widget.mode) {
-      case OtpMode.signup: {
-        // يُمرَّر الدور بنصه الفعلي في قاعدة البيانات (car_owner/provider)،
-        // ويُترجَم هنا إلى المسار المسجّل عبر الدالة الموحّدة — بدلاً من بناء
-        // مسار /home/$role قد لا يكون له مقابل في الـ router. بدون دور صالح
-        // لا نتنقل (بدل افتراض car_owner بصمت).
-        //
-        // بوابة توثيق الهاتف توجّه لجلسة غير موثّقة إلى هذه الشاشة بلا دور في
-        // الـ query؛ في هذه الحالة نقرأ الدور الحقيقي من الخادم قبل التنقل حتى
-        // لا يبقى المستخدم عالقًا بلا توجيه بعد نجاح التحقق.
-        var role = widget.role;
-        if (homeRouteForRole(role) == null) {
-          role = await cubit.resolveCurrentRole();
-          if (!mounted) return;
+      case OtpMode.signup:
+        {
+          // يُمرَّر الدور بنصه الفعلي في قاعدة البيانات (car_owner/provider)،
+          // ويُترجَم هنا إلى المسار المسجّل عبر الدالة الموحّدة — بدلاً من بناء
+          // مسار /home/$role قد لا يكون له مقابل في الـ router. بدون دور صالح
+          // لا نتنقل (بدل افتراض car_owner بصمت).
+          //
+          // بوابة توثيق الهاتف توجّه لجلسة غير موثّقة إلى هذه الشاشة بلا دور في
+          // الـ query؛ في هذه الحالة نقرأ الدور الحقيقي من الخادم قبل التنقل حتى
+          // لا يبقى المستخدم عالقًا بلا توجيه بعد نجاح التحقق.
+          var role = widget.role;
+          if (homeRouteForRole(role) == null) {
+            role = await cubit.resolveCurrentRole();
+            if (!mounted) return;
+          }
+          final homeRoute = homeRouteForRole(role);
+          if (homeRoute != null) context.go(homeRoute);
         }
-        final homeRoute = homeRouteForRole(role);
-        if (homeRoute != null) context.go(homeRoute);
-      }
       case OtpMode.changeNumber:
         context.pop();
       case OtpMode.forgot:
@@ -265,7 +304,8 @@ class _OtpScreenState extends State<OtpScreen> {
             PhoneUtils.normalize(currentPhone) == normalized) {
           setState(() {
             _isBusy = false;
-            _errorText = l10n?.changePhoneSameNumber ??
+            _errorText =
+                l10n?.changePhoneSameNumber ??
                 'هذا هو رقمك الحالي بالفعل. أدخل رقمًا مختلفًا.';
           });
           return;
@@ -275,15 +315,13 @@ class _OtpScreenState extends State<OtpScreen> {
         // كودًا لرقم غير متاح، والفشل مُغلق: أي خطأ/مهلة/حدّ معدّل في الفحص
         // يعني أن التفرّد لم يُتحقَّق منه ⇒ لا نرسل الكود ولا نربط الرقم.
         try {
-          final available =
-              await AvailabilityCheckGuard.instance.isPhoneAvailable(
-            normalized,
-            cubit.isPhoneAvailable,
-          );
+          final available = await AvailabilityCheckGuard.instance
+              .isPhoneAvailable(normalized, cubit.isPhoneAvailable);
           if (!available) {
             setState(() {
               _isBusy = false;
-              _errorText = l10n?.phoneAlreadyRegistered ??
+              _errorText =
+                  l10n?.phoneAlreadyRegistered ??
                   'رقم الهاتف مسجل بالفعل لدى مستخدم آخر';
             });
             return;
@@ -312,7 +350,8 @@ class _OtpScreenState extends State<OtpScreen> {
         if (ownerEmail != null && ownerEmail != cubit.currentUserEmail) {
           setState(() {
             _isBusy = false;
-            _errorText = l10n?.phoneAlreadyRegistered ??
+            _errorText =
+                l10n?.phoneAlreadyRegistered ??
                 'رقم الهاتف مسجل بالفعل لدى مستخدم آخر';
           });
           return;
@@ -329,6 +368,7 @@ class _OtpScreenState extends State<OtpScreen> {
         _codeController.clear();
       });
       _startTicker();
+      _startUserConsent();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _codeFocusNode.requestFocus();
       });
@@ -352,7 +392,9 @@ class _OtpScreenState extends State<OtpScreen> {
         return Scaffold(
           backgroundColor: isDarkMode ? const Color(0xFF121212) : Colors.white,
           appBar: AppBar(
-            backgroundColor: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+            backgroundColor: isDarkMode
+                ? const Color(0xFF1E1E1E)
+                : Colors.white,
             elevation: 0,
             leading: IconButton(
               icon: Icon(
@@ -387,7 +429,10 @@ class _OtpScreenState extends State<OtpScreen> {
   }
 
   Widget _buildCodeEntry(
-      bool isArabic, bool isDarkMode, AppLocalizations? l10n) {
+    bool isArabic,
+    bool isDarkMode,
+    AppLocalizations? l10n,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -439,6 +484,7 @@ class _OtpScreenState extends State<OtpScreen> {
                   controller: _codeController,
                   focusNode: _codeFocusNode,
                   keyboardType: TextInputType.number,
+                  autofillHints: const [AutofillHints.oneTimeCode],
                   inputFormatters: [
                     FilteringTextInputFormatter.digitsOnly,
                     LengthLimitingTextInputFormatter(_codeLength),
@@ -539,7 +585,12 @@ class _OtpScreenState extends State<OtpScreen> {
     );
   }
 
-  Widget _buildDigitBox(int index, {required String digit, required bool isDarkMode, required bool hasError}) {
+  Widget _buildDigitBox(
+    int index, {
+    required String digit,
+    required bool isDarkMode,
+    required bool hasError,
+  }) {
     return Container(
       width: 46,
       height: 56,
@@ -551,8 +602,8 @@ class _OtpScreenState extends State<OtpScreen> {
           color: hasError
               ? const Color(0xFFE53935)
               : _codeController.text.length == index && !_isBusy
-                  ? const Color(0xFFFF6B00)
-                  : Colors.transparent,
+              ? const Color(0xFFFF6B00)
+              : Colors.transparent,
           width: 1.6,
         ),
       ),
@@ -569,7 +620,10 @@ class _OtpScreenState extends State<OtpScreen> {
   }
 
   Widget _buildPhoneEntry(
-      bool isArabic, bool isDarkMode, AppLocalizations? l10n) {
+    bool isArabic,
+    bool isDarkMode,
+    AppLocalizations? l10n,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -589,9 +643,9 @@ class _OtpScreenState extends State<OtpScreen> {
         Text(
           widget.mode == OtpMode.forgot
               ? (l10n?.forgotPhoneEntrySubtitle ??
-                  'أدخل رقم الهاتف المرتبط بحسابك وسنرسل إليه رمز تحقق')
+                    'أدخل رقم الهاتف المرتبط بحسابك وسنرسل إليه رمز تحقق')
               : (l10n?.changeNumberSubTitle ??
-                  'أدخل رقم الهاتف الجديد وسنرسل إليه رمز تحقق'),
+                    'أدخل رقم الهاتف الجديد وسنرسل إليه رمز تحقق'),
           style: TextStyle(
             fontFamily: isArabic ? 'Cairo' : 'Poppins',
             fontSize: 14,
@@ -625,12 +679,17 @@ class _OtpScreenState extends State<OtpScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFFF6B00), width: 1.4),
+              borderSide: const BorderSide(
+                color: Color(0xFFFF6B00),
+                width: 1.4,
+              ),
             ),
             errorText: _errorText,
             errorMaxLines: 2,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
           ),
         ),
         if (_isBusy) ...[

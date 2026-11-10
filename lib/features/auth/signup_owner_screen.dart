@@ -7,6 +7,8 @@ import '../../core/auth/phone_utils.dart';
 import '../../core/auth/signup_error_mapper.dart';
 import '../../core/settings/app_settings_cubit.dart';
 import '../../core/settings/app_settings_state.dart';
+import '../../core/widgets/legal_footer.dart';
+import '../../core/widgets/support_dialog.dart';
 import '../../l10n/app_localizations.dart';
 import 'widgets/owner_signup_form_widget.dart';
 import 'widgets/error_dialog.dart';
@@ -99,6 +101,16 @@ class SignupOwnerScreen extends StatelessWidget {
                           vehicle: vehicle,
                         );
                       },
+                    ),
+                    const SizedBox(height: 24),
+                    LegalFooter(
+                      textColor: isDarkMode
+                          ? Colors.white70
+                          : Colors.grey.shade600,
+                      isArabic: isArabic,
+                      onSupportTap: () => showSupportDialog(context),
+                      onTermsTap: () => context.push('/terms'),
+                      onPrivacyTap: () => context.push('/privacy'),
                     ),
                   ],
                 ),

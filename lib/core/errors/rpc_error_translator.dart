@@ -34,6 +34,14 @@ class RpcErrorTranslator {
     'INVALID_MODEL_YEAR',
     'VEHICLE_COLOR_NOT_FOUND',
     'INVALID_PLATE',
+    'SUPPORT_INVALID_KIND',
+    'SUPPORT_INVALID_SUBJECT',
+    'SUPPORT_INVALID_BODY',
+    'SUPPORT_INVALID_CATEGORY',
+    'SUPPORT_INVALID_CONTACT',
+    'SUPPORT_INVALID_ATTACHMENT',
+    'SUPPORT_RATE_LIMITED',
+    'UNAUTHENTICATED',
   };
 
   /// ترجمة أي خطأ Supabase معكوس من دالة RPC إلى رسالة واضحة حسب [l10n].
@@ -123,6 +131,29 @@ class RpcErrorTranslator {
       case 'INVALID_PLATE':
         return l10n?.rpcErrorInvalidPlate ??
             'بيانات اللوحة غير صحيحة. استخدم 3 حروف و3 أو 4 أرقام.';
+      case 'SUPPORT_INVALID_KIND':
+        return l10n?.rpcErrorSupportInvalidKind ?? 'نوع الرسالة غير صحيح.';
+      case 'SUPPORT_INVALID_SUBJECT':
+        return l10n?.rpcErrorSupportInvalidSubject ??
+            'عنوان الموضوع يجب أن يكون بين 3 و120 حرفًا.';
+      case 'SUPPORT_INVALID_BODY':
+        return l10n?.rpcErrorSupportInvalidBody ??
+            'نص الرسالة يجب أن يكون بين 10 و4000 حرف.';
+      case 'SUPPORT_INVALID_CATEGORY':
+        return l10n?.rpcErrorSupportInvalidCategory ??
+            'التصنيف المختار طويل جدًا.';
+      case 'SUPPORT_INVALID_CONTACT':
+        return l10n?.rpcErrorSupportInvalidContact ??
+            'تحقق من الاسم ورقم الهاتف (11 رقمًا يبدأ بـ 01).';
+      case 'SUPPORT_INVALID_ATTACHMENT':
+        return l10n?.rpcErrorSupportInvalidAttachment ??
+            'تعذّر التحقق من الصورة المرفقة. أعد رفعها وحاول مجددًا.';
+      case 'SUPPORT_RATE_LIMITED':
+        return l10n?.rpcErrorSupportRateLimited ??
+            'وصلت للحد الأقصى من الرسائل اليوم. حاول مرة أخرى لاحقًا.';
+      case 'UNAUTHENTICATED':
+        return l10n?.rpcErrorUnauthenticated ??
+            'يلزم تسجيل الدخول لعرض رسائلك.';
       default:
         return null;
     }

@@ -1603,6 +1603,28 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
               ),
               _buildProfileOptionItem(
                 context,
+                icon: Icons.badge_outlined,
+                title: l10n?.providerPublicProfileMenu ?? 'ملفي العام',
+                isDark: isDark,
+                onTap: () {
+                  final providerId = _client.auth.currentUser?.id;
+                  if (providerId == null) return;
+                  context.push('/provider/profile?providerId=$providerId');
+                },
+              ),
+              _buildProfileOptionItem(
+                context,
+                icon: Icons.qr_code_2_rounded,
+                title: l10n?.providerQrTitle ?? 'رمز QR الخاص بي',
+                isDark: isDark,
+                onTap: () {
+                  final providerId = _client.auth.currentUser?.id;
+                  if (providerId == null) return;
+                  context.push('/provider/qr?providerId=$providerId');
+                },
+              ),
+              _buildProfileOptionItem(
+                context,
                 icon: Icons.lock_outline_rounded,
                 title: l10n?.changePassword ?? 'تغيير كلمة المرور',
                 isDark: isDark,

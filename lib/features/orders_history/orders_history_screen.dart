@@ -3,7 +3,11 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/models/order.dart';
+import '../../core/services/connectivity_service.dart';
+import '../../core/services/order_prefetch_service.dart';
+import '../../core/widgets/offline_view.dart';
 import '../../core/widgets/order_history_card.dart';
+import '../../core/widgets/skeletons.dart';
 import '../../l10n/app_localizations.dart';
 
 /// هل تاريخ المعاملة (created_at) في نفس اليوم المختار للفلترة؟
@@ -37,20 +41,43 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
 
   List<Order> _orders = [];
   bool _isLoading = true;
-  String? _error;
+
+  /// هل اكتمل تحميل ناجح (أو وُجدت لقطة جلب مسبق)؟ يمنع وميض السكيليتون
+  /// عند تحديث سجل فارغ معروض.
+  bool _ordersLoaded = false;
+
+  /// سبب فشل آخر تحميل — null بعد أي نجاح؛ لا يُعرض نص استثناء خام.
+  LoadFailure? _failure;
 
   @override
   void initState() {
     super.initState();
+    // لقطة الجلب المسبق: تُعرض فورًا ثم يُحدَّث السجل من الخادم في الخلفية.
+    final prefetch = OrderPrefetchService.instance;
+    final userId = _client.auth.currentUser?.id;
+    final cached = widget.forProvider
+        ? prefetch.providerOrdersFor(userId)
+        : prefetch.ownerOrdersFor(userId);
+    if (cached != null) {
+      _orders = cached;
+      _isLoading = false;
+      _ordersLoaded = true;
+    }
     _loadOrders();
   }
 
   Future<void> _loadOrders() async {
-    final l10n = AppLocalizations.of(context);
     final userId = _client.auth.currentUser?.id;
     if (userId == null) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
       return;
+    }
+
+    if (!_ordersLoaded && mounted) {
+      setState(() {
+        _isLoading = true;
+        _failure = null;
+      });
     }
 
     try {
@@ -62,20 +89,28 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
           .limit(50);
 
       final orders = response.map((json) => Order.fromJson(json)).toList();
+      final prefetch = OrderPrefetchService.instance;
+      if (widget.forProvider) {
+        prefetch.setProviderOrders(userId, orders);
+      } else {
+        prefetch.setOwnerOrders(userId, orders);
+      }
 
       if (mounted) {
         setState(() {
           _orders = orders;
           _isLoading = false;
+          _ordersLoaded = true;
+          _failure = null;
         });
       }
-    } catch (e) {
+    } catch (_) {
+      final failure = await classifyLoadFailure();
       if (mounted) {
         setState(() {
-          _error =
-              l10n?.orderHistoryLoadFailed(e.toString()) ??
-              'تعذّر تحميل السجل: $e';
           _isLoading = false;
+          // سجل قديم معروض أفضل من شاشة خطأ — يبقى ويُحدَّث في المحاولة التالية.
+          if (_orders.isEmpty) _failure = failure;
         });
       }
     }
@@ -173,12 +208,15 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
         ),
         centerTitle: true,
       ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.orangePrimary),
-            )
-          : _error != null
-          ? _buildError(context, isDark, l10n)
+      body: _isLoading && !_ordersLoaded
+          ? const OrderListSkeleton()
+          : _orders.isEmpty && _failure != null
+          ? _failure == LoadFailure.offline
+                ? OfflineView(onRetry: _loadOrders)
+                : LoadFailedView(
+                    message: l10n?.ordersLoadFailed ?? 'تعذّر تحميل الطلبات',
+                    onRetry: _loadOrders,
+                  )
           : Column(
               children: [
                 // Filter Tabs
@@ -303,47 +341,6 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
                 ),
               ],
             ),
-    );
-  }
-
-  Widget _buildError(
-    BuildContext context,
-    bool isDark,
-    AppLocalizations? l10n,
-  ) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-          const SizedBox(height: 12),
-          Text(
-            _error!,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'Cairo',
-              fontSize: 14,
-              color: isDark
-                  ? AppColors.darkTextSecondary
-                  : AppColors.lightTextSecondary,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _loadOrders,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.orangePrimary,
-            ),
-            child: Text(
-              l10n?.retry ?? 'إعادة المحاولة',
-              style: const TextStyle(
-                fontFamily: 'Cairo',
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 

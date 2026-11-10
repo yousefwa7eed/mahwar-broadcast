@@ -10,17 +10,23 @@ import '../../core/constants/app_colors.dart';
 import '../../core/errors/rpc_error_translator.dart';
 import '../../core/models/order.dart';
 import '../../core/notifications/notification_cubit.dart';
+import '../../core/services/connectivity_service.dart';
 import '../../core/services/location_service.dart';
+import '../../core/services/order_prefetch_service.dart';
 import '../../core/services/server_clock.dart';
 import '../../core/services/sound_effects_service.dart';
 import '../../core/settings/app_settings_cubit.dart';
 import '../../core/widgets/confirm_dialog.dart';
+import '../../core/widgets/offline_view.dart';
 import '../../core/widgets/profile_name_text.dart';
+import '../../core/widgets/skeletons.dart';
+import '../../core/widgets/support_dialog.dart';
 import '../../l10n/app_localizations.dart';
 import 'widgets/home_header.dart';
 import 'widgets/sos_emergency_banner.dart';
 import 'widgets/services_grid.dart';
 import 'widgets/active_order_widget.dart';
+import 'widgets/nearby_map_card.dart';
 import 'widgets/provider_rating_dialog.dart';
 import '../notifications/notification_actions.dart';
 
@@ -38,6 +44,13 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
 
   List<Order> _recentOrders = [];
   bool _isLoadingOrders = true;
+
+  /// هل اكتمل تحميل ناجح (أو وُجدت لقطة جلب مسبق)؟ يمنع وميض السكيليتون
+  /// عند تحديث قائمة فارغة معروضة.
+  bool _ordersLoaded = false;
+
+  /// سبب فشل آخر تحميل للطلبات — null بعد أي نجاح.
+  LoadFailure? _ordersFailure;
   String _addressText = '';
   bool _isLocatingAddress = false;
   RealtimeChannel? _ordersChannel;
@@ -54,6 +67,16 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // لقطة الجلب المسبق عند دخول التطبيق: تُعرض فورًا بدل شاشة تحميل،
+    // ثم يصل التحديث من الخادم في الخلفية دون إخفاء القائمة.
+    final cached = OrderPrefetchService.instance.ownerOrdersFor(
+      _client.auth.currentUser?.id,
+    );
+    if (cached != null) {
+      _recentOrders = cached;
+      _isLoadingOrders = false;
+      _ordersLoaded = true;
+    }
     _loadRecentOrders();
     _loadCurrentAddress();
     _subscribeToOrderChanges();
@@ -115,8 +138,16 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
   Future<void> _loadRecentOrders() async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) {
-      setState(() => _isLoadingOrders = false);
+      if (mounted) setState(() => _isLoadingOrders = false);
       return;
+    }
+
+    // سكيليتون فقط في التحميل الأول — لا نغطّي قائمة معروضة (ولو فارغة).
+    if (!_ordersLoaded && mounted) {
+      setState(() {
+        _isLoadingOrders = true;
+        _ordersFailure = null;
+      });
     }
 
     try {
@@ -128,6 +159,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
           .limit(20);
 
       final orders = response.map((json) => Order.fromJson(json)).toList();
+      OrderPrefetchService.instance.setOwnerOrders(userId, orders);
 
       _processOrderStatusTransitions(orders);
 
@@ -135,11 +167,19 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
         setState(() {
           _recentOrders = orders;
           _isLoadingOrders = false;
+          _ordersLoaded = true;
+          _ordersFailure = null;
         });
       }
-    } catch (e) {
+    } catch (_) {
+      final failure = await classifyLoadFailure();
       if (mounted) {
-        setState(() => _isLoadingOrders = false);
+        setState(() {
+          _isLoadingOrders = false;
+          // قائمة قديمة معروضة أهم من رسالة خطأ: نُبقيها ونكتفي بالجلب
+          // التالي (سحب للتحديث / عودة المقدمة).
+          if (_recentOrders.isEmpty) _ordersFailure = failure;
+        });
       }
     }
   }
@@ -374,6 +414,10 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
               ),
             ],
             const SizedBox(height: 16),
+            NearbyMapCard(
+              onTap: () => context.push('/request/providers-map'),
+            ),
+            const SizedBox(height: 16),
             ServicesGrid(
               onServiceTap: (service) {
                 context.push('/request/create?serviceId=${service.id}');
@@ -391,10 +435,17 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
     bool isDark,
     AppLocalizations? l10n,
   ) {
-    if (_isLoadingOrders) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.orangePrimary),
-      );
+    if (_isLoadingOrders && !_ordersLoaded) {
+      return const OrderListSkeleton();
+    }
+
+    if (_recentOrders.isEmpty && _ordersFailure != null) {
+      return _ordersFailure == LoadFailure.offline
+          ? OfflineView(onRetry: _loadRecentOrders)
+          : LoadFailedView(
+              message: l10n?.ordersLoadFailed ?? 'تعذّر تحميل الطلبات',
+              onRetry: _loadRecentOrders,
+            );
     }
 
     if (_recentOrders.isEmpty) {
@@ -595,11 +646,19 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
     AppLocalizations? l10n,
   ) {
     final state = context.watch<NotificationCubit>().state;
+    final cubit = context.read<NotificationCubit>();
 
-    if (state.isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.orangePrimary),
-      );
+    if (state.notifications.isEmpty && state.isLoading) {
+      return const NotificationListSkeleton();
+    }
+
+    if (state.notifications.isEmpty && state.errorCode != null) {
+      return state.errorCode == NotificationCubit.errorOffline
+          ? OfflineView(onRetry: () => cubit.loadNotifications(force: true))
+          : LoadFailedView(
+              message: l10n?.notificationsLoadFailed ?? 'تعذّر تحميل الإشعارات',
+              onRetry: () => cubit.loadNotifications(force: true),
+            );
     }
 
     if (state.notifications.isEmpty) {
@@ -631,7 +690,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
     }
 
     return RefreshIndicator(
-      onRefresh: () => context.read<NotificationCubit>().loadNotifications(),
+      onRefresh: () => cubit.loadNotifications(force: true),
       color: AppColors.orangePrimary,
       child: ListView(
         padding: const EdgeInsets.all(20),
@@ -793,43 +852,55 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
             ),
           ),
           const SizedBox(height: 32),
-          _buildProfileOption(
-            context,
-            icon: Icons.person_outline_rounded,
-            title: l10n?.profile ?? 'الملف الشخصي',
+          _buildProfileCardGroup(
             isDark: isDark,
-            onTap: () => context.push('/profile'),
-          ),
-          _buildProfileOption(
-            context,
-            icon: Icons.language_rounded,
-            title:
-                '${l10n?.languageLabel ?? 'اللغة'}: ${l10n?.currentLanguage ?? (isArabic ? 'العربية' : 'English')}',
-            isDark: isDark,
-            onTap: () => settingsCubit.toggleLocale(),
-          ),
-          _buildProfileOption(
-            context,
-            icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-            title: isArabic
-                ? (l10n?.lightMode ?? 'الوضع الفاتح')
-                : (l10n?.darkMode ?? 'الوضع الداكن'),
-            isDark: isDark,
-            onTap: () => settingsCubit.toggleTheme(),
-          ),
-          _buildProfileOption(
-            context,
-            icon: Icons.description_outlined,
-            title: l10n?.termsOfUse ?? 'شروط الاستخدام',
-            isDark: isDark,
-            onTap: () => context.push('/terms'),
-          ),
-          _buildProfileOption(
-            context,
-            icon: Icons.privacy_tip_outlined,
-            title: l10n?.privacyPolicy ?? 'سياسة الخصوصية',
-            isDark: isDark,
-            onTap: () => context.push('/privacy'),
+            children: [
+              _buildProfileOptionItem(
+                context,
+                icon: Icons.person_outline_rounded,
+                title: l10n?.profile ?? 'الملف الشخصي',
+                isDark: isDark,
+                onTap: () => context.push('/profile'),
+              ),
+              _buildProfileOptionItem(
+                context,
+                icon: Icons.language_rounded,
+                title:
+                    '${l10n?.languageLabel ?? 'اللغة'}: ${l10n?.currentLanguage ?? (isArabic ? 'العربية' : 'English')}',
+                isDark: isDark,
+                onTap: () => settingsCubit.toggleLocale(),
+              ),
+              _buildProfileOptionItem(
+                context,
+                icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                title: isArabic
+                    ? (l10n?.lightMode ?? 'الوضع الفاتح')
+                    : (l10n?.darkMode ?? 'الوضع الداكن'),
+                isDark: isDark,
+                onTap: () => settingsCubit.toggleTheme(),
+              ),
+              _buildProfileOptionItem(
+                context,
+                icon: Icons.headset_mic_outlined,
+                title: isArabic ? 'الدعم والشكاوى والاقتراحات' : 'Support & Complaints',
+                isDark: isDark,
+                onTap: () => showSupportDialog(context),
+              ),
+              _buildProfileOptionItem(
+                context,
+                icon: Icons.description_outlined,
+                title: l10n?.termsOfUse ?? 'شروط الاستخدام',
+                isDark: isDark,
+                onTap: () => context.push('/terms'),
+              ),
+              _buildProfileOptionItem(
+                context,
+                icon: Icons.privacy_tip_outlined,
+                title: l10n?.privacyPolicy ?? 'سياسة الخصوصية',
+                isDark: isDark,
+                onTap: () => context.push('/privacy'),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           SizedBox(
@@ -877,38 +948,72 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
     );
   }
 
-  Widget _buildProfileOption(
+  Widget _buildProfileCardGroup({
+    required bool isDark,
+    required List<Widget> children,
+  }) {
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor, width: 1),
+      ),
+      child: Column(
+        children: [
+          for (int i = 0; i < children.length; i++) ...[
+            children[i],
+            if (i < children.length - 1)
+              Divider(
+                height: 1,
+                thickness: 1,
+                indent: 56,
+                endIndent: 16,
+                color: borderColor,
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileOptionItem(
     BuildContext context, {
     required IconData icon,
     required String title,
     required bool isDark,
     required VoidCallback onTap,
   }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: Icon(icon, color: AppColors.orangePrimary),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontFamily: 'Cairo',
-            fontSize: 16,
-            color: isDark
-                ? AppColors.darkTextPrimary
-                : AppColors.lightTextPrimary,
-          ),
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: AppColors.orangePrimary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
         ),
-        trailing: Icon(
-          Icons.arrow_forward_ios_rounded,
-          size: 16,
-          color: isDark
-              ? AppColors.darkTextSecondary
-              : AppColors.lightTextSecondary,
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        tileColor: isDark ? AppColors.darkCard : AppColors.lightCard,
-        onTap: onTap,
+        child: Icon(icon, color: AppColors.orangePrimary, size: 20),
       ),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontFamily: 'Cairo',
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          color: isDark
+              ? AppColors.darkTextPrimary
+              : AppColors.lightTextPrimary,
+        ),
+      ),
+      trailing: Icon(
+        Icons.arrow_forward_ios_rounded,
+        size: 14,
+        color: isDark
+            ? AppColors.darkTextSecondary
+            : AppColors.lightTextSecondary,
+      ),
+      onTap: onTap,
     );
   }
 

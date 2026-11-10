@@ -95,10 +95,13 @@ class ProviderOfferCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // Distance & Time
-          Row(
+          // Distance & Time — Wrap بدل Row: الشريحتان تنتقلان لسطر جديد
+          // عند ضيق العرض/كبر الخط بدل الفيض.
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              if (distanceMeters != null) ...[
+              if (distanceMeters != null)
                 _buildInfoChip(
                   icon: Icons.location_on_outlined,
                   label: formatApproxDistance(
@@ -108,8 +111,6 @@ class ProviderOfferCard extends StatelessWidget {
                   ),
                   isDark: isDark,
                 ),
-                const SizedBox(width: 8),
-              ],
               _buildInfoChip(
                 icon: Icons.access_time_rounded,
                 label: '$estimatedMinutes ${l10n?.min ?? 'دقيقة'}',

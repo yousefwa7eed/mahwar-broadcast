@@ -1355,6 +1355,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noNearbyProviders => 'No providers available nearby';
 
   @override
+  String get nearbyMapEntryTitle => 'Providers around you on the map';
+
+  @override
+  String get nearbyMapEntrySubtitle =>
+      'See the workshops and providers available around your location';
+
+  @override
+  String get providersMapTitle => 'Providers around you';
+
+  @override
+  String providersMapCount(int count) {
+    return 'Available now: $count providers';
+  }
+
+  @override
+  String get providersMapEmpty =>
+      'No providers are available right now — try refreshing the map in a moment';
+
+  @override
+  String get providersMapLocationFailed =>
+      'Could not determine your location. Enable location services and try again.';
+
+  @override
+  String get providersMapLoadFailed => 'Could not load providers on the map.';
+
+  @override
+  String get providersMapRefresh => 'Refresh';
+
+  @override
+  String get providersMapRecenter => 'Back to my location';
+
+  @override
+  String get providersMapViewProfile => 'View profile';
+
+  @override
   String mapLoadFailed(String error) {
     return 'Couldn\'t load map data: $error';
   }
@@ -2475,4 +2510,145 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rpcErrorInvalidPlate =>
       'Invalid plate details. Use 3 letters and 3 or 4 digits.';
+
+  @override
+  String get providerPublicProfileTitle => 'Provider profile';
+
+  @override
+  String get viewProviderProfileAndReviews => 'Profile & reviews';
+
+  @override
+  String providerCompletedOrdersCount(int count) {
+    return '$count completed orders';
+  }
+
+  @override
+  String get providerReviewsTitle => 'Customer reviews';
+
+  @override
+  String get providerReviewsEmpty => 'No reviews yet';
+
+  @override
+  String get providerReviewsLoadMore => 'Show more';
+
+  @override
+  String get providerReviewAnonymous => 'Mahwar customer';
+
+  @override
+  String get providerProfileLoadFailed => 'Could not load the provider profile';
+
+  @override
+  String get providerPublicProfileMenu => 'My public profile';
+
+  @override
+  String get providerQrTitle => 'My QR code';
+
+  @override
+  String get providerQrBody =>
+      'Print this code so customers can open your public profile and rate you.';
+
+  @override
+  String get providerQrShare => 'Share / save image';
+
+  @override
+  String get providerQrShareFailed => 'Could not share the image';
+
+  @override
+  String get providerQrScanHint =>
+      'Scan the code to open the workshop profile and reviews';
+
+  @override
+  String get supportInboxSubtitle =>
+      'Your message reaches our support team inside the app, and you can follow the reply from \"My tickets\".';
+
+  @override
+  String get supportLink => 'Support';
+
+  @override
+  String get supportNewMessage => 'New message';
+
+  @override
+  String get supportMyTickets => 'My tickets';
+
+  @override
+  String get supportTicketsEmpty => 'No previous messages yet';
+
+  @override
+  String get supportTicketsLoadFailed =>
+      'Could not load your previous messages';
+
+  @override
+  String get supportSendButton => 'Send message';
+
+  @override
+  String get supportSendSuccess => 'Your message was sent';
+
+  @override
+  String supportTicketNumber(String id) {
+    return 'Ticket number: $id';
+  }
+
+  @override
+  String get supportFollowReplyHint =>
+      'You can follow the support team\'s reply from \"My tickets\" at any time.';
+
+  @override
+  String get supportSendAnother => 'Send another message';
+
+  @override
+  String get supportAttachmentNeedsLogin =>
+      'Sign in to attach an image. You can still send the message without an attachment now.';
+
+  @override
+  String get supportAttachmentUploadFailed =>
+      'Could not upload the attached image. Try another image or send without an attachment.';
+
+  @override
+  String get supportAttachmentTooLarge => 'The image is larger than 10 MB.';
+
+  @override
+  String get supportAttachmentUnsupported =>
+      'Unsupported image format. Use JPG, PNG, or WebP.';
+
+  @override
+  String get supportStatusOpen => 'Under review';
+
+  @override
+  String get supportStatusReplied => 'Replied';
+
+  @override
+  String get supportStatusClosed => 'Closed';
+
+  @override
+  String get supportReplyLabel => 'Support team reply';
+
+  @override
+  String get rpcErrorSupportInvalidKind => 'Invalid message type.';
+
+  @override
+  String get rpcErrorSupportInvalidSubject =>
+      'The subject must be between 3 and 120 characters.';
+
+  @override
+  String get rpcErrorSupportInvalidBody =>
+      'The message must be between 10 and 4000 characters.';
+
+  @override
+  String get rpcErrorSupportInvalidCategory =>
+      'The selected category is too long.';
+
+  @override
+  String get rpcErrorSupportInvalidContact =>
+      'Check the name and phone number (11 digits starting with 01).';
+
+  @override
+  String get rpcErrorSupportInvalidAttachment =>
+      'Could not verify the attached image. Upload it again and retry.';
+
+  @override
+  String get rpcErrorSupportRateLimited =>
+      'You reached today\'s message limit. Try again later.';
+
+  @override
+  String get rpcErrorUnauthenticated => 'Sign in to view your messages.';
 }

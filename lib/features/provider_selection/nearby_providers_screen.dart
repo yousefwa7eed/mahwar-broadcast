@@ -417,6 +417,8 @@ class _NearbyProvidersScreenState extends State<NearbyProvidersScreen> with Widg
                 children: [
                   Text(
                     p.workshopName.isNotEmpty ? p.workshopName : p.fullName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontFamily: 'Zain',
                       fontSize: 17,
@@ -427,6 +429,8 @@ class _NearbyProvidersScreenState extends State<NearbyProvidersScreen> with Widg
                   const SizedBox(height: 4),
                   Text(
                     p.fullName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontFamily: 'Cairo',
                       fontSize: 13,
@@ -462,12 +466,16 @@ class _NearbyProvidersScreenState extends State<NearbyProvidersScreen> with Widg
                     children: [
                       const Icon(Icons.star_rounded, size: 16, color: Colors.amber),
                       const SizedBox(width: 2),
-                      Text(
+                      Flexible(
+                        child: Text(
                           p.ratingLabel(l10n),
-                        style: TextStyle(
-                          fontFamily: 'Cairo',
-                          fontSize: 12,
-                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: 'Cairo',
+                            fontSize: 12,
+                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                          ),
                         ),
                       ),
                     ],
@@ -508,31 +516,37 @@ class _NearbyProvidersScreenState extends State<NearbyProvidersScreen> with Widg
               ),
             ),
             const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.success.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.location_on_outlined, size: 14, color: AppColors.success),
-                  const SizedBox(width: 2),
-                  Text(
-                    formatApproxDistance(
-                      p.distanceMeters,
-                      meterUnit: l10n?.m ?? 'م',
-                      kmUnit: l10n?.km ?? 'كم',
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.location_on_outlined, size: 14, color: AppColors.success),
+                    const SizedBox(width: 2),
+                    Flexible(
+                      child: Text(
+                        formatApproxDistance(
+                          p.distanceMeters,
+                          meterUnit: l10n?.m ?? 'م',
+                          kmUnit: l10n?.km ?? 'كم',
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: 'Cairo',
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.success,
+                        ),
+                      ),
                     ),
-                    style: const TextStyle(
-                      fontFamily: 'Cairo',
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.success,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],

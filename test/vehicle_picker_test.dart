@@ -98,7 +98,15 @@ class _PickerHandle {
   VehicleSelection? value;
 }
 
-Future<_PickerHandle> _openPicker(WidgetTester tester) async {
+Future<_PickerHandle> _openPicker(
+  WidgetTester tester, {
+  VehicleSelection? initial,
+}) async {
+  // شاشة طويلة حتى تُبنى شبكة الحروف كلها داخل القائمة الكسولة.
+  tester.view.physicalSize = const Size(800, 1800);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+
   VehicleCatalogService.instance.setCatalogForTesting(_catalog());
   addTearDown(() => VehicleCatalogService.instance.setCatalogForTesting(null));
 
@@ -116,7 +124,7 @@ Future<_PickerHandle> _openPicker(WidgetTester tester) async {
                 handle.value = await Navigator.of(context)
                     .push<VehicleSelection>(
                       MaterialPageRoute(
-                        builder: (_) => const VehiclePickerScreen(),
+                        builder: (_) => VehiclePickerScreen(initial: initial),
                       ),
                     );
               },
@@ -168,7 +176,11 @@ void main() {
     await _tap(tester, 'ستاندرد 1.6 لتر');
     await _tap(tester, 'أبيض');
 
-    // خطوة اللوحة اختيارية: نحفظ دون إدخالها.
+    // خطوة اللوحة اختيارية: نمرّ للمراجعة دون إدخالها.
+    await _tap(tester, 'مراجعة البيانات');
+    expect(find.text('راجع بيانات سيارتك'), findsOneWidget);
+    expect(find.text('لم تُضف (اختياري)'), findsOneWidget);
+
     await _tap(tester, 'حفظ السيارة');
 
     final result = handle.value;
@@ -211,6 +223,7 @@ void main() {
     // انتقلنا مباشرة إلى خطوة اللون.
     expect(find.text('أبيض'), findsOneWidget);
     await _tap(tester, 'أبيض');
+    await _tap(tester, 'مراجعة البيانات');
     await _tap(tester, 'حفظ السيارة');
 
     final result = handle.value;
@@ -234,21 +247,74 @@ void main() {
     expect(find.text('لوحة السيارة (اختياري)'), findsOneWidget);
 
     // الحروف تُضاف بترتيب النقر، واللوحة تعرضها مباشرة.
-    await _tapChip(tester, 'أ');
-    await _tapChip(tester, 'ب');
-    await _tapChip(tester, 'ج');
-    expect(find.text('أبج'), findsOneWidget);
+    await _tapChip(tester, 'د');
+    await _tapChip(tester, 'ك');
+    await _tapChip(tester, 'ل');
+    expect(_plateLetters(tester), ['د', 'ك', 'ل']);
 
-    // الأرقام تُكتب داخل اللوحة نفسها.
+    // الأرقام تُكتب داخل اللوحة نفسها وتظهر عربية-هندية.
     await tester.enterText(find.byType(TextField), '1234');
     await tester.pumpAndSettle();
+    expect(find.text('١٢٣٤'), findsOneWidget);
+
+    await _tap(tester, 'مراجعة البيانات');
+
+    // نفس اللوحة في المراجعة: حروف منفصلة وأرقام عربية-هندية.
+    expect(find.textContaining('د ك ل'), findsOneWidget);
+    expect(find.textContaining('١٢٣٤'), findsOneWidget);
 
     await _tap(tester, 'حفظ السيارة');
 
     final result = handle.value;
     expect(result, isNotNull);
-    expect(result!.plateLetters, 'أبج');
+    expect(result!.plateLetters, 'دكل');
     expect(result.plateDigits, '1234');
+  });
+
+  testWidgets('لوحة شاذة: حرف مكرر وعدد غير ثابت', (tester) async {
+    final handle = await _openPicker(tester);
+
+    await _tap(tester, 'تويوتا');
+    await _tap(tester, 'كورولا');
+    await tester.tap(find.text('2024'));
+    await tester.pumpAndSettle();
+    await _tap(tester, 'ستاندرد 1.6 لتر');
+    await _tap(tester, 'أبيض');
+
+    // حرف واحد مكرر مرتين + رقم واحد فقط.
+    await _tapChip(tester, 'د');
+    await _tapChip(tester, 'د');
+    expect(_plateLetters(tester), ['د', 'د']);
+
+    await tester.enterText(find.byType(TextField), '7');
+    await tester.pumpAndSettle();
+    await _tap(tester, 'مراجعة البيانات');
+    await _tap(tester, 'حفظ السيارة');
+
+    final result = handle.value;
+    expect(result, isNotNull);
+    expect(result!.plateLetters, 'دد');
+    expect(result.plateDigits, '7');
+  });
+
+  testWidgets('حذف آخر حرف يزيله من اللوحة', (tester) async {
+    await _openPicker(tester);
+
+    await _tap(tester, 'تويوتا');
+    await _tap(tester, 'كورولا');
+    await tester.tap(find.text('2024'));
+    await tester.pumpAndSettle();
+    await _tap(tester, 'ستاندرد 1.6 لتر');
+    await _tap(tester, 'أبيض');
+
+    await _tapChip(tester, 'ت');
+    await _tapChip(tester, 'ث');
+    await _tapChip(tester, 'ح');
+    expect(_plateLetters(tester), ['ت', 'ث', 'ح']);
+
+    await tester.tap(find.byIcon(Icons.backspace_outlined));
+    await tester.pumpAndSettle();
+    expect(_plateLetters(tester), ['ت', 'ث']);
   });
 
   testWidgets('مسح اللوحة يفرغ الحروف والأرقام', (tester) async {
@@ -266,13 +332,56 @@ void main() {
     await _tapChip(tester, 'ج');
     await tester.enterText(find.byType(TextField), '555');
     await tester.pumpAndSettle();
-    expect(find.text('أبج'), findsOneWidget);
 
     await _tap(tester, 'مسح');
 
-    final plate = tester.widget<EgyptianPlate>(find.byType(EgyptianPlate));
-    expect(plate.letters.whereType<String>(), isEmpty);
-    expect(find.text('أبج'), findsNothing);
-    expect(find.text('555'), findsNothing);
+    expect(_plateLetters(tester), isEmpty);
+    expect(find.text('٥٥٥'), findsNothing);
+  });
+
+  testWidgets('صفحة المراجعة تفتح على البيانات وتعدّل بندًا واحدًا', (
+    tester,
+  ) async {
+    final catalog = _catalog();
+    final brand = catalog.brands.first;
+    final model = brand.models.first;
+    final generation = model.generations[1];
+
+    final handle = await _openPicker(
+      tester,
+      initial: VehicleSelection(
+        brand: brand,
+        model: model,
+        generation: generation,
+        trim: generation.trims.first,
+        modelYear: 2024,
+        color: catalog.colors.first,
+      ),
+    );
+
+    // التعديل يفتح مباشرة على المراجعة بدل بداية المعالج.
+    expect(find.text('راجع بيانات سيارتك'), findsOneWidget);
+    expect(find.text('تويوتا'), findsOneWidget);
+    expect(find.text('كورولا'), findsOneWidget);
+    expect(find.text('2024'), findsOneWidget);
+    expect(find.text('ستاندرد 1.6 لتر'), findsOneWidget);
+    expect(find.text('أبيض'), findsOneWidget);
+
+    // «تعديل» اللون هو الخامس في القائمة (ماركة، موديل، سنة، فئة، لون).
+    await tester.tap(find.text('تعديل').at(4));
+    await tester.pumpAndSettle();
+    expect(find.text('أسود'), findsOneWidget);
+
+    await _tap(tester, 'أسود');
+
+    // بند مكتمل واحد يكفي للعودة للمراجعة دون إعادة المسار كله.
+    expect(find.text('راجع بيانات سيارتك'), findsOneWidget);
+    expect(find.text('أسود'), findsOneWidget);
+
+    await _tap(tester, 'حفظ السيارة');
+    expect(handle.value?.color.id, 'black');
   });
 }
+
+List<String> _plateLetters(WidgetTester tester) =>
+    tester.widget<EgyptianPlate>(find.byType(EgyptianPlate)).letters;

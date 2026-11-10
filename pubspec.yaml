@@ -42,8 +42,8 @@ dependencies:
   flutter_map: ^8.3.2
   latlong2: ^0.10.1
   equatable: ^2.0.7
-  firebase_core: any
-  firebase_messaging: any
+  firebase_core: ^4.14.0
+  firebase_messaging: ^16.6.0
   geolocator: ^14.0.2
   geocoding: ^5.0.0
   image_picker: ^1.2.3
@@ -56,6 +56,9 @@ dependencies:
   flutter_secure_storage: ^11.2.0
   audioplayers: ^6.8.1
   flutter_svg: ^2.3.0
+  otp_autofill: ^4.1.0
+  qr_flutter: ^4.1.0
+  share_plus: ^13.3.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

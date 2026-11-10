@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/auth/auth_cubit.dart';
 import '../../core/auth/home_route.dart';
 import '../../core/auth/signup_error_mapper.dart';
 import '../../core/settings/app_settings_cubit.dart';
 import '../../core/settings/app_settings_state.dart';
 import '../../core/theme/surface_palette.dart';
+import '../../core/widgets/legal_footer.dart';
+import '../../core/widgets/support_dialog.dart';
 import '../../l10n/app_localizations.dart';
 import 'widgets/login_header_widget.dart';
 import 'widgets/provider_signup_form_widget.dart';
@@ -97,6 +100,16 @@ class SignupProviderScreen extends StatelessWidget {
                         ],
                       ),
                       child: const ProviderSignupFormWidget(),
+                    ),
+                    const SizedBox(height: 24),
+                    LegalFooter(
+                      textColor: isDarkMode
+                          ? Colors.white70
+                          : Colors.grey.shade600,
+                      isArabic: isArabic,
+                      onSupportTap: () => showSupportDialog(context),
+                      onTermsTap: () => context.push('/terms'),
+                      onPrivacyTap: () => context.push('/privacy'),
                     ),
                     const SizedBox(height: 20),
                   ],
