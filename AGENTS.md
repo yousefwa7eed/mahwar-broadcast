@@ -176,18 +176,28 @@ in the same change.
 
 ## Known open TODOs
 
-- **Admin MFA is temporarily disabled.** `BUILD_SKIP_MFA = true` in `admin-dashboard/src/main.ts`
-  and server-side `is_admin()` is relaxed to match. The re-hardening migration
-  `20261017020099_restore_admin_security.sql` is **referenced in that comment but does not exist in
-  `supabase/migrations/`**. Re-hardening means writing that migration *and* flipping the flag.
+- **Admin MFA is enforced server-side again.** `is_admin()` restored its `auth.jwt() ->> 'aal' =
+  'aal2'` clause in migration `20261105183456_reharden_admin_aal2_and_strip_public_profile_phone.sql`
+  (applied to live as `20261105183456`), so `admin_*` RPCs now reject any `aal1` session regardless
+  of client. The only relaxation left is a **dev-only client convenience** in
+  `admin-dashboard/src/main.ts:20`: `SKIP_MFA = import.meta.env.DEV && VITE_SKIP_MFA === 'true'` —
+  it never bypasses the server, and production builds can't enable it.
 - Storage policy drift (see migrations section).
-- **Migration file/DB drift (measured 2026-10-21 against `supabase_migrations.schema_migrations`).**
-  92 migrations are applied live; `supabase/migrations/` holds 88 files. Only 19 filenames carry the
-  real applied version. 61 files have the right description but a synthetic round timestamp
-  (`…000000`, `…120000`), 14 applied migrations have no file at all
-  (`build_phase_relax_is_admin_temp`, `admin_rpc_require_admin_hotfix`, `fix_admin_page_paths_*`, …),
-  and 8 files have no applied migration by name. Two description pairs are duplicated in the repo
-  (`harden_order_state_transitions`, `role_locked_entrypoints`). Reconcile against
+- **Migration file/DB drift (re-measured 2026-11-06; the missing-file half was repaired).**
+  Live holds 106 applied migrations (`20260819000000` → `20261106151328`); `supabase/migrations/` now
+  holds 116 files. Every filename already follows `<14 digits>_<snake_case>.sql`, so the old
+  "synthetic round timestamp" wording described the timestamps, not a naming pattern: 69 files carry
+  a version that was never applied. The 14 applied migrations that had no repo file were restored on
+  2026-11-06 under their real applied versions (13 of 14 verified byte-identical to the live
+  `statements` by SHA256; the 14th differs only by a redacted literal). Two rows had a version
+  prefixed into their `name` (`20261013033942`, `20261013231450`); those names were corrected in the
+  DB the same day. Remaining after the repair: 61 files match an applied migration by description
+  only (including the duplicated descriptions `harden_order_state_transitions` and
+  `role_locked_entrypoints`), and 8 files have no applied migration at all. Four applied rows
+  (`20261027153017`, `…153322`, `…153726`, `…153913` — the vehicle catalog) store
+  `statements = NULL`, so they can never be regenerated from the DB; their repo files are the only
+  copy. The literal build-phase password in `20261016222714` was redacted from both the repo file and
+  the live `statements` row, and that account's password was rotated. Reconcile against
   `select version, name from supabase_migrations.schema_migrations` before renaming anything.
 - `delete-account` still uses the older `deno.land/std@0.224.0` + `esm.sh` import style while every
   other function uses `Deno.serve` + `jsr:@supabase/supabase-js@2`.
