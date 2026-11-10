@@ -4,37 +4,68 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/notification_model.dart';
+import '../services/connectivity_service.dart';
 import '../services/server_clock.dart';
 
 class NotificationsState extends Equatable {
   final List<NotificationModel> notifications;
   final int unreadCount;
+
+  /// تحميل أول بلا بيانات معروضة (تُعرض مكانه سكيليتون).
   final bool isLoading;
-  final String? error;
+
+  /// تحديث خلفي والقائمة المعروفة معروضة (لا تُخفى الواجهة).
+  final bool isRefreshing;
+
+  /// رمز خطأ مختصر (`offline` / `failed`) — لا يُعرض نص الخادم مباشرة.
+  final String? errorCode;
+
+  /// هل جُلبت القائمة مرة واحدة على الأقل لهذه الجلسة؟
+  final bool hasLoaded;
+
+  /// وقت آخر جلب ناجح — يمنع إعادة الجلب عند كل فتح للشاشة.
+  final DateTime? lastLoadedAt;
 
   const NotificationsState({
     this.notifications = const [],
     this.unreadCount = 0,
     this.isLoading = false,
-    this.error,
+    this.isRefreshing = false,
+    this.errorCode,
+    this.hasLoaded = false,
+    this.lastLoadedAt,
   });
 
   NotificationsState copyWith({
     List<NotificationModel>? notifications,
     int? unreadCount,
     bool? isLoading,
-    String? error,
+    bool? isRefreshing,
+    String? errorCode,
+    bool? hasLoaded,
+    DateTime? lastLoadedAt,
   }) {
     return NotificationsState(
       notifications: notifications ?? this.notifications,
       unreadCount: unreadCount ?? this.unreadCount,
       isLoading: isLoading ?? this.isLoading,
-      error: error,
+      isRefreshing: isRefreshing ?? this.isRefreshing,
+      errorCode: errorCode,
+      hasLoaded: hasLoaded ?? this.hasLoaded,
+      lastLoadedAt: lastLoadedAt ?? this.lastLoadedAt,
     );
   }
 
   @override
-  List<Object?> get props => [notifications, unreadCount, isLoading, error];
+  List<Object?> get props => [
+    notifications,
+    unreadCount,
+    isLoading,
+    isRefreshing,
+    errorCode,
+    hasLoaded,
+    lastLoadedAt,
+  ];
 }
 
 /// إدارة إشعارات التطبيق بمصدر واحد (جدول notifications):
@@ -72,54 +103,94 @@ class NotificationCubit extends Cubit<NotificationsState> {
     );
   }
 
-  Future<void> loadNotifications() async {
+  static const String errorOffline = 'offline';
+  static const String errorFailed = 'failed';
+
+  /// أقل مدة قبل إعادة الجلب عند إعادة فتح الشاشة — القائمة تبقى معروضة
+  /// والتحديث الحيّ (Realtime) يغطي الجديد، فلا داعي لجلب كامل كل فتح.
+  static const Duration refreshTtl = Duration(seconds: 30);
+
+  bool _isFetching = false;
+
+  /// هل يلزم الجلب؟ (force = سحب للتحديث أو إعادة محاولة صريحة)
+  @visibleForTesting
+  static bool shouldFetch({
+    required bool force,
+    required bool hasLoaded,
+    required DateTime? lastLoadedAt,
+    required DateTime now,
+    Duration ttl = refreshTtl,
+  }) {
+    if (force) return true;
+    if (!hasLoaded || lastLoadedAt == null) return true;
+    return now.difference(lastLoadedAt) >= ttl;
+  }
+
+  Future<void> loadNotifications({bool force = false}) async {
     final userId = _userId;
     if (userId == null) return;
+    if (_isFetching) return;
+    if (!shouldFetch(
+      force: force,
+      hasLoaded: state.hasLoaded,
+      lastLoadedAt: state.lastLoadedAt,
+      now: DateTime.now(),
+    )) {
+      return;
+    }
 
-    // TEMP DIAGNOSTIC (notifications load latency investigation) — حذف بعد التشخيص
-    final diagStart = DateTime.now();
-    debugPrint('[notif-diag] load START');
-
-    emit(state.copyWith(isLoading: true));
+    _isFetching = true;
+    emit(
+      state.copyWith(
+        // السكيليتون للتحميل الأول فقط؛ القائمة المعروضة (ولو فارغة بعد
+        // تحميل ناجح) تُحدَّث في الخلفية دون وميض.
+        isLoading: !state.hasLoaded,
+        isRefreshing: state.hasLoaded,
+        errorCode: null,
+      ),
+    );
 
     // حدّث مرجع "الآن" من ساعة الخادم قبل الرسم — حتى تُحسب "منذ ..."
     // ضد زمن الخادم لا ساعة الجهاز غير المزامنة.
     final clockRefresh = ServerClock.instance.refresh();
 
     try {
-      final diagQueryStart = DateTime.now();
       final response = await _client
           .from('notifications')
           .select()
           .eq('user_id', userId)
           .order('created_at', ascending: false)
           .limit(50);
-      debugPrint(
-          '[notif-diag] list query done  +${DateTime.now().difference(diagStart).inMilliseconds}ms (query=${DateTime.now().difference(diagQueryStart).inMilliseconds}ms, rows=${response.length})');
 
       final notifications =
           response.map((json) => NotificationModel.fromJson(json)).toList();
 
-      final diagCountStart = DateTime.now();
       final unreadCount = await _loadUnreadTotal(userId);
-      debugPrint(
-          '[notif-diag] unread count done  +${DateTime.now().difference(diagStart).inMilliseconds}ms (query=${DateTime.now().difference(diagCountStart).inMilliseconds}ms, unread=$unreadCount)');
 
       unawaited(clockRefresh);
-      emit(state.copyWith(
-        notifications: notifications,
-        unreadCount: unreadCount,
-        isLoading: false,
-      ));
-      debugPrint(
-          '[notif-diag] load END  +${DateTime.now().difference(diagStart).inMilliseconds}ms total');
-    } catch (e) {
-      debugPrint(
-          '[notif-diag] load FAILED after ${DateTime.now().difference(diagStart).inMilliseconds}ms: $e');
-      emit(state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      ));
+      emit(
+        state.copyWith(
+          notifications: notifications,
+          unreadCount: unreadCount,
+          isLoading: false,
+          isRefreshing: false,
+          hasLoaded: true,
+          lastLoadedAt: DateTime.now(),
+        ),
+      );
+    } catch (_) {
+      // نميّز انقطاع الشبكة عن فشل الخادم: رسالة «لا يوجد اتصال» أدق
+      // للمستخدم من «تعذّر التحميل» العامة.
+      final online = await ConnectivityService.instance.isOnline();
+      emit(
+        state.copyWith(
+          isLoading: false,
+          isRefreshing: false,
+          errorCode: online ? errorFailed : errorOffline,
+        ),
+      );
+    } finally {
+      _isFetching = false;
     }
   }
 
@@ -170,8 +241,8 @@ class NotificationCubit extends Cubit<NotificationsState> {
             ? state.unreadCount - 1
             : state.unreadCount,
       ));
-    } catch (e) {
-      emit(state.copyWith(error: e.toString()));
+    } catch (_) {
+      emit(state.copyWith(errorCode: errorFailed));
     }
   }
 
@@ -199,8 +270,8 @@ class NotificationCubit extends Cubit<NotificationsState> {
       }).toList();
 
       emit(state.copyWith(notifications: updated, unreadCount: 0));
-    } catch (e) {
-      emit(state.copyWith(error: e.toString()));
+    } catch (_) {
+      emit(state.copyWith(errorCode: errorFailed));
     }
   }
 

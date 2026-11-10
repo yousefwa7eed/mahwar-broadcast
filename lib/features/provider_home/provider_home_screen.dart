@@ -7,20 +7,28 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/auth/auth_service.dart';
 import '../../core/auth/logout_coordinator.dart';
 import '../../core/auth/profile_cubit.dart';
+import '../../core/auth/provider_logout_dialog.dart';
+import '../../core/auth/provider_logout_service.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/avatar_config.dart';
 import '../../core/errors/rpc_error_translator.dart';
 import '../../core/models/order.dart';
 import '../../core/notifications/notification_cubit.dart';
+import '../../core/services/connectivity_service.dart';
 import '../../core/services/location_service.dart';
+import '../../core/services/order_prefetch_service.dart';
 import '../../core/services/server_clock.dart';
 import '../../core/services/sound_effects_service.dart';
 import '../../core/settings/app_settings_cubit.dart';
 import '../../core/utils/distance.dart';
 import '../../core/widgets/confirm_dialog.dart';
 import '../../core/widgets/delete_account_dialog.dart';
+import '../../core/widgets/offline_view.dart';
+import '../../core/widgets/order_meta_row.dart';
 import '../../core/widgets/profile_name_text.dart';
 import '../../core/widgets/shimmer_box.dart';
+import '../../core/widgets/skeletons.dart';
+import '../../core/widgets/support_dialog.dart';
 import '../../l10n/app_localizations.dart';
 import '../notifications/notification_actions.dart';
 import 'availability_resolution.dart';
@@ -84,6 +92,13 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
   List<Order> _providerOrders = [];
   bool _isLoadingOrders = true;
 
+  /// هل اكتمل تحميل ناجح (أو وُجدت لقطة جلب مسبق)؟ يمنع وميض السكيليتون
+  /// عند تحديث قائمة فارغة معروضة.
+  bool _ordersLoaded = false;
+
+  /// سبب فشل آخر تحميل لسجل الطلبات — null بعد أي نجاح.
+  LoadFailure? _ordersFailure;
+
   Map<String, String> _serviceNames = {};
   RealtimeChannel? _channel;
 
@@ -97,7 +112,18 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _heartbeat = ProviderHeartbeat(sendBeat: _sendHeartbeat);
+    // لقطة الجلب المسبق عند دخول التطبيق: تُعرض فورًا بدل شاشة تحميل،
+    // ثم يصل التحديث من الخادم في الخلفية دون إخفاء القائمة.
+    final cached = OrderPrefetchService.instance.providerOrdersFor(
+      _client.auth.currentUser?.id,
+    );
+    if (cached != null) {
+      _providerOrders = cached;
+      _isLoadingOrders = false;
+      _ordersLoaded = true;
+    }
     _loadProviderData();
+    _markProviderActive();
     _loadCurrentAddress();
     _loadServiceNames();
     _loadActiveOrders();
@@ -141,6 +167,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
         _subscribeToOrderChanges();
         _subscribeToProviderChanges();
         _loadProviderData();
+        _markProviderActive();
         _loadActiveOrders();
         _loadProviderOrders();
         final cubit = context.read<NotificationCubit>();
@@ -183,6 +210,16 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
       }
     } catch (e) {
       // silent
+    }
+  }
+
+  /// يلغي وقت الخروج المسجّل عند عودة المزوّد للنشاط. مستقل عن نبضة الموقع
+  /// (التي تتوقف لو رُفض إذن GPS) وعن is_online (قرار يدوي/جدول).
+  Future<void> _markProviderActive() async {
+    try {
+      await ProviderLogoutService().markActive();
+    } catch (_) {
+      // أفضل جهد: فشل الشبكة لا يعطّل الواجهة.
     }
   }
 
@@ -321,7 +358,13 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
 
-    setState(() => _isLoadingOrders = true);
+    // سكيليتون فقط في التحميل الأول — لا نغطّي قائمة معروضة (ولو فارغة).
+    if (!_ordersLoaded && mounted) {
+      setState(() {
+        _isLoadingOrders = true;
+        _ordersFailure = null;
+      });
+    }
 
     try {
       final response = await _client
@@ -332,16 +375,25 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
           .limit(50);
 
       final orders = response.map((json) => Order.fromJson(json)).toList();
+      OrderPrefetchService.instance.setProviderOrders(userId, orders);
 
       if (mounted) {
         setState(() {
           _providerOrders = orders;
           _isLoadingOrders = false;
+          _ordersLoaded = true;
+          _ordersFailure = null;
         });
       }
-    } catch (e) {
+    } catch (_) {
+      final failure = await classifyLoadFailure();
       if (mounted) {
-        setState(() => _isLoadingOrders = false);
+        setState(() {
+          _isLoadingOrders = false;
+          // قائمة قديمة معروضة أهم من رسالة خطأ: نُبقيها ونكتفي بالجلب
+          // التالي (سحب للتحديث / عودة المقدمة).
+          if (_providerOrders.isEmpty) _ordersFailure = failure;
+        });
       }
     }
   }
@@ -981,10 +1033,17 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     bool isDark,
     AppLocalizations? l10n,
   ) {
-    if (_isLoadingOrders) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.orangePrimary),
-      );
+    if (_isLoadingOrders && !_ordersLoaded) {
+      return const OrderListSkeleton();
+    }
+
+    if (_providerOrders.isEmpty && _ordersFailure != null) {
+      return _ordersFailure == LoadFailure.offline
+          ? OfflineView(onRetry: _loadProviderOrders)
+          : LoadFailedView(
+              message: l10n?.ordersLoadFailed ?? 'تعذّر تحميل الطلبات',
+              onRetry: _loadProviderOrders,
+            );
     }
 
     if (_providerOrders.isEmpty) {
@@ -1020,9 +1079,48 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
       color: AppColors.orangePrimary,
       child: ListView.builder(
         padding: const EdgeInsets.all(20),
-        itemCount: _providerOrders.length,
-        itemBuilder: (context, index) =>
-            _buildProviderOrderCard(context, isDark, _providerOrders[index]),
+        itemCount: _providerOrders.length + 1,
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      l10n?.orders ?? 'الطلبات',
+                      style: TextStyle(
+                        fontFamily: 'Zain',
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.lightTextPrimary,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => context.push('/orders/provider'),
+                    child: Text(
+                      l10n?.viewAll ?? 'عرض الكل',
+                      style: const TextStyle(
+                        fontFamily: 'Cairo',
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.orangePrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+          return _buildProviderOrderCard(
+            context,
+            isDark,
+            _providerOrders[index - 1],
+          );
+        },
       ),
     );
   }
@@ -1035,6 +1133,25 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     final l10n = AppLocalizations.of(context);
     final statusColor = _orderStatusColor(order.status);
 
+    return GestureDetector(
+      onTap: () => context.push('/orders/provider/detail?orderId=${order.id}'),
+      child: _buildProviderOrderCardBody(
+        context,
+        isDark,
+        order,
+        l10n,
+        statusColor,
+      ),
+    );
+  }
+
+  Widget _buildProviderOrderCardBody(
+    BuildContext context,
+    bool isDark,
+    Order order,
+    AppLocalizations? l10n,
+    Color statusColor,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -1048,52 +1165,61 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  order.statusLabel(l10n),
-                  style: TextStyle(
-                    fontFamily: 'Cairo',
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: statusColor,
-                  ),
+          OrderMetaRow(
+            badge: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                order.statusLabel(l10n),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: statusColor,
                 ),
               ),
-              const Spacer(),
-              if (order.createdAt != null)
-                Text(
-                  _formatOrderDate(context, order.createdAt!),
-                  style: TextStyle(
-                    fontFamily: 'Cairo',
-                    fontSize: 12,
-                    color: isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.lightTextSecondary,
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (order.createdAt != null)
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        _formatOrderDate(context, order.createdAt!),
+                        style: TextStyle(
+                          fontFamily: 'Cairo',
+                          fontSize: 12,
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.lightTextSecondary,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              if (order.offeredPrice != null) ...[
-                const SizedBox(width: 12),
-                Text(
-                  '${order.offeredPrice!.toStringAsFixed(0)} ${l10n?.egp ?? 'ج.م'}',
-                  style: const TextStyle(
-                    fontFamily: 'Cairo',
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.orangePrimary,
+                if (order.offeredPrice != null) ...[
+                  const SizedBox(width: 8),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '${order.offeredPrice!.toStringAsFixed(0)} ${l10n?.egp ?? 'ج.م'}',
+                      style: const TextStyle(
+                        fontFamily: 'Cairo',
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.orangePrimary,
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ],
-            ],
+            ),
           ),
           const SizedBox(height: 12),
           Text(
@@ -1230,11 +1356,19 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     AppLocalizations? l10n,
   ) {
     final state = context.watch<NotificationCubit>().state;
+    final cubit = context.read<NotificationCubit>();
 
-    if (state.isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.orangePrimary),
-      );
+    if (state.notifications.isEmpty && state.isLoading) {
+      return const NotificationListSkeleton();
+    }
+
+    if (state.notifications.isEmpty && state.errorCode != null) {
+      return state.errorCode == NotificationCubit.errorOffline
+          ? OfflineView(onRetry: () => cubit.loadNotifications(force: true))
+          : LoadFailedView(
+              message: l10n?.notificationsLoadFailed ?? 'تعذّر تحميل الإشعارات',
+              onRetry: () => cubit.loadNotifications(force: true),
+            );
     }
 
     if (state.notifications.isEmpty) {
@@ -1266,7 +1400,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     }
 
     return RefreshIndicator(
-      onRefresh: () => context.read<NotificationCubit>().loadNotifications(),
+      onRefresh: () => cubit.loadNotifications(force: true),
       color: AppColors.orangePrimary,
       child: ListView(
         padding: const EdgeInsets.all(20),
@@ -1440,53 +1574,69 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
               ),
             ),
           const SizedBox(height: 32),
-          _buildProfileOption(
-            context,
-            icon: Icons.business_outlined,
-            title: l10n?.workshopInfo ?? 'بيانات الورشة',
+          _buildProfileCardGroup(
             isDark: isDark,
-            onTap: () async {
-              await context.push('/provider/workshop');
-              _loadProviderData();
-            },
-          ),
-          _buildProfileOption(
-            context,
-            icon: Icons.build_outlined,
-            title: l10n?.mySpecializations ?? 'تخصصاتي',
-            isDark: isDark,
-            onTap: () => context.push('/provider/specialties'),
-          ),
-          _buildProfileOption(
-            context,
-            icon: Icons.schedule_rounded,
-            title: l10n?.workingHours ?? 'ساعات العمل',
-            isDark: isDark,
-            onTap: () => context.push('/provider/schedule'),
-          ),
-          _buildProfileOption(
-            context,
-            icon: Icons.lock_outline_rounded,
-            title: l10n?.changePassword ?? 'تغيير كلمة المرور',
-            isDark: isDark,
-            onTap: () => context.push('/profile/change-password'),
-          ),
-          _buildProfileOption(
-            context,
-            icon: Icons.language_rounded,
-            title:
-                '${l10n?.languageLabel ?? 'اللغة'}: ${l10n?.currentLanguage ?? (isArabic ? 'العربية' : 'English')}',
-            isDark: isDark,
-            onTap: () => settingsCubit.toggleLocale(),
-          ),
-          _buildProfileOption(
-            context,
-            icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-            title: isArabic
-                ? (l10n?.lightMode ?? 'الوضع الفاتح')
-                : (l10n?.darkMode ?? 'الوضع الداكن'),
-            isDark: isDark,
-            onTap: () => settingsCubit.toggleTheme(),
+            children: [
+              _buildProfileOptionItem(
+                context,
+                icon: Icons.business_outlined,
+                title: l10n?.workshopInfo ?? 'بيانات الورشة',
+                isDark: isDark,
+                onTap: () async {
+                  await context.push('/provider/workshop');
+                  _loadProviderData();
+                },
+              ),
+              _buildProfileOptionItem(
+                context,
+                icon: Icons.build_outlined,
+                title: l10n?.mySpecializations ?? 'تخصصاتي',
+                isDark: isDark,
+                onTap: () => context.push('/provider/specialties'),
+              ),
+              _buildProfileOptionItem(
+                context,
+                icon: Icons.schedule_rounded,
+                title: l10n?.workingHours ?? 'ساعات العمل',
+                isDark: isDark,
+                onTap: () => context.push('/provider/schedule'),
+              ),
+              _buildProfileOptionItem(
+                context,
+                icon: Icons.lock_outline_rounded,
+                title: l10n?.changePassword ?? 'تغيير كلمة المرور',
+                isDark: isDark,
+                onTap: () => context.push('/profile/change-password'),
+              ),
+              _buildProfileOptionItem(
+                context,
+                icon: Icons.language_rounded,
+                title:
+                    '${l10n?.languageLabel ?? 'اللغة'}: ${l10n?.currentLanguage ?? (isArabic ? 'العربية' : 'English')}',
+                isDark: isDark,
+                onTap: () => settingsCubit.toggleLocale(),
+              ),
+              _buildProfileOptionItem(
+                context,
+                icon: isDark
+                    ? Icons.light_mode_rounded
+                    : Icons.dark_mode_rounded,
+                title: isArabic
+                    ? (l10n?.lightMode ?? 'الوضع الفاتح')
+                    : (l10n?.darkMode ?? 'الوضع الداكن'),
+                isDark: isDark,
+                onTap: () => settingsCubit.toggleTheme(),
+              ),
+              _buildProfileOptionItem(
+                context,
+                icon: Icons.headset_mic_outlined,
+                title: isArabic
+                    ? 'الدعم والشكاوى والاقتراحات'
+                    : 'Support & Complaints',
+                isDark: isDark,
+                onTap: () => showSupportDialog(context),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           SizedBox(
@@ -1497,11 +1647,17 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
               builder: (context, _) => OutlinedButton(
                 onPressed: LogoutCoordinator.isRunning.value
                     ? null
-                    : () => LogoutCoordinator().logout(
-                        context: context,
-                        resetProfile: () =>
-                            context.read<ProfileCubit>().reset(),
-                      ),
+                    : () async {
+                        // آخر جلسة؟ تحذير ساعتين قبل الخروج (لا يوقف أجهزة أخرى).
+                        final proceed =
+                            await confirmProviderLastSessionLogout(context);
+                        if (!proceed || !context.mounted) return;
+                        LogoutCoordinator().logout(
+                          context: context,
+                          resetProfile: () =>
+                              context.read<ProfileCubit>().reset(),
+                        );
+                      },
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: AppColors.error),
                   shape: RoundedRectangleBorder(
@@ -1546,38 +1702,72 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     );
   }
 
-  Widget _buildProfileOption(
+  Widget _buildProfileCardGroup({
+    required bool isDark,
+    required List<Widget> children,
+  }) {
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor, width: 1),
+      ),
+      child: Column(
+        children: [
+          for (int i = 0; i < children.length; i++) ...[
+            children[i],
+            if (i < children.length - 1)
+              Divider(
+                height: 1,
+                thickness: 1,
+                indent: 56,
+                endIndent: 16,
+                color: borderColor,
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileOptionItem(
     BuildContext context, {
     required IconData icon,
     required String title,
     required bool isDark,
     required VoidCallback onTap,
   }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: Icon(icon, color: AppColors.orangePrimary),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontFamily: 'Cairo',
-            fontSize: 16,
-            color: isDark
-                ? AppColors.darkTextPrimary
-                : AppColors.lightTextPrimary,
-          ),
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: AppColors.orangePrimary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
         ),
-        trailing: Icon(
-          Icons.arrow_forward_ios_rounded,
-          size: 16,
-          color: isDark
-              ? AppColors.darkTextSecondary
-              : AppColors.lightTextSecondary,
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        tileColor: isDark ? AppColors.darkCard : AppColors.lightCard,
-        onTap: onTap,
+        child: Icon(icon, color: AppColors.orangePrimary, size: 20),
       ),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontFamily: 'Cairo',
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          color: isDark
+              ? AppColors.darkTextPrimary
+              : AppColors.lightTextPrimary,
+        ),
+      ),
+      trailing: Icon(
+        Icons.arrow_forward_ios_rounded,
+        size: 14,
+        color: isDark
+            ? AppColors.darkTextSecondary
+            : AppColors.lightTextSecondary,
+      ),
+      onTap: onTap,
     );
   }
 

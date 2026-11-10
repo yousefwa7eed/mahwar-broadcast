@@ -2035,7 +2035,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get legalContactBody =>
-      'If you have any questions about this policy, please contact us at:\nsupport@mahwar.app\nOr call our support line: 19000';
+      'If you have any questions or complaints, please contact us at:\nsupport@mahwar.app';
 
   @override
   String get legalTermsIntro =>
@@ -2161,7 +2161,59 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signOut => 'Sign out';
 
   @override
+  String get providerLogoutLastSessionTitle => 'Sign out';
+
+  @override
+  String get providerLogoutLastSessionBody =>
+      'Your activity will stop after 2 hours. Sign in again to reactivate it.';
+
+  @override
+  String get providerOfflineAlertTitle => 'Provider is offline';
+
+  @override
+  String get providerOfflineAlertBody =>
+      'The provider just signed out. Send them a text alert?';
+
+  @override
+  String get providerOfflineAlertMonthlyUsed =>
+      'The monthly alert for this provider has already been used.';
+
+  @override
+  String get providerOfflineAlertDailyCap =>
+      'No more alerts can be sent right now. Try again later.';
+
+  @override
+  String get sendProviderAlertSms => 'Send text alert';
+
+  @override
+  String get providerAlertSmsSent => 'Alert sent';
+
+  @override
+  String get providerAlertSmsSentBody =>
+      'We\'ll notify the provider by text message.';
+
+  @override
+  String get providerAlertSmsAlreadySent =>
+      'An alert was already sent for this order.';
+
+  @override
+  String get providerAlertSmsFailed =>
+      'Couldn\'t send the alert. Please try again.';
+
+  @override
   String get connectionError => 'Connection error, please try again.';
+
+  @override
+  String get noInternetTitle => 'No internet connection';
+
+  @override
+  String get noInternetBody => 'Check your network connection and try again';
+
+  @override
+  String get notificationsLoadFailed => 'Couldn\'t load notifications';
+
+  @override
+  String get ordersLoadFailed => 'Couldn\'t load orders';
 
   @override
   String get needNationalIdFirst =>

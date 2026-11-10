@@ -3746,7 +3746,7 @@ abstract class AppLocalizations {
   /// No description provided for @legalContactBody.
   ///
   /// In ar, this message translates to:
-  /// **'إذا كان لديك أي استفسارات حول هذه السياسة، يرجى التواصل معنا على:\nsupport@mahwar.app\nأو الاتصال بخط الدعم: 19000'**
+  /// **'إذا كان لديك أي استفسارات أو شكاوى، يرجى التواصل معنا عبر البريد الإلكتروني:\nsupport@mahwar.app'**
   String get legalContactBody;
 
   /// No description provided for @legalTermsIntro.
@@ -3959,11 +3959,101 @@ abstract class AppLocalizations {
   /// **'تسجيل الخروج'**
   String get signOut;
 
+  /// No description provided for @providerLogoutLastSessionTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الخروج'**
+  String get providerLogoutLastSessionTitle;
+
+  /// No description provided for @providerLogoutLastSessionBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'نشاطك هيتوقف بعد ساعتين، سجّل دخول تاني عشان يرجع نشاطك'**
+  String get providerLogoutLastSessionBody;
+
+  /// No description provided for @providerOfflineAlertTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'المزوّد غير متصل حاليًا'**
+  String get providerOfflineAlertTitle;
+
+  /// No description provided for @providerOfflineAlertBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'سجّل المزوّد خروجه قبل قليل. تحب نبعته له رسالة تنبيه على هاتفه؟'**
+  String get providerOfflineAlertBody;
+
+  /// No description provided for @providerOfflineAlertMonthlyUsed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم استخدام رسالة التنبيه الشهرية لهذا المزوّد.'**
+  String get providerOfflineAlertMonthlyUsed;
+
+  /// No description provided for @providerOfflineAlertDailyCap.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر إرسال تنبيه إضافي الآن، حاول لاحقًا.'**
+  String get providerOfflineAlertDailyCap;
+
+  /// No description provided for @sendProviderAlertSms.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال رسالة تنبيه'**
+  String get sendProviderAlertSms;
+
+  /// No description provided for @providerAlertSmsSent.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إرسال التنبيه'**
+  String get providerAlertSmsSent;
+
+  /// No description provided for @providerAlertSmsSentBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'سنُخطر المزوّد برسالة نصية على هاتفه.'**
+  String get providerAlertSmsSentBody;
+
+  /// No description provided for @providerAlertSmsAlreadySent.
+  ///
+  /// In ar, this message translates to:
+  /// **'سبق إرسال تنبيه لهذا الطلب.'**
+  String get providerAlertSmsAlreadySent;
+
+  /// No description provided for @providerAlertSmsFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر إرسال التنبيه، حاول مرة أخرى.'**
+  String get providerAlertSmsFailed;
+
   /// No description provided for @connectionError.
   ///
   /// In ar, this message translates to:
   /// **'حدث خطأ في الاتصال، حاول مرة أخرى.'**
   String get connectionError;
+
+  /// No description provided for @noInternetTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد اتصال بالإنترنت'**
+  String get noInternetTitle;
+
+  /// No description provided for @noInternetBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحقّق من اتصالك بالشبكة ثم أعد المحاولة'**
+  String get noInternetBody;
+
+  /// No description provided for @notificationsLoadFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الإشعارات'**
+  String get notificationsLoadFailed;
+
+  /// No description provided for @ordersLoadFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الطلبات'**
+  String get ordersLoadFailed;
 
   /// No description provided for @needNationalIdFirst.
   ///

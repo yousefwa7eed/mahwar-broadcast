@@ -1991,7 +1991,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get legalContactBody =>
-      'إذا كان لديك أي استفسارات حول هذه السياسة، يرجى التواصل معنا على:\nsupport@mahwar.app\nأو الاتصال بخط الدعم: 19000';
+      'إذا كان لديك أي استفسارات أو شكاوى، يرجى التواصل معنا عبر البريد الإلكتروني:\nsupport@mahwar.app';
 
   @override
   String get legalTermsIntro =>
@@ -2117,7 +2117,57 @@ class AppLocalizationsAr extends AppLocalizations {
   String get signOut => 'تسجيل الخروج';
 
   @override
+  String get providerLogoutLastSessionTitle => 'تسجيل الخروج';
+
+  @override
+  String get providerLogoutLastSessionBody =>
+      'نشاطك هيتوقف بعد ساعتين، سجّل دخول تاني عشان يرجع نشاطك';
+
+  @override
+  String get providerOfflineAlertTitle => 'المزوّد غير متصل حاليًا';
+
+  @override
+  String get providerOfflineAlertBody =>
+      'سجّل المزوّد خروجه قبل قليل. تحب نبعته له رسالة تنبيه على هاتفه؟';
+
+  @override
+  String get providerOfflineAlertMonthlyUsed =>
+      'تم استخدام رسالة التنبيه الشهرية لهذا المزوّد.';
+
+  @override
+  String get providerOfflineAlertDailyCap =>
+      'تعذّر إرسال تنبيه إضافي الآن، حاول لاحقًا.';
+
+  @override
+  String get sendProviderAlertSms => 'إرسال رسالة تنبيه';
+
+  @override
+  String get providerAlertSmsSent => 'تم إرسال التنبيه';
+
+  @override
+  String get providerAlertSmsSentBody =>
+      'سنُخطر المزوّد برسالة نصية على هاتفه.';
+
+  @override
+  String get providerAlertSmsAlreadySent => 'سبق إرسال تنبيه لهذا الطلب.';
+
+  @override
+  String get providerAlertSmsFailed => 'تعذّر إرسال التنبيه، حاول مرة أخرى.';
+
+  @override
   String get connectionError => 'حدث خطأ في الاتصال، حاول مرة أخرى.';
+
+  @override
+  String get noInternetTitle => 'لا يوجد اتصال بالإنترنت';
+
+  @override
+  String get noInternetBody => 'تحقّق من اتصالك بالشبكة ثم أعد المحاولة';
+
+  @override
+  String get notificationsLoadFailed => 'تعذّر تحميل الإشعارات';
+
+  @override
+  String get ordersLoadFailed => 'تعذّر تحميل الطلبات';
 
   @override
   String get needNationalIdFirst =>

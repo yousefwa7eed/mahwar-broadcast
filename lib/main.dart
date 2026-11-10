@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,6 +14,7 @@ import 'core/auth/secure_local_storage.dart';
 import 'core/models/notification_model.dart';
 import 'core/notifications/notification_cubit.dart';
 import 'core/services/app_messenger.dart';
+import 'core/services/order_prefetch_service.dart';
 import 'core/services/push_notification_service.dart';
 import 'core/services/screen_time_service.dart';
 import 'core/services/service_type_directory.dart';
@@ -72,6 +75,10 @@ void main() async {
   // مؤثرات الطلب: تُفعّل هنا فقط فتبقى صامتة تماماً في الاختبارات.
   SoundEffectsService.instance.enable();
 
+  // جلب مسبق لطلبات الجلسة: يملأ ذاكرة قصيرة عند الدخول حتى تُرسم شاشات
+  // الطلبات فورًا بدل شاشة تحميل، ويُفرَّغ عند الخروج (لا تسريب بين الحسابات).
+  OrderPrefetchService.instance.start();
+
   runApp(
     MultiBlocProvider(
       providers: [
@@ -99,10 +106,17 @@ class MahwarApp extends StatefulWidget {
 }
 
 class _MahwarAppState extends State<MahwarApp> with WidgetsBindingObserver {
+  StreamSubscription<ProfileState>? _profileSubscription;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // الدَّور يُحسم من الخادم عبر ProfileCubit، فنجلب طلبات الجلسة بمجرد
+    // وصوله — سجل الطلبات يصبح جاهزًا قبل أن يفتح المستخدم التبويب.
+    _profileSubscription = context.read<ProfileCubit>().stream.listen((state) {
+      if (state is ProfileLoaded) _prefetchOrders();
+    });
     // رسالة ضغط فتح بها التطبيق وهو مغلق → يتوجه مباشرة للطلب/الإشعارات.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final push = PushNotificationService.instance;
@@ -111,13 +125,24 @@ class _MahwarAppState extends State<MahwarApp> with WidgetsBindingObserver {
       // إشعارات بعد دوران/حذف للتوكن) ونتأكد من إذن إشعارات النظام.
       push.ensureTokenSaved();
       push.ensurePermission();
+      _prefetchOrders();
     });
   }
 
   @override
   void dispose() {
+    _profileSubscription?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  /// جلب صامت لطلبات الدور الحالي في الخلفية — أي فشل يُتجاهل لأن الشاشات
+  /// تجلب بنفسها وتعرض سكيليتون/أوفلاين حسب الحالة.
+  void _prefetchOrders() {
+    final state = context.read<ProfileCubit>().state;
+    if (state is ProfileLoaded) {
+      OrderPrefetchService.instance.prefetch(state.profile.role);
+    }
   }
 
   /// الرجوع من الخلفية: تعليق النظام للتطبيق يُسقط socket الـ Realtime،
@@ -139,6 +164,9 @@ class _MahwarAppState extends State<MahwarApp> with WidgetsBindingObserver {
     notifications.subscribeToNotifications();
 
     PushNotificationService.instance.ensureTokenSaved();
+
+    // قد تكون الطلبات تغيّرت أثناء التعليق — تحديث صامت لذاكرة الجلب المسبق.
+    _prefetchOrders();
   }
 
   @override

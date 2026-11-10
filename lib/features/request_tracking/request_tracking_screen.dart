@@ -11,12 +11,18 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/errors/rpc_error_translator.dart';
 import '../../../core/models/order.dart';
 import '../../../core/models/provider_details.dart';
+import '../../../core/services/connectivity_service.dart';
 import '../../../core/services/server_clock.dart';
 import '../../../core/services/sound_effects_service.dart';
 import '../../../core/utils/distance.dart';
+import '../../../core/widgets/offline_view.dart';
 import '../../../l10n/app_localizations.dart';
+import 'provider_alert_prompt_store.dart';
+import 'provider_alert_service.dart';
+import 'provider_alert_status.dart';
 import 'widgets/order_status_indicator.dart';
 import 'widgets/provider_offer_card.dart';
+import 'widgets/provider_offline_alert_card.dart';
 import 'widgets/transaction_summary_card.dart';
 
 class RequestTrackingScreen extends StatefulWidget {
@@ -36,6 +42,9 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen>
   bool _isLoading = true;
   String? _error;
 
+  /// سبب فشل التحميل الأول (أوفلاين/خطأ) — يحدد نوع رسالة الخطأ.
+  LoadFailure? _failure;
+
   String? _providerName;
   String? _workshopName;
   String? _providerPhone;
@@ -54,6 +63,14 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen>
 
   RealtimeChannel? _channel;
 
+  /// اقتراح تنبيه المزوّد الغائب: يُفحص مرة واحدة بعد 30 ثانية من إنشاء
+  /// الطلب (قرار المنتج)، ويُعرض مرة واحدة لكل طلب على هذا الجهاز.
+  Timer? _alertPromptTimer;
+  bool _alertTimerArmed = false;
+  ProviderAlertStatus? _alertStatus;
+  bool _alertSending = false;
+  bool _alertSent = false;
+
   @override
   void initState() {
     super.initState();
@@ -66,6 +83,7 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _channel?.unsubscribe();
+    _alertPromptTimer?.cancel();
     _ratingCommentController.dispose();
     super.dispose();
   }
@@ -89,6 +107,14 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen>
   }
 
   Future<void> _loadOrder() async {
+    // إعادة المحاولة من شاشة الخطأ: نعود لحالة التحميل بدل إبقاء الرسالة.
+    if (_order == null && !_isLoading && mounted) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+        _failure = null;
+      });
+    }
     final previousStatus = _order?.status;
     try {
       final response = await _client
@@ -111,6 +137,7 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen>
           _order = order;
           _isLoading = false;
           _error = null;
+          _failure = null;
         });
       }
 
@@ -122,7 +149,10 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen>
           SoundEffectsService.instance.playOrderStatus(order.id, order.status),
         );
       }
-    } catch (e) {
+
+      _maybeArmAlertPrompt();
+    } catch (_) {
+      final failure = await classifyLoadFailure();
       if (mounted) {
         setState(() {
           // فشل تحديث لا يمحو طلباً معروضاً: نُبقي آخر حالة نعرفها بدل شاشة
@@ -131,6 +161,7 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen>
             _error =
                 AppLocalizations.of(context)?.orderLoadFailed ??
                 'تعذّر تحميل بيانات الطلب';
+            _failure = failure;
           }
           _isLoading = false;
         });
@@ -259,10 +290,136 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen>
 
             if (mounted) {
               setState(() => _order = updatedOrder);
+              _maybeArmAlertPrompt();
             }
           },
         )
         .subscribe();
+  }
+
+  /// يُجهّز فحص اقتراح التنبيه بعد 30 ثانية من إنشاء الطلب. لا يُسلّح إلا
+  /// لطلب المالك المسند لمزوّد وما زال pending، ومرة واحدة لكل جلسة شاشة —
+  /// فحص الخادم نفسه هو من يقرر الظهور (نافذة الساعتين + الحصص).
+  void _maybeArmAlertPrompt() {
+    if (_alertTimerArmed || !mounted) return;
+    final order = _order;
+    if (order == null || !_isOwner(order)) return;
+    if (order.status != OrderStatus.pending) return;
+    if ((order.providerId ?? '').isEmpty) return;
+
+    _alertTimerArmed = true;
+    final createdAt = order.createdAt;
+    final elapsed = createdAt == null
+        ? Duration.zero
+        : ServerClock.instance.now.difference(createdAt);
+    final wait = const Duration(seconds: 30) - elapsed;
+    _alertPromptTimer = Timer(
+      wait.isNegative ? Duration.zero : wait,
+      () => unawaited(_checkProviderAlert()),
+    );
+  }
+
+  /// الفحص الفعلي بعد الـ30 ثانية: هل المزوّد مسجّل خروج داخل نافذة الساعتين
+  /// وهل ما زالت له حصة؟ العرض مرة واحدة لكل طلب (محليًا)، والتحقق النهائي
+  /// عند الإرسال داخل Edge Function.
+  Future<void> _checkProviderAlert() async {
+    final order = _order;
+    if (!mounted || order == null) return;
+    if (!_isOwner(order) || order.status != OrderStatus.pending) return;
+
+    if (await ProviderAlertPromptStore.instance.wasShown(order.id)) return;
+
+    ProviderAlertStatus status;
+    try {
+      status = await ProviderAlertService().status(order.id);
+    } catch (_) {
+      return;
+    }
+    if (!mounted || !status.showCard) return;
+
+    await ProviderAlertPromptStore.instance.markShown(order.id);
+    if (!mounted) return;
+    setState(() => _alertStatus = status);
+  }
+
+  Future<void> _sendProviderAlert() async {
+    if (_alertSending || _alertSent) return;
+    setState(() => _alertSending = true);
+
+    try {
+      await ProviderAlertService().send(widget.orderId);
+      if (!mounted) return;
+      setState(() {
+        _alertSending = false;
+        _alertSent = true;
+      });
+    } on ProviderAlertSmsException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _alertSending = false;
+        switch (e.error) {
+          case ProviderAlertSendError.alreadySent:
+            _alertSent = true;
+          case ProviderAlertSendError.monthlyQuotaUsed:
+            _alertStatus = const ProviderAlertStatus(
+              isLoggedOut: true,
+              canAlert: false,
+              reason: ProviderAlertReason.monthlyQuotaUsed,
+            );
+          case ProviderAlertSendError.dailyCapReached:
+            _alertStatus = const ProviderAlertStatus(
+              isLoggedOut: true,
+              canAlert: false,
+              reason: ProviderAlertReason.dailyCapReached,
+            );
+          case ProviderAlertSendError.providerActive:
+          case ProviderAlertSendError.orderNotPending:
+            // الحالة تغيّرت على الخادم: لا معنى للاقتراح بعد الآن.
+            _alertStatus = null;
+          case ProviderAlertSendError.notOwner:
+          case ProviderAlertSendError.unauthenticated:
+          case ProviderAlertSendError.failed:
+            break;
+        }
+      });
+      if (!mounted) return;
+      final message = switch (e.error) {
+        ProviderAlertSendError.monthlyQuotaUsed =>
+          AppLocalizations.of(context)?.providerOfflineAlertMonthlyUsed ??
+              'تم استخدام رسالة التنبيه الشهرية لهذا المزوّد.',
+        ProviderAlertSendError.dailyCapReached =>
+          AppLocalizations.of(context)?.providerOfflineAlertDailyCap ??
+              'تعذّر إرسال تنبيه إضافي الآن، حاول لاحقًا.',
+        ProviderAlertSendError.alreadySent =>
+          AppLocalizations.of(context)?.providerAlertSmsAlreadySent ??
+              'سبق إرسال تنبيه لهذا الطلب.',
+        ProviderAlertSendError.providerActive ||
+        ProviderAlertSendError.orderNotPending ||
+        ProviderAlertSendError.notOwner =>
+          null,
+        ProviderAlertSendError.unauthenticated ||
+        ProviderAlertSendError.failed =>
+          AppLocalizations.of(context)?.providerAlertSmsFailed ??
+              'تعذّر إرسال التنبيه، حاول مرة أخرى.',
+      };
+      if (message != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message), backgroundColor: AppColors.error),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _alertSending = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)?.providerAlertSmsFailed ??
+                'تعذّر إرسال التنبيه، حاول مرة أخرى.',
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   Future<void> _acceptPrice() async {
@@ -535,24 +692,13 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen>
               child: CircularProgressIndicator(color: AppColors.orangePrimary),
             )
           : _error != null
-          ? _buildError(context, isDark)
+          ? _failure == LoadFailure.offline
+                ? OfflineView(onRetry: _refreshFromServer)
+                : LoadFailedView(
+                    message: _error!,
+                    onRetry: _refreshFromServer,
+                  )
           : _buildContent(context, isDark),
-    );
-  }
-
-  Widget _buildError(BuildContext context, bool isDark) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-          const SizedBox(height: 12),
-          Text(
-            _error!,
-            style: const TextStyle(fontFamily: 'Cairo', fontSize: 14),
-          ),
-        ],
-      ),
     );
   }
 
@@ -582,6 +728,21 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen>
                 order.respondDeadline != null) ...[
               const SizedBox(height: 12),
               _AutoCancelCountdown(deadline: order.respondDeadline!),
+            ],
+            // اقتراح تنبيه المزوّد الغائب — للمالك فقط، وبعد فحص الحالة على
+            // الخادم (مزوّد مسجّل خروج داخل نافذة الساعتين + الحصة).
+            if (_isOwner(order) &&
+                order.status == OrderStatus.pending &&
+                _alertStatus != null) ...[
+              const SizedBox(height: 12),
+              ProviderOfflineAlertCard(
+                reason: _alertStatus!.reason,
+                canSend: _alertStatus!.canAlert,
+                isSending: _alertSending,
+                sent: _alertSent,
+                onSend: _alertSending ? null : _sendProviderAlert,
+                onDismiss: () => setState(() => _alertStatus = null),
+              ),
             ],
             const SizedBox(height: 24),
 
