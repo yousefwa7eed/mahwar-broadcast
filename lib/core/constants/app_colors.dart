@@ -19,8 +19,8 @@ class AppColors {
     end: Alignment.bottomRight,
   );
 
-  // Splash (مطابق لخلفية assets/splash.gif لتفادي حدود المربّع)
-  static const Color splashBackground = Color(0xFFF5F3F0);
+  // Splash (أبيض صريح)
+  static const Color splashBackground = Color(0xFFFFFFFF);
 
   // Light Theme Tokens
   static const Color lightBackground = Color(0xFFFFFFFF);
