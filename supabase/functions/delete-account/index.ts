@@ -13,6 +13,10 @@ const json = (status: number, payload: Record<string, unknown>) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+// حذف الحساب لا يُنفَّذ إلا بعد إثبات ملكية رقم الهاتف برمز OTP يُتحقَّق منه
+// **على الخادم** — كل الحسابات هاتفية (دخول OTP بلا كلمة مرور)، واشتراط كلمة
+// مرور غير موجودة يمنع الحساب الهاتفي من الحذف (مطلوب في App Store 5.1.1(v)
+// وGoogle Play account deletion). لا يُقبل أي «تم التحقق» قادم من العميل.
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -45,54 +49,85 @@ serve(async (req: Request) => {
 
     const userId = user.id;
 
-    // كلمة المرور الحالية إلزامية لتأكيد الحذف.
-    let password: unknown;
+    // الرمز إلزامي لتأكيد الحذف.
+    let otp: unknown;
     try {
       const body = await req.json();
-      password = body?.password;
+      otp = body?.otp;
     } catch {
-      password = undefined;
+      otp = undefined;
     }
 
-    if (typeof password !== "string" || password.length === 0) {
+    if (typeof otp !== "string" || otp.trim().length === 0) {
       return json(400, {
-        code: "PASSWORD_REQUIRED",
-        error: "Current password is required",
+        code: "OTP_REQUIRED",
+        error: "Verification code is required",
       });
     }
 
-    if (!user.email) {
-      // لا وسيلة للتحقق من كلمة المرور بلا بريد مرتبط بالحساب.
+    if (!user.phone) {
+      // لا وسيلة للتحقق من الملكية بلا رقم مرتبط بالحساب.
       return json(400, {
-        code: "PASSWORD_VERIFICATION_UNAVAILABLE",
-        error: "Password verification is unavailable for this account",
+        code: "PHONE_VERIFICATION_UNAVAILABLE",
+        error: "Phone verification is unavailable for this account",
       });
     }
 
-    // التحقق من كلمة المرور على عميل مجهول معزول بلا جلسة دائمة ولا تحديث
-    // تلقائي — لا يمسّ جلسة الطلب الأصلية ولا يترك أثرًا. لا يُنفّذ أي تنظيف
-    // أو حذف قبل نجاح هذا التحقق.
+    const phone = user.phone.startsWith("+") ? user.phone : `+${user.phone}`;
+
+    // عميل مجهول معزول بلا جلسة دائمة ولا تحديث تلقائي: التحقق من الرمز لا
+    // يمسّ جلسة الطلب الأصلية ولا يترك أثرًا. لا يُنفّذ أي تنظيف أو حذف قبل
+    // نجاح هذا التحقق.
     const verifyClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
       { auth: { persistSession: false, autoRefreshToken: false } }
     );
 
-    const { error: signInError } = await verifyClient.auth.signInWithPassword({
-      email: user.email,
-      password,
+    const {
+      data: verified,
+      error: verifyError,
+    } = await verifyClient.auth.verifyOtp({
+      phone,
+      token: otp.trim(),
+      type: "sms",
     });
 
-    if (signInError) {
-      // 400 من الخدمة = اعتماد خاطئ؛ أي رمز آخر (شبكة/خادم) خطأ غير متوقع.
-      if (signInError.status === 400) {
-        return json(403, {
-          code: "INVALID_PASSWORD",
-          error: "Current password is incorrect",
+    if (verifyError) {
+      console.error(
+        "OTP verification error:",
+        verifyError.status,
+        verifyError.code
+      );
+      // 429 = تجاوز محاولات التحقق؛ 5xx/بلا حالة = عطل خدمة (لا نُسمّيه رمزًا
+      // خاطئًا)؛ أي رد آخر (400/403/422) = رمز خاطئ أو منتهي الصلاحية.
+      if (verifyError.status === 429) {
+        return json(429, {
+          code: "RATE_LIMITED",
+          error: "Too many verification attempts",
         });
       }
-      console.error("Password verification error:", signInError);
-      return json(500, { error: "Failed to verify password" });
+      if (!verifyError.status || verifyError.status >= 500) {
+        return json(503, {
+          code: "VERIFICATION_UNAVAILABLE",
+          error: "Verification temporarily unavailable",
+        });
+      }
+      return json(403, {
+        code: "INVALID_OTP",
+        error: "Verification code is incorrect or expired",
+      });
+    }
+
+    // الرقم فريد في auth.users، فالرمز الصحيح لرقم هذا الحساب لا يمكن أن يعود
+    // بحساب آخر — لكن نتحقق صراحةً حتى لا يتحول أي خلل مستقبلي إلى حذف حساب
+    // بجلسة مستخدم آخر.
+    if (!verified?.user || verified.user.id !== userId) {
+      console.error("OTP verified for a different user");
+      return json(403, {
+        code: "INVALID_OTP",
+        error: "Verification code is incorrect or expired",
+      });
     }
 
     const { error: cleanupError } = await supabaseAdmin.rpc(
