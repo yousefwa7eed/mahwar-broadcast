@@ -38,14 +38,13 @@ class OwnerHomeScreen extends StatefulWidget {
 }
 
 class _OwnerHomeScreenState extends State<OwnerHomeScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SkeletonGate<OwnerHomeScreen> {
   final SupabaseClient _client = Supabase.instance.client;
   int _currentIndex = 0;
 
   List<Order> _recentOrders = [];
-  bool _isLoadingOrders = true;
 
-  /// هل اكتمل تحميل ناجح (أو وُجدت لقطة جلب مسبق)؟ يمنع وميض السكيليتون
+  /// هل اكتمل تحميل ناجح (أو وُجدت لقطة جلب مسبق)؟ يمنع مسح رسالة الفشل
   /// عند تحديث قائمة فارغة معروضة.
   bool _ordersLoaded = false;
 
@@ -67,17 +66,16 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // لقطة الجلب المسبق عند دخول التطبيق: تُعرض فورًا بدل شاشة تحميل،
+    // لقطة الجلب المسبق عند دخول التطبيق: تمنع انتظار الشبكة بعد الهيكل،
     // ثم يصل التحديث من الخادم في الخلفية دون إخفاء القائمة.
     final cached = OrderPrefetchService.instance.ownerOrdersFor(
       _client.auth.currentUser?.id,
     );
     if (cached != null) {
       _recentOrders = cached;
-      _isLoadingOrders = false;
       _ordersLoaded = true;
     }
-    _loadRecentOrders();
+    unawaited(runWithSkeleton(_loadRecentOrders));
     _loadCurrentAddress();
     _subscribeToOrderChanges();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -137,17 +135,11 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
 
   Future<void> _loadRecentOrders() async {
     final userId = _client.auth.currentUser?.id;
-    if (userId == null) {
-      if (mounted) setState(() => _isLoadingOrders = false);
-      return;
-    }
+    if (userId == null) return;
 
-    // سكيليتون فقط في التحميل الأول — لا نغطّي قائمة معروضة (ولو فارغة).
+    // إعادة المحاولة بعد فشل تمسح رسالة الفشل فوراً.
     if (!_ordersLoaded && mounted) {
-      setState(() {
-        _isLoadingOrders = true;
-        _ordersFailure = null;
-      });
+      setState(() => _ordersFailure = null);
     }
 
     try {
@@ -166,7 +158,6 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
       if (mounted) {
         setState(() {
           _recentOrders = orders;
-          _isLoadingOrders = false;
           _ordersLoaded = true;
           _ordersFailure = null;
         });
@@ -175,7 +166,6 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
       final failure = await classifyLoadFailure();
       if (mounted) {
         setState(() {
-          _isLoadingOrders = false;
           // قائمة قديمة معروضة أهم من رسالة خطأ: نُبقيها ونكتفي بالجلب
           // التالي (سحب للتحديث / عودة المقدمة).
           if (_recentOrders.isEmpty) _ordersFailure = failure;
@@ -373,8 +363,14 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
   ) {
     final activeOrder = _activeOrder;
 
+    // أول تحميل وسحب للتحديث: هيكل الصفحة كاملة بدل بلوكات تظهر متأخرة.
+    // حدّه الزمني في SkeletonGate يضمن ظهوره حتى لو كانت البيانات جاهزة.
+    if (skeletonVisible) {
+      return const HomeSkeleton();
+    }
+
     return RefreshIndicator(
-      onRefresh: _loadRecentOrders,
+      onRefresh: () => runWithSkeleton(_loadRecentOrders),
       color: AppColors.orangePrimary,
       child: SingleChildScrollView(
         // سحب التحديث يحتاج فيزياء تسمح بالتمرير دائماً، وإلا لم يظهر المؤشر
@@ -435,8 +431,8 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
     bool isDark,
     AppLocalizations? l10n,
   ) {
-    if (_isLoadingOrders && !_ordersLoaded) {
-      return const OrderListSkeleton();
+    if (skeletonVisible) {
+      return const OrderListSkeleton(showSectionHeader: true);
     }
 
     if (_recentOrders.isEmpty && _ordersFailure != null) {
@@ -512,7 +508,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
         ),
         Expanded(
           child: RefreshIndicator(
-            onRefresh: _loadRecentOrders,
+            onRefresh: () => runWithSkeleton(_loadRecentOrders),
             color: AppColors.orangePrimary,
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -648,7 +644,8 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
     final state = context.watch<NotificationCubit>().state;
     final cubit = context.read<NotificationCubit>();
 
-    if (state.notifications.isEmpty && state.isLoading) {
+    if (skeletonVisible ||
+        (state.notifications.isEmpty && state.isLoading)) {
       return const NotificationListSkeleton();
     }
 
@@ -690,7 +687,8 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
     }
 
     return RefreshIndicator(
-      onRefresh: () => cubit.loadNotifications(force: true),
+      onRefresh: () =>
+          runWithSkeleton(() => cubit.loadNotifications(force: true)),
       color: AppColors.orangePrimary,
       child: ListView(
         padding: const EdgeInsets.all(20),

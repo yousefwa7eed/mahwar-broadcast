@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -32,7 +34,8 @@ class OrdersHistoryScreen extends StatefulWidget {
   State<OrdersHistoryScreen> createState() => _OrdersHistoryScreenState();
 }
 
-class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
+class _OrdersHistoryScreenState extends State<OrdersHistoryScreen>
+    with SkeletonGate<OrdersHistoryScreen> {
   final SupabaseClient _client = Supabase.instance.client;
   int _selectedTab = 0;
 
@@ -40,9 +43,8 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
   DateTime? _filterDate;
 
   List<Order> _orders = [];
-  bool _isLoading = true;
 
-  /// هل اكتمل تحميل ناجح (أو وُجدت لقطة جلب مسبق)؟ يمنع وميض السكيليتون
+  /// هل اكتمل تحميل ناجح (أو وُجدت لقطة جلب مسبق)؟ يمنع مسح رسالة الفشل
   /// عند تحديث سجل فارغ معروض.
   bool _ordersLoaded = false;
 
@@ -60,24 +62,17 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
         : prefetch.ownerOrdersFor(userId);
     if (cached != null) {
       _orders = cached;
-      _isLoading = false;
       _ordersLoaded = true;
     }
-    _loadOrders();
+    unawaited(runWithSkeleton(_loadOrders));
   }
 
   Future<void> _loadOrders() async {
     final userId = _client.auth.currentUser?.id;
-    if (userId == null) {
-      if (mounted) setState(() => _isLoading = false);
-      return;
-    }
+    if (userId == null) return;
 
     if (!_ordersLoaded && mounted) {
-      setState(() {
-        _isLoading = true;
-        _failure = null;
-      });
+      setState(() => _failure = null);
     }
 
     try {
@@ -99,7 +94,6 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
       if (mounted) {
         setState(() {
           _orders = orders;
-          _isLoading = false;
           _ordersLoaded = true;
           _failure = null;
         });
@@ -108,7 +102,6 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
       final failure = await classifyLoadFailure();
       if (mounted) {
         setState(() {
-          _isLoading = false;
           // سجل قديم معروض أفضل من شاشة خطأ — يبقى ويُحدَّث في المحاولة التالية.
           if (_orders.isEmpty) _failure = failure;
         });
@@ -208,8 +201,8 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
         ),
         centerTitle: true,
       ),
-      body: _isLoading && !_ordersLoaded
-          ? const OrderListSkeleton()
+      body: skeletonVisible
+          ? const OrdersHistorySkeleton()
           : _orders.isEmpty && _failure != null
           ? _failure == LoadFailure.offline
                 ? OfflineView(onRetry: _loadOrders)
@@ -317,7 +310,7 @@ class _OrdersHistoryScreenState extends State<OrdersHistoryScreen> {
                   child: _filteredOrders.isEmpty
                       ? _buildEmpty(context, isDark, l10n)
                       : RefreshIndicator(
-                          onRefresh: _loadOrders,
+                          onRefresh: () => runWithSkeleton(_loadOrders),
                           color: AppColors.orangePrimary,
                           child: ListView.builder(
                             padding: const EdgeInsets.symmetric(

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -16,11 +18,16 @@ class NotificationsScreen extends StatefulWidget {
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen> {
+class _NotificationsScreenState extends State<NotificationsScreen>
+    with SkeletonGate<NotificationsScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<NotificationCubit>().loadNotifications();
+    unawaited(
+      runWithSkeleton(
+        () => context.read<NotificationCubit>().loadNotifications(),
+      ),
+    );
   }
 
   @override
@@ -75,7 +82,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         builder: (context, state) {
           final cubit = context.read<NotificationCubit>();
 
-          if (state.notifications.isEmpty && state.isLoading) {
+          if (skeletonVisible ||
+              (state.notifications.isEmpty && state.isLoading)) {
             return const NotificationListSkeleton();
           }
 
@@ -117,7 +125,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           }
 
           return RefreshIndicator(
-            onRefresh: () => cubit.loadNotifications(force: true),
+            onRefresh: () =>
+                runWithSkeleton(() => cubit.loadNotifications(force: true)),
             color: AppColors.orangePrimary,
             child: ListView.builder(
               padding: const EdgeInsets.all(20),

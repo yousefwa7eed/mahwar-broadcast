@@ -47,7 +47,7 @@ class ProviderHomeScreen extends StatefulWidget {
 }
 
 class _ProviderHomeScreenState extends State<ProviderHomeScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SkeletonGate<ProviderHomeScreen> {
   final SupabaseClient _client = Supabase.instance.client;
   int _currentIndex = 0;
 
@@ -90,9 +90,8 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
 
   // سجل طلبات المزوّد (تبويب الطلبات)
   List<Order> _providerOrders = [];
-  bool _isLoadingOrders = true;
 
-  /// هل اكتمل تحميل ناجح (أو وُجدت لقطة جلب مسبق)؟ يمنع وميض السكيليتون
+  /// هل اكتمل تحميل ناجح (أو وُجدت لقطة جلب مسبق)؟ يمنع مسح رسالة الفشل
   /// عند تحديث قائمة فارغة معروضة.
   bool _ordersLoaded = false;
 
@@ -112,22 +111,24 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _heartbeat = ProviderHeartbeat(sendBeat: _sendHeartbeat);
-    // لقطة الجلب المسبق عند دخول التطبيق: تُعرض فورًا بدل شاشة تحميل،
+    // لقطة الجلب المسبق عند دخول التطبيق: تمنع انتظار الشبكة بعد الهيكل،
     // ثم يصل التحديث من الخادم في الخلفية دون إخفاء القائمة.
     final cached = OrderPrefetchService.instance.providerOrdersFor(
       _client.auth.currentUser?.id,
     );
     if (cached != null) {
       _providerOrders = cached;
-      _isLoadingOrders = false;
       _ordersLoaded = true;
     }
     _loadProviderData();
     _markProviderActive();
     _loadCurrentAddress();
     _loadServiceNames();
-    _loadActiveOrders();
-    _loadProviderOrders();
+    unawaited(
+      runWithSkeleton(() async {
+        await Future.wait([_loadActiveOrders(), _loadProviderOrders()]);
+      }),
+    );
     _subscribeToOrderChanges();
     _subscribeToProviderChanges();
     _startAvailabilityPoller();
@@ -360,10 +361,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
 
     // سكيليتون فقط في التحميل الأول — لا نغطّي قائمة معروضة (ولو فارغة).
     if (!_ordersLoaded && mounted) {
-      setState(() {
-        _isLoadingOrders = true;
-        _ordersFailure = null;
-      });
+      setState(() => _ordersFailure = null);
     }
 
     try {
@@ -380,7 +378,6 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
       if (mounted) {
         setState(() {
           _providerOrders = orders;
-          _isLoadingOrders = false;
           _ordersLoaded = true;
           _ordersFailure = null;
         });
@@ -389,7 +386,6 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
       final failure = await classifyLoadFailure();
       if (mounted) {
         setState(() {
-          _isLoadingOrders = false;
           // قائمة قديمة معروضة أهم من رسالة خطأ: نُبقيها ونكتفي بالجلب
           // التالي (سحب للتحديث / عودة المقدمة).
           if (_providerOrders.isEmpty) _ordersFailure = failure;
@@ -766,6 +762,12 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     bool isDark,
     AppLocalizations? l10n,
   ) {
+    // أول تحميل وسحب للتحديث: هيكل الصفحة كاملة. حدّه الزمني في SkeletonGate
+    // يضمن ظهوره حتى لو كانت بيانات الجلب المسبق جاهزة.
+    if (skeletonVisible) {
+      return const ProviderDashboardSkeleton();
+    }
+
     final profileState = context.watch<ProfileCubit>().state;
     final profile = profileState is ProfileLoaded ? profileState.profile : null;
 
@@ -909,7 +911,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
           const SizedBox(height: 12),
 
           RefreshIndicator(
-            onRefresh: _loadActiveOrders,
+            onRefresh: () => runWithSkeleton(_loadActiveOrders),
             color: AppColors.orangePrimary,
             child: _isLoadingRequests
                 ? const Padding(
@@ -1033,8 +1035,8 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     bool isDark,
     AppLocalizations? l10n,
   ) {
-    if (_isLoadingOrders && !_ordersLoaded) {
-      return const OrderListSkeleton();
+    if (skeletonVisible) {
+      return const OrderListSkeleton(showSectionHeader: true);
     }
 
     if (_providerOrders.isEmpty && _ordersFailure != null) {
@@ -1075,7 +1077,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     }
 
     return RefreshIndicator(
-      onRefresh: _loadProviderOrders,
+      onRefresh: () => runWithSkeleton(_loadProviderOrders),
       color: AppColors.orangePrimary,
       child: ListView.builder(
         padding: const EdgeInsets.all(20),
@@ -1358,7 +1360,8 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     final state = context.watch<NotificationCubit>().state;
     final cubit = context.read<NotificationCubit>();
 
-    if (state.notifications.isEmpty && state.isLoading) {
+    if (skeletonVisible ||
+        (state.notifications.isEmpty && state.isLoading)) {
       return const NotificationListSkeleton();
     }
 
@@ -1400,7 +1403,8 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
     }
 
     return RefreshIndicator(
-      onRefresh: () => cubit.loadNotifications(force: true),
+      onRefresh: () =>
+          runWithSkeleton(() => cubit.loadNotifications(force: true)),
       color: AppColors.orangePrimary,
       child: ListView(
         padding: const EdgeInsets.all(20),
