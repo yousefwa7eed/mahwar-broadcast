@@ -3,7 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth/auth_cubit.dart';
 import '../../core/auth/home_route.dart';
+import '../../core/auth/last_account_store.dart';
+import '../../core/auth/otp_error_mapper.dart';
+import '../../core/auth/phone_utils.dart';
 import '../../core/auth/role_gate.dart';
+import '../../core/constants/app_colors.dart';
 import '../../core/settings/app_settings_cubit.dart';
 import '../../core/settings/app_settings_state.dart';
 import '../../core/theme/surface_palette.dart';
@@ -55,15 +59,159 @@ class _LoginScreenState extends State<LoginScreen>
   final GlobalKey _formContentKey = GlobalKey(debugLabel: 'loginFormContent');
   bool _compactCard = false;
 
+  final LastAccountStore _lastAccountStore = LastAccountStore();
+
+  /// آخر حساب معروف على الجهاز (لنفس دور هذه الصفحة) — تلميح «العودة إلى
+  /// حسابك». يبقى بعد تسجيل الخروج ويُمسح فقط عند حذف الحساب.
+  LastAccount? _lastAccount;
+
+  /// جارٍ إرسال كود دخول بالهاتف — يمنع نقرتين ورسالتي SMS.
+  bool _sendingOtp = false;
+
   late final AnimationController _entrance = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 700),
   )..forward();
 
   @override
+  void initState() {
+    super.initState();
+    _loadLastAccount();
+  }
+
+  @override
   void dispose() {
     _entrance.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadLastAccount() async {
+    final account = await _lastAccountStore.read();
+    // لا تلميح لدور آخر: صفحة دخول المالك لا تقترح حساب مزوّد والعكس.
+    if (!mounted || account == null || account.role != widget.role) return;
+    setState(() => _lastAccount = account);
+  }
+
+  /// يرسل كود دخول لحساب موجود ثم يفتح شاشة OTP العادية (mode=login) — نفس
+  /// نمط شاشة الاستعادة: الإرسال هنا، والتحقق والتوجيه هناك.
+  Future<void> _startOtpLogin(String rawPhone) async {
+    if (_sendingOtp) return;
+    final l10n = AppLocalizations.of(context);
+    if (!PhoneUtils.isValidEgyptianMobile(rawPhone)) {
+      showErrorDialog(
+        context,
+        l10n?.enterValidEgyptianPhone ?? 'أدخل رقم هاتف مصري صحيح',
+      );
+      return;
+    }
+    final normalized = PhoneUtils.normalize(rawPhone);
+    setState(() => _sendingOtp = true);
+    try {
+      await context.read<AuthCubit>().requestLoginOtp(normalized);
+      if (!mounted) return;
+      context.push(
+        '/otp-verify?mode=login&phone=$normalized&role=${widget.role}',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      // رسالة محايدة: لا تكشف ما إذا كان الرقم يخص حسابًا.
+      showErrorDialog(context, mapRecoverySendError(e, l10n));
+    } finally {
+      if (mounted) setState(() => _sendingOtp = false);
+    }
+  }
+
+  Color _accent(SurfacePalette palette) {
+    if (widget.role == 'provider') {
+      return Color.lerp(
+        const Color(0xFF262626),
+        const Color(0xFFD9D9D9),
+        palette.themeT,
+      )!;
+    }
+    return AppColors.orangePrimary;
+  }
+
+  /// بطاقة تلميح أخيرة: اسم آخر حساب ورقمه المقنّع، والنقر عليها يرسل كود
+  /// دخول إلى ذلك الرقم مباشرة.
+  Widget _buildLastAccountCard(LastAccount account, SurfacePalette palette) {
+    final l10n = AppLocalizations.of(context);
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+    final accent = _accent(palette);
+    final font = isArabic ? 'Cairo' : 'Poppins';
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: _sendingOtp ? null : () => _startOtpLogin(account.phone),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: palette.highlightBackground,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: palette.highlightBorder),
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 17,
+                backgroundColor: accent.withValues(alpha: 0.14),
+                child: Text(
+                  account.name.substring(0, 1),
+                  style: TextStyle(
+                    fontFamily: font,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: accent,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n?.returnToAccount ?? 'العودة إلى حسابك',
+                      style: TextStyle(
+                        fontFamily: font,
+                        fontSize: 12.5,
+                        color: palette.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${account.name} · ${account.maskedPhone}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: font,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: palette.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (_sendingOtp)
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: accent,
+                  ),
+                )
+              else
+                Icon(Icons.login_rounded, size: 18, color: accent),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -183,6 +331,10 @@ class _LoginScreenState extends State<LoginScreen>
                             ),
                           ),
                           const SizedBox(height: 24),
+                          if (_lastAccount != null) ...[
+                            _buildLastAccountCard(_lastAccount!, palette),
+                            const SizedBox(height: 16),
+                          ],
                           _buildEntrance(
                             interval: const Interval(0.25, 0.95),
                             offset: 22,
@@ -190,7 +342,7 @@ class _LoginScreenState extends State<LoginScreen>
                               role: widget.role,
                               palette: palette,
                               isArabic: isArabic,
-                              isBusy: _resolving,
+                              isBusy: _resolving || _sendingOtp,
                               onSubmit: (identifier, password) {
                                 context.read<AuthCubit>().signIn(
                                   identifier: identifier,
@@ -202,6 +354,7 @@ class _LoginScreenState extends State<LoginScreen>
                               onForgotPasswordTap: () => context.push(
                                 '/forgot-password?role=${widget.role}',
                               ),
+                              onOtpLoginTap: _startOtpLogin,
                             ),
                           ),
                         ],

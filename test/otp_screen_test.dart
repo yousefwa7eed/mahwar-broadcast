@@ -43,6 +43,8 @@ void main() {
     OtpMode mode = OtpMode.signup,
     String? phone,
     String? role,
+    bool autoSend = false,
+    String? next,
   }) {
     final router = GoRouter(
       initialLocation: '/',
@@ -53,6 +55,14 @@ void main() {
             mode: mode,
             phone: phone,
             role: role,
+            autoSend: autoSend,
+            next: next,
+          ),
+        ),
+        GoRoute(
+          path: '/profile',
+          builder: (context, state) => const Scaffold(
+            body: Center(child: Text('PROFILE', key: Key('profile_placeholder'))),
           ),
         ),
         GoRoute(
@@ -648,9 +658,225 @@ void main() {
   test('otpModeFromQuery يترجم قيم الـ query ويُسقط المجهول إلى signup', () {
     expect(otpModeFromQuery('change-number'), OtpMode.changeNumber);
     expect(otpModeFromQuery('forgot'), OtpMode.forgot);
+    expect(otpModeFromQuery('login'), OtpMode.login);
     expect(otpModeFromQuery('signup'), OtpMode.signup);
     expect(otpModeFromQuery(null), OtpMode.signup);
     expect(otpModeFromQuery('unknown'), OtpMode.signup);
+  });
+
+  User loginUser({required String role}) => User(
+        id: 'fake-user-id',
+        appMetadata: const {},
+        userMetadata: {'role': role},
+        aud: 'authenticated',
+        createdAt: 'now',
+        email: 'me@mahwar.app',
+      );
+
+  testWidgets('وضع الدخول: كود صحيح يتحقق من الدور وينتقل لرئاسة الحساب',
+      (tester) async {
+    final fake = FakeAuthService()
+      ..user = loginUser(role: 'car_owner')
+      ..serverRole = 'car_owner';
+    final (app, router) = buildApp(
+      fake,
+      mode: OtpMode.login,
+      phone: '01000000000',
+      role: 'car_owner',
+    );
+
+    await tester.pumpWidget(app);
+    expect(find.text('الدخول برمز التحقق'), findsWidgets);
+
+    await tester.enterText(otpHiddenField(), '123456');
+    await tester.pump();
+    await tester.pump();
+    await tester.pump();
+
+    expect(fake.loginVerifyCount, 1);
+    expect(fake.lastLoginVerifiedPhone, '01000000000');
+    expect(fake.verifyCount, 0);
+    expect(currentPath(router), '/home/owner');
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('وضع الدخول: حساب بدور مختلف يُرفض ولا ينتقل', (tester) async {
+    final fake = FakeAuthService()
+      ..user = loginUser(role: 'provider')
+      ..serverRole = 'provider';
+    final (app, router) = buildApp(
+      fake,
+      mode: OtpMode.login,
+      phone: '01000000000',
+      role: 'car_owner',
+    );
+
+    await tester.pumpWidget(app);
+    await tester.enterText(otpHiddenField(), '123456');
+    await tester.pump();
+    await tester.pump();
+    await tester.pump();
+
+    expect(currentPath(router), '/');
+    expect(fake.loginVerifyCount, 1);
+    expect(fake.signOutFromRejectionCount, 1);
+    expect(
+      find.text('هذا الحساب مسجّل كمزوّد. يرجى تسجيل الدخول من صفحة تسجيل دخول المزوّد.'),
+      findsOneWidget,
+    );
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('وضع الدخول: دور غير معروف يرفض الجلسة برسالة واضحة',
+      (tester) async {
+    final fake = FakeAuthService()
+      ..user = loginUser(role: 'car_owner')
+      ..serverRole = null;
+    final (app, router) = buildApp(
+      fake,
+      mode: OtpMode.login,
+      phone: '01000000000',
+      role: 'car_owner',
+    );
+
+    await tester.pumpWidget(app);
+    await tester.enterText(otpHiddenField(), '123456');
+    await tester.pump();
+    await tester.pump();
+    await tester.pump();
+
+    expect(currentPath(router), '/');
+    expect(fake.signOutFromRejectionCount, 1);
+    expect(
+      find.text('تعذّر تحديد نوع الحساب بعد تسجيل الدخول. يرجى المحاولة مرة أخرى.'),
+      findsOneWidget,
+    );
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('وضع الدخول التلقائي: يرسل الرمز مرة واحدة عند فتح الشاشة',
+      (tester) async {
+    final fake = FakeAuthService()..confirmedPhones.add('01000000000');
+    final (app, _) = buildApp(
+      fake,
+      mode: OtpMode.login,
+      phone: '01000000000',
+      role: 'car_owner',
+      autoSend: true,
+    );
+
+    await tester.pumpWidget(app);
+    await tester.pump(); // الإرسال التلقائي في post-frame
+    await tester.pump();
+
+    expect(fake.loginOtpCount, 1);
+    expect(fake.lastLoginOtpPhone, '01000000000');
+    expect(find.textContaining('إعادة الإرسال بعد'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('وضع الدخول التلقائي: فشل الإرسال يترك إعادة المحاولة متاحة',
+      (tester) async {
+    final fake = FakeAuthService()
+      ..loginOtpError = AuthApiException(
+        'sms error',
+        statusCode: '422',
+        code: 'sms_send_failed',
+      );
+    final (app, _) = buildApp(
+      fake,
+      mode: OtpMode.login,
+      phone: '01000000000',
+      role: 'car_owner',
+      autoSend: true,
+    );
+
+    await tester.pumpWidget(app);
+    await tester.pump();
+    await tester.pump();
+
+    expect(fake.loginOtpCount, 1);
+    expect(find.text('تعذّر إرسال الرمز. حاول مرة أخرى لاحقاً.'), findsOneWidget);
+    // لا عدّاد بعد فشل الإرسال — زر إعادة الإرسال ظاهر فورًا.
+    expect(find.text('إعادة إرسال الرمز'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('وضع الدخول: next يُحترم بعد نجاح التحقق', (tester) async {
+    final fake = FakeAuthService()
+      ..user = loginUser(role: 'car_owner')
+      ..serverRole = 'car_owner';
+    final (app, router) = buildApp(
+      fake,
+      mode: OtpMode.login,
+      phone: '01000000000',
+      role: 'car_owner',
+      next: '/profile',
+    );
+
+    await tester.pumpWidget(app);
+    await tester.enterText(otpHiddenField(), '123456');
+    await tester.pump();
+    await tester.pump();
+    await tester.pump();
+
+    expect(currentPath(router), '/profile');
+    expect(find.byKey(const Key('profile_placeholder')), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('وضع الدخول: استخدام رقم آخر يرسل كود دخول ولا يربط الرقم',
+      (tester) async {
+    final fake = FakeAuthService()..confirmedPhones.add('01110000000');
+    final (app, _) = buildApp(fake, mode: OtpMode.login);
+
+    await tester.pumpWidget(app);
+    expect(find.text('الدخول برمز التحقق'), findsWidgets);
+
+    await tester.enterText(find.byType(TextField), '01110000000');
+    await tester.tap(find.text('إرسال الرمز'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(fake.loginOtpCount, 1);
+    expect(fake.lastLoginOtpPhone, '01110000000');
+    expect(fake.attachCount, 0);
+    expect(
+      find.text(
+        'أدخل رمز التحقق المكوّن من 6 أرقام الذي أُرسل إلى •••• ••• 0000',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('وضع الدخول: رقم بلا حساب يُعرض برسالة محايدة دون كشف',
+      (tester) async {
+    final fake = FakeAuthService();
+    final (app, _) = buildApp(fake, mode: OtpMode.login);
+
+    await tester.pumpWidget(app);
+    await tester.enterText(find.byType(TextField), '01110000000');
+    await tester.tap(find.text('إرسال الرمز'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(fake.loginOtpCount, 1);
+    expect(fake.attachCount, 0);
+    expect(
+      find.text('تعذّر إرسال رمز التحقق. تأكد من صحة رقم الهاتف ثم أعد المحاولة.'),
+      findsOneWidget,
+    );
+    expect(find.text('إرسال الرمز'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('وضع الاستعادة: كود صحيح ينتقل لتعيين كلمة مرور بدون مزامنة',

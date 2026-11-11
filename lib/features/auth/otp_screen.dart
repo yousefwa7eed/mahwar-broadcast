@@ -10,15 +10,20 @@ import 'package:otp_autofill/otp_autofill.dart';
 import '../../core/auth/availability_check_guard.dart';
 import '../../core/auth/auth_cubit.dart';
 import '../../core/auth/home_route.dart';
+import '../../core/auth/install_login_store.dart';
 import '../../core/auth/otp_error_mapper.dart';
 import '../../core/auth/phone_utils.dart';
+import '../../core/auth/role_gate.dart';
 import '../../core/settings/app_settings_cubit.dart';
 import '../../core/settings/app_settings_state.dart';
 import '../../core/widgets/loading_form_lock.dart';
 import '../../l10n/app_localizations.dart';
 import 'otp_cooldown_store.dart';
+import 'widgets/error_dialog.dart';
 
-enum OtpMode { signup, changeNumber, forgot }
+/// أوضاع شاشة التحقق: تسجيل جديد (ربط رقم بجلسة)، دخول برمز لحساب موجود،
+/// تغيير رقم من داخل الحساب، واستعادة كلمة المرور.
+enum OtpMode { signup, login, changeNumber, forgot }
 
 /// مسار شاشة التحقق لوضع تغيير الرقم (بلا رقم مسبق → تبدأ بإدخال الرقم الجديد).
 const String changePhoneRoute = '/otp-verify?mode=change-number';
@@ -31,6 +36,8 @@ OtpMode otpModeFromQuery(String? modeName) {
       return OtpMode.changeNumber;
     case 'forgot':
       return OtpMode.forgot;
+    case 'login':
+      return OtpMode.login;
     default:
       return OtpMode.signup;
   }
@@ -41,7 +48,22 @@ class OtpScreen extends StatefulWidget {
   final String? phone;
   final String? role;
 
-  const OtpScreen({super.key, required this.mode, this.phone, this.role});
+  /// يرسل رمز الدخول تلقائيًا عند فتح الشاشة إلى [phone]. تستخدمه بوابة
+  /// «النسخة الجديدة»: الرقم معروف من الجلسة ولم يُرسَل له رمز بعد.
+  final bool autoSend;
+
+  /// وجهة داخلية تُفتح بعد نجاح التحقق في وضع الدخول (رابط QR مثلًا). تمرّ
+  /// عبر [safeInternalRoute] قبل الاستخدام.
+  final String? next;
+
+  const OtpScreen({
+    super.key,
+    required this.mode,
+    this.phone,
+    this.role,
+    this.autoSend = false,
+    this.next,
+  });
 
   @override
   State<OtpScreen> createState() => _OtpScreenState();
@@ -65,6 +87,12 @@ class _OtpScreenState extends State<OtpScreen> {
   // إذن قراءة الرسائل. iOS يعتمد على الاقتراح الأصلي عبر AutofillHints أدناه.
   final OTPInteractor _otpInteractor = OTPInteractor();
 
+  bool get _isLoginMode => widget.mode == OtpMode.login;
+
+  String _screenTitle(AppLocalizations? l10n) => _isLoginMode
+      ? (l10n?.otpLoginTitle ?? 'الدخول برمز التحقق')
+      : (l10n?.otpTitle ?? 'تأكيد رقم الهاتف');
+
   @override
   void initState() {
     super.initState();
@@ -77,8 +105,16 @@ class _OtpScreenState extends State<OtpScreen> {
       _phone = initialPhone;
       _cooldown = OtpCooldownStore.remainingFor(initialPhone);
       if (_cooldown == Duration.zero) {
-        OtpCooldownStore.start(initialPhone);
-        _cooldown = OtpCooldownStore.remainingFor(initialPhone);
+        if (widget.autoSend && _isLoginMode) {
+          // لا عدّاد قبل نجاح الإرسال: لو فشل الإرسال يجب أن يبقى زر
+          // إعادة المحاولة متاحًا فورًا.
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => _autoSendLoginCode(),
+          );
+        } else {
+          OtpCooldownStore.start(initialPhone);
+          _cooldown = OtpCooldownStore.remainingFor(initialPhone);
+        }
       }
       _startTicker();
       if (widget.mode == OtpMode.signup || widget.mode == OtpMode.forgot) {
@@ -126,6 +162,34 @@ class _OtpScreenState extends State<OtpScreen> {
     if (message == null) return null;
     final match = RegExp('\\d{$_codeLength}').firstMatch(message);
     return match?.group(0);
+  }
+
+  /// يرسل رمز الدخول للرقم الممرَّر عند فتح الشاشة (بوابة النسخة الجديدة).
+  /// الفشل يظهر برسالة محايدة ويترك زر إعادة الإرسال متاحًا فورًا.
+  Future<void> _autoSendLoginCode() async {
+    final phone = _phone;
+    if (!mounted || _isBusy || phone == null || phone.isEmpty) return;
+    final l10n = AppLocalizations.of(context);
+    setState(() {
+      _isBusy = true;
+      _errorText = null;
+    });
+    try {
+      await context.read<AuthCubit>().requestLoginOtp(phone);
+      if (!mounted) return;
+      OtpCooldownStore.start(phone);
+      setState(() {
+        _isBusy = false;
+        _cooldown = OtpCooldownStore.remainingFor(phone);
+      });
+      _startTicker();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isBusy = false;
+        _errorText = mapRecoverySendError(e, l10n);
+      });
+    }
   }
 
   void _startTicker() {
@@ -188,6 +252,8 @@ class _OtpScreenState extends State<OtpScreen> {
     try {
       if (widget.mode == OtpMode.forgot) {
         await cubit.verifyForgotPasswordOtp(localPhone: phone, otp: code);
+      } else if (_isLoginMode) {
+        await cubit.verifyLoginOtp(localPhone: phone, otp: code);
       } else {
         await cubit.verifyPhoneOtp(localPhone: phone, otp: code);
       }
@@ -204,6 +270,12 @@ class _OtpScreenState extends State<OtpScreen> {
   }
 
   Future<void> _onVerified(AuthCubit cubit) async {
+    final verifiedPhone = _phone;
+    if (verifiedPhone != null && verifiedPhone.isNotEmpty) {
+      // أي رمز صحيح يثبت ملكية الرقم على هذه النسخة المثبّتة → لا يُفرض رمز
+      // جديد عند الخروج ثم الدخول، ويُفرض مرة أخرى فقط بعد إعادة التثبيت.
+      await InstallLoginStore.instance.markVerified(verifiedPhone);
+    }
     if (widget.mode != OtpMode.forgot) {
       // مزامنة الرقم مع profiles عملية جهد أفضل — فشلها لا يمنع الدخول لأن
       // GoTrue يُعدِّل phone موثقًا في auth.users من تلقاء نفسه. في مسار
@@ -239,7 +311,38 @@ class _OtpScreenState extends State<OtpScreen> {
       case OtpMode.forgot:
         // نجح التحقق → جلسة دخول صالحة → شاشة تعيين كلمة مرور جديدة.
         context.go('/set-new-password');
+      case OtpMode.login:
+        await _finishLogin(cubit);
     }
+  }
+
+  /// بعد نجاح كود الدخول: الدور يُحسم من `profiles.role` فقط، ونقطة الدخول
+  /// مقيّدة بالدور (مثل شاشة الدخول بالكلمة) — دور مجهول أو مختلف يُرفض
+  /// وتُسحب الجلسة، وإلا ننتقل لرئيسية الدور الفعلي.
+  Future<void> _finishLogin(AuthCubit cubit) async {
+    if (mounted) setState(() => _isBusy = true);
+    final actualRole = AppRole.tryParse(await cubit.resolveCurrentRoleWithRetry());
+    if (!mounted) return;
+    setState(() => _isBusy = false);
+    final l10n = AppLocalizations.of(context);
+
+    if (actualRole == null) {
+      showErrorDialog(context, roleUnresolvedMessage(l10n: l10n));
+      unawaited(cubit.rejectSession());
+      return;
+    }
+
+    final expectedRole = AppRole.tryParse(widget.role);
+    if (expectedRole != null && actualRole != expectedRole) {
+      showErrorDialog(
+        context,
+        roleMismatchMessage(actualRole: actualRole, l10n: l10n),
+      );
+      unawaited(cubit.rejectSession());
+      return;
+    }
+
+    context.go(safeInternalRoute(widget.next) ?? actualRole.homeRoute);
   }
 
   Future<void> _onResendPressed() async {
@@ -254,6 +357,8 @@ class _OtpScreenState extends State<OtpScreen> {
       final cubit = context.read<AuthCubit>();
       if (widget.mode == OtpMode.forgot) {
         await cubit.resendForgotPasswordOtp(phone);
+      } else if (_isLoginMode) {
+        await cubit.resendLoginOtp(phone);
       } else {
         await cubit.resendPhoneOtp(phone);
       }
@@ -295,6 +400,10 @@ class _OtpScreenState extends State<OtpScreen> {
       final cubit = context.read<AuthCubit>();
       if (widget.mode == OtpMode.forgot) {
         await cubit.requestForgotPasswordOtp(normalized);
+      } else if (_isLoginMode) {
+        // كود دخول لحساب موجود فقط (shouldCreateUser: false) — بلا أي فحص
+        // تفرّد أو ربط؛ الرقم غير المسجّل يرفضه GoTrue برسالة محايدة.
+        await cubit.requestLoginOtp(normalized);
       } else if (widget.mode == OtpMode.changeNumber) {
         // رقم المستخدم الحالي نفسه: الخادم يعتبره «متاحًا» لأنه يستثني حساب
         // المستخدم من فحص التفرّد، لكن GoTrue يقبل نفس الرقم بلا إرسال أي كود.
@@ -376,7 +485,11 @@ class _OtpScreenState extends State<OtpScreen> {
       if (!mounted) return;
       setState(() {
         _isBusy = false;
-        _errorText = mapOtpError(e, l10n);
+        // مسارات الإرسال بالـ SMS (استعادة/دخول) تُرسم برسالة محايدة لا تكشف
+        // ما إذا كان الرقم مسجّلًا؛ بقية الأوضاع تُرسم برسائل التحقق العادية.
+        _errorText = widget.mode == OtpMode.forgot || _isLoginMode
+            ? mapRecoverySendError(e, l10n)
+            : mapOtpError(e, l10n);
       });
     }
   }
@@ -401,10 +514,14 @@ class _OtpScreenState extends State<OtpScreen> {
                 Icons.arrow_back_ios_rounded,
                 color: isDarkMode ? Colors.white : const Color(0xFF1E1E1E),
               ),
-              onPressed: () => context.pop(),
+              // بوابة النسخة الجديدة تفتح هذه الشاشة كمسار وحيد (بلا ما تحتها)،
+              // فالرجوع يذهب لاختيار نوع المستخدم بدل رمي «لا شيء للرجوع».
+              onPressed: () => context.canPop()
+                  ? context.pop()
+                  : context.go('/select-user-type'),
             ),
             title: Text(
-              l10n?.otpTitle ?? 'تأكيد رقم الهاتف',
+              _screenTitle(l10n),
               style: TextStyle(
                 fontFamily: isArabic ? 'Cairo' : 'Poppins',
                 fontWeight: FontWeight.bold,
@@ -438,7 +555,7 @@ class _OtpScreenState extends State<OtpScreen> {
       children: [
         const SizedBox(height: 8),
         Text(
-          l10n?.otpTitle ?? 'تأكيد رقم الهاتف',
+          _screenTitle(l10n),
           style: TextStyle(
             fontFamily: isArabic ? 'Zain' : 'Poppins',
             fontSize: 32,
@@ -629,9 +746,12 @@ class _OtpScreenState extends State<OtpScreen> {
       children: [
         const SizedBox(height: 8),
         Text(
-          widget.mode == OtpMode.forgot
-              ? (l10n?.resetPasswordTitle ?? 'استعادة كلمة المرور')
-              : (l10n?.changeNumberTitle ?? 'تغيير رقم الهاتف'),
+          switch (widget.mode) {
+            OtpMode.forgot =>
+              l10n?.resetPasswordTitle ?? 'استعادة كلمة المرور',
+            OtpMode.login => _screenTitle(l10n),
+            _ => l10n?.changeNumberTitle ?? 'تغيير رقم الهاتف',
+          },
           style: TextStyle(
             fontFamily: isArabic ? 'Zain' : 'Poppins',
             fontSize: 32,
@@ -641,11 +761,17 @@ class _OtpScreenState extends State<OtpScreen> {
         ),
         const SizedBox(height: 4),
         Text(
-          widget.mode == OtpMode.forgot
-              ? (l10n?.forgotPhoneEntrySubtitle ??
-                    'أدخل رقم الهاتف المرتبط بحسابك وسنرسل إليه رمز تحقق')
-              : (l10n?.changeNumberSubTitle ??
-                    'أدخل رقم الهاتف الجديد وسنرسل إليه رمز تحقق'),
+          switch (widget.mode) {
+            OtpMode.forgot =>
+              l10n?.forgotPhoneEntrySubtitle ??
+                  'أدخل رقم الهاتف المرتبط بحسابك وسنرسل إليه رمز تحقق',
+            OtpMode.login =>
+              l10n?.otpLoginSubtitle ??
+                  'أدخل رقم الهاتف المسجّل بحسابك وسنرسل إليه رمز دخول',
+            _ =>
+              l10n?.changeNumberSubTitle ??
+                  'أدخل رقم الهاتف الجديد وسنرسل إليه رمز تحقق',
+          },
           style: TextStyle(
             fontFamily: isArabic ? 'Cairo' : 'Poppins',
             fontSize: 14,

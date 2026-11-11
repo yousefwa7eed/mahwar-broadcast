@@ -109,10 +109,16 @@ class FakeAuthService extends AuthService {
   Object? forgotOtpError;
   Object? forgotVerifyError;
   Object? forgotResendError;
+  Object? loginOtpError;
+  Object? loginVerifyError;
+  Object? loginResendError;
   Object? setPasswordError;
 
   /// إن كان مضبوطًا فإن `changePassword` يرميه.
   Object? changePasswordError;
+
+  /// إن كان مضبوطًا فإن `requestDeleteAccountOtp` يرميه.
+  Object? deleteAccountOtpError;
 
   /// إن كان مضبوطًا فإن `deleteAccount` يرميه.
   Object? deleteAccountError;
@@ -124,13 +130,17 @@ class FakeAuthService extends AuthService {
   int forgotOtpCount = 0;
   int forgotVerifyCount = 0;
   int forgotResendCount = 0;
+  int loginOtpCount = 0;
+  int loginVerifyCount = 0;
+  int loginResendCount = 0;
   int setPasswordCount = 0;
   int changePasswordCount = 0;
+  int deleteAccountOtpCount = 0;
   int deleteAccountCount = 0;
 
   String? lastChangeCurrentPassword;
   String? lastChangeNewPassword;
-  String? lastDeletePassword;
+  String? lastDeleteOtp;
 
   String? attachedPhone;
   String? lastVerifiedPhone;
@@ -138,6 +148,9 @@ class FakeAuthService extends AuthService {
   String? lastForgotOtpPhone;
   String? lastForgotVerifiedPhone;
   String? lastForgotResendPhone;
+  String? lastLoginOtpPhone;
+  String? lastLoginVerifiedPhone;
+  String? lastLoginResendPhone;
   String? lastSetPassword;
   final List<String> verifiedOtps = [];
   final List<String> verifiedForgotOtps = [];
@@ -346,6 +359,46 @@ class FakeAuthService extends AuthService {
   }
 
   @override
+  Future<void> requestLoginOtp(String localPhone) async {
+    loginOtpCount++;
+    if (loginOtpError != null) throw loginOtpError!;
+    // نفس سلوك signInWithOtp(shouldCreateUser: false): بلا حساب → user_not_found.
+    if (!confirmedPhones.contains(localPhone)) {
+      throw AuthApiException(
+        'No user found for this phone',
+        code: 'user_not_found',
+      );
+    }
+    lastLoginOtpPhone = localPhone;
+  }
+
+  @override
+  Future<void> verifyLoginOtp({
+    required String localPhone,
+    required String otp,
+  }) async {
+    loginVerifyCount++;
+    if (loginVerifyError != null) throw loginVerifyError!;
+    lastLoginVerifiedPhone = localPhone;
+    if (otp != expectedOtp) {
+      throw AuthApiException('OTP expired', code: 'otp_expired');
+    }
+  }
+
+  @override
+  Future<void> resendLoginOtp(String localPhone) async {
+    loginResendCount++;
+    if (loginResendError != null) throw loginResendError!;
+    if (!confirmedPhones.contains(localPhone)) {
+      throw AuthApiException(
+        'No user found for this phone',
+        code: 'user_not_found',
+      );
+    }
+    lastLoginResendPhone = localPhone;
+  }
+
+  @override
   Future<void> setNewPassword(String newPassword) async {
     setPasswordCount++;
     if (setPasswordError != null) throw setPasswordError!;
@@ -368,9 +421,15 @@ class FakeAuthService extends AuthService {
   }
 
   @override
-  Future<void> deleteAccount({required String currentPassword}) async {
+  Future<void> requestDeleteAccountOtp() async {
+    deleteAccountOtpCount++;
+    if (deleteAccountOtpError != null) throw deleteAccountOtpError!;
+  }
+
+  @override
+  Future<void> deleteAccount({required String otp}) async {
     deleteAccountCount++;
-    lastDeletePassword = currentPassword;
+    lastDeleteOtp = otp;
     if (deleteAccountError != null) throw deleteAccountError!;
   }
 

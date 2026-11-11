@@ -362,6 +362,18 @@ abstract class AppLocalizations {
   /// **'نسيت كلمة المرور؟'**
   String get forgotPassword;
 
+  /// No description provided for @loginWithOtp.
+  ///
+  /// In ar, this message translates to:
+  /// **'الدخول برمز التحقق'**
+  String get loginWithOtp;
+
+  /// No description provided for @returnToAccount.
+  ///
+  /// In ar, this message translates to:
+  /// **'العودة إلى حسابك'**
+  String get returnToAccount;
+
   /// No description provided for @dontHaveAccount.
   ///
   /// In ar, this message translates to:
@@ -781,6 +793,18 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تأكيد رقم الهاتف'**
   String get otpTitle;
+
+  /// No description provided for @otpLoginTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'الدخول برمز التحقق'**
+  String get otpLoginTitle;
+
+  /// No description provided for @otpLoginSubtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل رقم الهاتف المسجّل بحسابك وسنرسل إليه رمز دخول'**
+  String get otpLoginSubtitle;
 
   /// No description provided for @otpSubTitle.
   ///
@@ -1844,11 +1868,59 @@ abstract class AppLocalizations {
   /// **'تعذّر تغيير كلمة المرور. حاول مرة أخرى.'**
   String get changePasswordFailed;
 
-  /// No description provided for @deleteAccountPasswordPrompt.
+  /// No description provided for @deleteAccountOtpPrompt.
   ///
   /// In ar, this message translates to:
-  /// **'أدخل كلمة المرور الحالية لتأكيد حذف الحساب'**
-  String get deleteAccountPasswordPrompt;
+  /// **'لتأكيد الحذف سنرسل رمز تحقق إلى رقم هاتفك المسجّل.'**
+  String get deleteAccountOtpPrompt;
+
+  /// No description provided for @deleteAccountSendOtp.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال رمز التحقق'**
+  String get deleteAccountSendOtp;
+
+  /// No description provided for @deleteAccountOtpSentTo.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل الرمز المكوّن من 6 أرقام المرسل إلى {phone}'**
+  String deleteAccountOtpSentTo(String phone);
+
+  /// No description provided for @deleteAccountOtpLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز التحقق'**
+  String get deleteAccountOtpLabel;
+
+  /// No description provided for @deleteAccountOtpIncomplete.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل رمز التحقق المكوّن من 6 أرقام'**
+  String get deleteAccountOtpIncomplete;
+
+  /// No description provided for @deleteAccountInvalidOtp.
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز التحقق غير صحيح أو منتهي الصلاحية. اطلب رمزًا جديدًا.'**
+  String get deleteAccountInvalidOtp;
+
+  /// No description provided for @deleteAccountRateLimited.
+  ///
+  /// In ar, this message translates to:
+  /// **'محاولات كثيرة في وقت قصير. حاول بعد قليل.'**
+  String get deleteAccountRateLimited;
+
+  /// No description provided for @deleteAccountPhoneMissing.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد رقم هاتف مرتبط بالحساب. تواصل مع الدعم لحذف الحساب.'**
+  String get deleteAccountPhoneMissing;
+
+  /// No description provided for @deleteAccountFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر حذف الحساب. حاول مرة أخرى.'**
+  String get deleteAccountFailed;
 
   /// No description provided for @changePasswordRateLimited.
   ///
@@ -3806,7 +3878,7 @@ abstract class AppLocalizations {
   /// No description provided for @legalLastUpdated.
   ///
   /// In ar, this message translates to:
-  /// **'آخر تحديث: أغسطس 2025'**
+  /// **'آخر تحديث: نوفمبر 2026'**
   String get legalLastUpdated;
 
   /// No description provided for @legalContactTitle.
@@ -3824,109 +3896,109 @@ abstract class AppLocalizations {
   /// No description provided for @legalTermsIntro.
   ///
   /// In ar, this message translates to:
-  /// **'مرحباً بك في تطبيق مِحْوَر لخدمات طوارئ السيارات. باستخدامك لهذا التطبيق، أنت توافق على الشروط والأحكام التالية التي تنظم العلاقة بينك وبين منصة مِحْوَر.'**
+  /// **'مرحبًا بك في «محور»، منصة ربط مالكي السيارات بمزوّدي خدمات المساعدة على الطريق. تحكم هذه الشروط علاقتك بمنصة محور وتطبيقها وموقعها. النص الكامل منشور على mahwar.app/terms، والنسخة العربية هي المعتمدة. باستخدامك المنصة فأنت توافق على هذه الشروط وسياسة الخصوصية.'**
   String get legalTermsIntro;
 
   /// No description provided for @legalTermsSection1Title.
   ///
   /// In ar, this message translates to:
-  /// **'قبول الشروط'**
+  /// **'قبول الشروط والأهلية'**
   String get legalTermsSection1Title;
 
   /// No description provided for @legalTermsSection1Body.
   ///
   /// In ar, this message translates to:
-  /// **'باستخدامك لتطبيق مِحْوَر، أنت تُقر بأنك قرأت هذه الشروط وفهمتها وتوافق على الالتزام بها. إذا كنت لا توافق على أي من هذه الشروط، يرجى عدم استخدام التطبيق.'**
+  /// **'باستخدامك المنصة أو إنشاء حساب فيها تُقرّ بأنك قرأت هذه الشروط وسياسة الخصوصية وفهمتهما ووافقت عليهما. المنصة مخصّصة لمن أتمّ الثامنة عشرة من عمره وأهل قانونًا لإبرام العقود وفق قوانين جمهورية مصر العربية، ومتاحة للعمل داخل مصر فقط. إن لم توافق على هذه الشروط فلا تستخدم المنصة.'**
   String get legalTermsSection1Body;
 
   /// No description provided for @legalTermsSection2Title.
   ///
   /// In ar, this message translates to:
-  /// **'الاستخدام المقبول'**
+  /// **'طبيعة الخدمة'**
   String get legalTermsSection2Title;
 
   /// No description provided for @legalTermsSection2Body.
   ///
   /// In ar, this message translates to:
-  /// **'يُسمح باستخدام التطبيق فقط للأغراض القانونية ووفقاً للقوانين المعمول بها في جمهورية مصر العربية. يُحظر استخدام التطبيق لأي غرض احتيالي أو ضار أو مخالف للآداب العامة.'**
+  /// **'محور منصة رقمية للربط بين مالك السيارة ومزوّدي الخدمة القريبين جغرافيًا، وتتيح نشر الطلب وتلقّي العروض وقبول أحدها وتتبّع الطلب وتقييم الخدمة. محور ليست مزوّد خدمة ولا طرفًا في العقد بين مالك السيارة ومزوّد الخدمة، ولا تضمن توافر مزوّد في كل وقت أو مكان ولا زمن وصول أو سعرًا محددًا؛ أي زمن وصول معروض تقديري وليس التزامًا.'**
   String get legalTermsSection2Body;
 
   /// No description provided for @legalTermsSection3Title.
   ///
   /// In ar, this message translates to:
-  /// **'الحسابات والمسؤولية'**
+  /// **'الحساب والتسجيل'**
   String get legalTermsSection3Title;
 
   /// No description provided for @legalTermsSection3Body.
   ///
   /// In ar, this message translates to:
-  /// **'أنت مسؤول عن الحفاظ على سرية بيانات حسابك وكلمة مرورك. كما أنت مسؤول عن جميع الأنشطة التي تحدث تحت حسابك. يجب إبلاغنا فوراً عن أي استخدام غير مصرح به لحسابك.'**
+  /// **'التسجيل والدخول برقم هاتف مصري يُتحقق منه برمز يُرسل برسالة نصية (OTP)؛ لا توجد كلمة مرور. أنت مسؤول عن صحة رقمك وبياناتك — بما فيها الاسم والرقم القومي وبيانات السيارة — وعن حماية جهازك ورمز التحقق. حساب واحد للشخص الواحد بالدور الذي تختاره، ويُحظر إنشاء حسابات متعددة للتحايل على الحظر أو حدود الاستخدام. أبلغنا فورًا عن أي استخدام غير مصرّح به لحسابك.'**
   String get legalTermsSection3Body;
 
   /// No description provided for @legalTermsSection4Title.
   ///
   /// In ar, this message translates to:
-  /// **'طبيعة خدمات التطبيق'**
+  /// **'التزامات الطرفين'**
   String get legalTermsSection4Title;
 
   /// No description provided for @legalTermsSection4Body.
   ///
   /// In ar, this message translates to:
-  /// **'يوفر تطبيق مِحْوَر منصة رقمية لربط مالكي السيارات بمقدمي خدمات الطوارئ. نحن لسنا طرفاً في الاتفاق بين العميل ومقدم الخدمة، ولا نتحمل المسؤولية عن جودة الخدمات المقدمة.'**
+  /// **'على مالك السيارة وصف العطل والخدمة بدقة وإرفاق صور حقيقية وتحديد موقع صحيح، والتعاون مع مزوّد الخدمة وسداد السعر المتفق عليه بعد التنفيذ. يعمل مزوّد الخدمة مستقلًا ومسؤولًا عن أدواته وتراخيصه وتأمينه والتزاماته الضريبية، ويقدّم عروضًا صادقة دون رفع السعر بعد القبول، وينفّذ الخدمة بأمان. لا يجوز لمزوّد الخدمة استخدام بيانات مالك السيارة — الموقع أو رقم الهاتف الذي يظهر بعد التأكيد — لغير تنفيذ الطلب، ولا حفظها أو مشاركتها أو استخدامها في التسويق.'**
   String get legalTermsSection4Body;
 
   /// No description provided for @legalTermsSection5Title.
   ///
   /// In ar, this message translates to:
-  /// **'التسعير والمدفوعات'**
+  /// **'الأسعار والدفع والإلغاء'**
   String get legalTermsSection5Title;
 
   /// No description provided for @legalTermsSection5Body.
   ///
   /// In ar, this message translates to:
-  /// **'جميع المدفوعات تتم مباشرةً بين مالك السيارة ومقدم الخدمة. يتيح التطبيق عملية التفاوض على السعر والموافقة عليه. التطبيق لا يتحصل على عمولة أو رسوم مالية من المعاملات.'**
+  /// **'يقدّم مزوّد الخدمة السعر ويعتمده مالك السيارة قبل بدء التنفيذ، ولا يتغيّر بعد الاعتماد إلا بموافقة صريحة من الطرفين داخل التطبيق. الدفع يتم مباشرةً بين الطرفين خارج التطبيق (نقدًا أو بأي وسيلة يتفقان عليها)؛ محور لا تتحصّل أي مبلغ أو عمولة ولا تتدخل في التحصيل أو الاسترداد. يمكن الإلغاء قبل قبول العرض، وبعد القبول يصبح الطلب ملزمًا للطرفين. قد يُلغى الطلب تلقائيًا عند انتهاء المهلة المحددة، وقد يؤدي الإلغاء أو عدم الاستجابة المتكرر إلى خفض أولوية الحساب أو إيقافه بعد التنبيه.'**
   String get legalTermsSection5Body;
 
   /// No description provided for @legalTermsSection6Title.
   ///
   /// In ar, this message translates to:
-  /// **'الإلغاء والرفض'**
+  /// **'بيانات الاتصال والمحتوى العام'**
   String get legalTermsSection6Title;
 
   /// No description provided for @legalTermsSection6Body.
   ///
   /// In ar, this message translates to:
-  /// **'يمكن لمالك السيارة إلغاء الطلب في أي وقت قبل قبول السعر. يمكن لمقدم الخدمة رفض الطلب قبل تقديم عرض السعر. بعد قبول السعر من قبل العميل، يُعتبر الطلب مُلزِماً.'**
+  /// **'رقم هاتف مالك السيارة لا يظهر لمزوّد الخدمة إلا بعد تأكيد الطلب ولغرض تنفيذه فقط. التقييمات والتعليقات تُعرض للعامة على بروفايل مزوّد الخدمة، ويبقى المستخدم مسؤولًا عن محتواه. يُحظر نشر محتوى مسيء أو تشهيري أو منتهك لخصوصية الغير أو يحتوي بيانات اتصال دعائية أو معلومات مضلّلة. يمكن الإبلاغ عن أي محتوى أو سلوك مسيء عبر زر الدعم داخل التطبيق أو على support@mahwar.app، وتراجع محور البلاغات وتتخذ إجراءً مناسبًا — يصل إلى إخفاء المحتوى أو إيقاف الحساب — خلال مدة لا تتجاوز 72 ساعة، مع إمكانية إخفاء المحتوى المسيء ومنع صاحبه من الظهور لك.'**
   String get legalTermsSection6Body;
 
   /// No description provided for @legalTermsSection7Title.
   ///
   /// In ar, this message translates to:
-  /// **'الملكية الفكرية'**
+  /// **'الإيقاف والمسؤولية'**
   String get legalTermsSection7Title;
 
   /// No description provided for @legalTermsSection7Body.
   ///
   /// In ar, this message translates to:
-  /// **'جميع حقوق الملكية الفكرية للتطبيق بما في ذلك التصاميم والشعارات والمحتوى محفوظة لشركة مِحْوَر. لا يُسمح بإعادة إنتاج أي جزء من التطبيق أو استخدامه تجارياً دون إذن مسبق.'**
+  /// **'يجوز لمحور تعليق الحساب أو إيقافه عند مخالفة الشروط أو السلوك المسيء أو الاشتباه في الاحتيال أو الخطر على المستخدمين، مع إشعار المستخدم بالسبب عند الإمكان. تُقدَّم المنصة «كما هي» وبحسب التوافر، ولا تصدر محور شهادات مهنية لمزوّدي الخدمة ولا تضمن جودة عملهم — تتحقق من الهوية وتراجع التقييمات والبلاغات. المساعدة على الطريق قد تنطوي على مخاطر، ويلتزم المستخدم بتعليمات السلامة. لا تتجاوز المسؤولية الإجمالية لمحور ما دفعته فعليًا لاستخدام المنصة خلال الاثني عشر شهرًا السابقة للمطالبة، وذلك إلى الحد الذي يسمح به القانون.'**
   String get legalTermsSection7Body;
 
   /// No description provided for @legalTermsSection8Title.
   ///
   /// In ar, this message translates to:
-  /// **'التعديلات على الشروط'**
+  /// **'القانون والتعديلات والتواصل'**
   String get legalTermsSection8Title;
 
   /// No description provided for @legalTermsSection8Body.
   ///
   /// In ar, this message translates to:
-  /// **'نحتفظ بحقنا في تعديل هذه الشروط والأحكام في أي وقت. سيتم إشعار المستخدمين بأي تغييرات جوهرية من خلال التطبيق. استمرارك في استخدام التطبيق بعد التعديلات يُعدّ قبولاً لها.'**
+  /// **'تخضع هذه الشروط لقوانين جمهورية مصر العربية، ونسعى لحل أي نزاع وديًا خلال 30 يومًا من إبلاغنا، وإلا تختص محاكم القاهرة دون الإخلال بحقوقك الإلزامية كمستهلك. قد نُعدّل الشروط لأسباب تشغيلية أو قانونية، وننشر النسخة المحدّثة داخل التطبيق وعلى mahwar.app/terms مع تاريخ التحديث ونُخطر بالتغييرات الجوهرية قبل نفاذها بوقت معقول. للتواصل: support@mahwar.app.'**
   String get legalTermsSection8Body;
 
   /// No description provided for @legalPrivacyIntro.
   ///
   /// In ar, this message translates to:
-  /// **'نحن في تطبيق مِحْوَر نُقدّر ثقتك ونلتزم التزاماً تاماً بحماية بياناتك الشخصية. توضح هذه السياسة كيفية جمع البيانات واستخدامها وحمايتها.'**
+  /// **'في «محور» نجمع أقل قدر ممكن من البيانات اللازمة لتشغيل خدمة المساعدة على الطريق، ولا نبيعها ولا نستخدمها في الإعلانات أو التتبّع. توضّح هذه السياسة ما نجمعه ولماذا وكيف نحفظه وحقوقك في التحكم به. السياسة موجّهة لمن أتمّ الثامنة عشرة داخل مصر، والنص الكامل منشور على mahwar.app/privacy.'**
   String get legalPrivacyIntro;
 
   /// No description provided for @legalPrivacySection1Title.
@@ -3938,91 +4010,91 @@ abstract class AppLocalizations {
   /// No description provided for @legalPrivacySection1Body.
   ///
   /// In ar, this message translates to:
-  /// **'نجمع البيانات الضرورية لتقديم خدماتنا، وتشمل: الاسم الكامل، رقم الهاتف، البريد الإلكتروني، الموقع الجغرافي الحي، الرقم القومي (لمقدمي الخدمة)، وبيانات السيارة (الماركة، الموديل، السنة). لا نجمع أي بيانات غير ضرورية.'**
+  /// **'بيانات تقدّمها بنفسك: رقم الهاتف المصري (إلزامي للمصادقة برمز OTP)، الاسم، البريد الإلكتروني (اختياري)، الرقم القومي (إلزامي قبل إرسال الطلب للتحقق من الهوية)، بيانات السيارة، وموقع السيارة ووصف العطل والصور عند إنشاء الطلب، وصورة ونص تذكرة الدعم، والتقييمات والتعليقات. وبيانات تُجمع تلقائيًا: تفاصيل الطلب وحالته وسعره، وموقع مزوّد الخدمة أثناء طلب نشط فقط، ورمز الإشعارات (FCM) ومعرّف الجهاز ونص الإشعارات، واسم الشاشة ومدة البقاء لتحسين التطبيق، وسجلات إرسال الرسائل النصية، وبيانات تقنية لأغراض الأمان. لا نجمع بيانات دفع (لا مدفوعات داخل التطبيق)، ولا جهات الاتصال، ولا رسائل SMS أو سجل المكالمات، ولا الصوت أو الفيديو، ولا الموقع في الخلفية، ولا معرّف الإعلانات.'**
   String get legalPrivacySection1Body;
 
   /// No description provided for @legalPrivacySection2Title.
   ///
   /// In ar, this message translates to:
-  /// **'كيفية استخدام بياناتك'**
+  /// **'لماذا نستخدم بياناتك'**
   String get legalPrivacySection2Title;
 
   /// No description provided for @legalPrivacySection2Body.
   ///
   /// In ar, this message translates to:
-  /// **'نستخدم بياناتك للأغراض التالية: تقديم خدمات الطوارئ، ربطك بأقرب مقدمي الخدمة جغرافياً، إرسال الإشعارات ذات الصلة بطلباتك، تحسين جودة التطبيق وتجربة المستخدم، وضمان أمان المنصة.'**
+  /// **'نستخدم بياناتك لإنشاء الحساب والمصادقة، وتشغيل السوق (نشر الطلب وإيجاد أقرب مزوّد وتلقّي العروض والتتبّع والتقييم)، والتحقق من الهوية ومكافحة الاحتيال، وأمان المنصة، والإشعارات التشغيلية، وتحسين التطبيق، ومعالجة تذاكر الدعم، والالتزام بالطلبات القانونية. لا نستخدم بياناتك في إعلانات ولا نبيعها ولا نتخذ قرارات آلية ذات أثر قانوني عليك بدون تدخل بشري.'**
   String get legalPrivacySection2Body;
 
   /// No description provided for @legalPrivacySection3Title.
   ///
   /// In ar, this message translates to:
-  /// **'مشاركة البيانات'**
+  /// **'من يرى بياناتك'**
   String get legalPrivacySection3Title;
 
   /// No description provided for @legalPrivacySection3Body.
   ///
   /// In ar, this message translates to:
-  /// **'لا نشارك بياناتك مع أطراف ثالثة إلا في الحالات التالية: عند ضرورة تقديم الخدمة (مشاركة موقعك مع مقدم الخدمة المختار)، أو عند الإلزام القانوني من الجهات الحكومية المختصة، أو بموافقتك الصريحة.'**
+  /// **'الطرف الآخر في الطلب يرى ما يلزم لتنفيذه: مزوّد الخدمة يرى الوصف والموقع والصور واسم مالك السيارة، ورقم هاتف المالك لا يظهر إلا بعد تأكيد الطلب. تقييماتك وتعليقاتك تُعرض للعامة على بروفايل المزوّد دون أرقام هواتف أو أرقام قومية. نستعين بمعالجين بالنيابة عنا لتشغيل الخدمة فقط: Supabase (البيانات والمصادقة والتخزين)، Google Firebase (الإشعارات)، ZADX (الرسائل النصية)، Resend (بريد الدعم)، Cloudflare (DNS وتوجيه البريد)، وOpenStreetMap (بلاطات الخريطة). قد نُفصح عن البيانات عند طلب قانوني مُلزم أو لحماية حقوقنا وسلامة المستخدمين بالقدر الأدنى اللازم، وقد تنتقل البيانات إلى خلف عند بيع النشاط بنفس الالتزامات.'**
   String get legalPrivacySection3Body;
 
   /// No description provided for @legalPrivacySection4Title.
   ///
   /// In ar, this message translates to:
-  /// **'أمان البيانات'**
+  /// **'الموقع والكاميرا والإشعارات'**
   String get legalPrivacySection4Title;
 
   /// No description provided for @legalPrivacySection4Body.
   ///
   /// In ar, this message translates to:
-  /// **'نستخدم أحدث تقنيات التشفير والأمان لحماية بياناتك. نعتمد على Supabase كبنية تحتية آمنة مع تشفير SSL/TLS لجميع الاتصالات. يتم تطبيق سياسات Row Level Security (RLS) لضمان عدم الوصول غير المصرح به لبياناتك.'**
+  /// **'نستخدم موقع السيارة لإيجاد المزوّدين القريبين وتتبّع الطلب، ولا نتابع موقعك خارج طلب نشط ولا في الخلفية ولا بعد انتهائه. نطلب الكاميرا لالتقاط صورة العطل أو صورة تذكرة الدعم، ومكتبة الصور لاختيار صورة موجودة، ولا نرفع شيئًا بدون اختيارك الصريح. نرسل إشعارات تشغيلية عن الطلب والحساب يمكنك ضبط أذونها من إعدادات جهازك، ولا نستخدم بياناتك لإرسال إعلانات أطراف ثالثة.'**
   String get legalPrivacySection4Body;
 
   /// No description provided for @legalPrivacySection5Title.
   ///
   /// In ar, this message translates to:
-  /// **'حقوقك على بياناتك'**
+  /// **'أين تُخزَّن بياناتك ومدة الاحتفاظ'**
   String get legalPrivacySection5Title;
 
   /// No description provided for @legalPrivacySection5Body.
   ///
   /// In ar, this message translates to:
-  /// **'لديك الحقوق التالية بشأن بياناتك: حق الوصول والاطلاع على بياناتك المخزنة، حق التصحيح والتعديل، حق حذف حسابك وبياناتك كاملاً، وحق الاعتراض على معالجة بياناتك في حالات معينة.'**
+  /// **'تُخزَّن بياناتك على بنية Supabase السحابية وقد تكون خارج مصر مع ضمانات تعاقدية وتقنية مناسبة، وتُحمى أثناء النقل بالتشفير وبسياسات وصول على مستوى الصف (RLS) تمنع أي مستخدم من قراءة بيانات غيره. نحتفظ ببيانات الحساب طوال نشاطه وتُحذف عند إغلاقه. قد تبقى معلومات محدودة مجهولة الهوية بعد الحذف لسجل الخدمة ومنع إساءة الاستخدام والالتزامات القانونية: التقييمات والتعليقات العامة، وتذاكر الدعم، وسجلات إرسال الرسائل النصية — ولا يمكن ربطها بك بعد إزالة معرّفاتك. تُحذف صور ومرفقات الطلبات والتذاكر عند الحذف أو انتهاء الغرض.'**
   String get legalPrivacySection5Body;
 
   /// No description provided for @legalPrivacySection6Title.
   ///
   /// In ar, this message translates to:
-  /// **'بيانات الموقع الجغرافي'**
+  /// **'حذف الحساب'**
   String get legalPrivacySection6Title;
 
   /// No description provided for @legalPrivacySection6Body.
   ///
   /// In ar, this message translates to:
-  /// **'نستخدم الموقع الجغرافي فقط خلال جلسة الطلب النشطة لإيجاد أقرب مقدمي الخدمة. لا نتتبع موقعك في الخلفية خارج طلبات الخدمة. يمكنك التحكم في صلاحيات الموقع من إعدادات هاتفك في أي وقت.'**
+  /// **'يمكنك حذف حسابك في أي وقت من إعدادات التطبيق أو عبر mahwar.app/delete-account بلا حاجة لتثبيت التطبيق. للتأكد من ملكيتك للحساب نطلب رمز تحقق يُرسل إلى رقم هاتفك المسجّل — نفس آلية الدخول — ولا نطلب كلمة مرور. عند الحذف نزيل بيانات البروفايل والسيارة، وطلباتك وتفاصيلها، وإشعاراتك ورموز أجهزتك، وتفضيلاتك، ومرفقاتك المخزّنة، ونزيل حسابك من نظام المصادقة نهائيًا. قد نؤجل الحذف مؤقتًا إن كان هناك طلب نشط أو نزاع أو التزام قانوني، مع بيان السبب والمدة. الحذف نهائي في الغالب ولا يمكن التراجع عنه.'**
   String get legalPrivacySection6Body;
 
   /// No description provided for @legalPrivacySection7Title.
   ///
   /// In ar, this message translates to:
-  /// **'الاحتفاظ بالبيانات'**
+  /// **'حقوقك على بياناتك'**
   String get legalPrivacySection7Title;
 
   /// No description provided for @legalPrivacySection7Body.
   ///
   /// In ar, this message translates to:
-  /// **'نحتفظ ببيانات حسابك طالما كان حسابك نشطاً. عند حذف حسابك، يتم حذف جميع بياناتك الشخصية خلال 30 يوماً. قد نحتفظ ببعض البيانات المجهولة للتحليل الإحصائي.'**
+  /// **'وفق قانون حماية البيانات الشخصية المصري رقم 151 لسنة 2020 واللوائح السارية، لك حق الاطلاع على بياناتك، وتصحيحها، وحذفها وإغلاق حسابك، وتقييد المعالجة أو الاعتراض عليها لأسباب خاصة بك، وسحب الموافقة حيث تُبنى المعالجة عليها دون أثر رجعي، ونقل البيانات التي قدّمتها حيث يسري ذلك، وتقديم شكوى إلينا ثم إلى الجهة المختصة. نرد على الطلبات عادةً خلال 30 يومًا وقد نطلب ما يثبت هويتك قبل التنفيذ، ولا نُفرّق في الخدمة بين من يمارس حقوقه ومن لا يمارسها.'**
   String get legalPrivacySection7Body;
 
   /// No description provided for @legalPrivacySection8Title.
   ///
   /// In ar, this message translates to:
-  /// **'التحديثات على السياسة'**
+  /// **'الأمان وتحديثات السياسة والتواصل'**
   String get legalPrivacySection8Title;
 
   /// No description provided for @legalPrivacySection8Body.
   ///
   /// In ar, this message translates to:
-  /// **'قد نقوم بتحديث سياسة الخصوصية هذه من وقت لآخر لتعكس التغييرات في ممارساتنا أو لأسباب تشغيلية أو قانونية. سنُشعرك بأي تغييرات جوهرية عبر إشعار داخل التطبيق قبل دخول التغييرات حيز التنفيذ.'**
+  /// **'نستخدم التشفير أثناء النقل، وسياسات وصول صارمة، وأقل امتياز ممكن، ومصادقة متعددة العوامل لحسابات المشرفين، وسجلات تدقيق للإجراءات الحساسة؛ ولا يمكن لأحد ضمان أمان مطلق، وإذا وقع خرق يمسّ بياناتك نُخطرك ونُخطر الجهة المختصة وفق القانون. قد نُحدّث هذه السياسة لتغيرات في الخدمة أو القانون، وننشر النسخة المحدّثة داخل التطبيق وعلى mahwar.app/privacy مع تاريخ التحديث ونُخطر بالتغييرات الجوهرية قبل نفاذها. للتواصل: privacy@mahwar.app أو support@mahwar.app.'**
   String get legalPrivacySection8Body;
 
   /// No description provided for @signOut.

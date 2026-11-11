@@ -542,6 +542,25 @@ class AuthCubit extends Cubit<AuthState> {
     await _authService.resendForgotPasswordOtp(localPhone);
   }
 
+  /// يرسل كود دخول بالهاتف لحساب موجود (بلا إنشاء حساب) — الشاشة تتحكم في
+  /// الـ loading محليًا وتعالج الأخطاء عبر [mapRecoverySendError] المحايدة.
+  Future<void> requestLoginOtp(String localPhone) async {
+    await _authService.requestLoginOtp(localPhone);
+  }
+
+  Future<void> verifyLoginOtp({
+    required String localPhone,
+    required String otp,
+  }) async {
+    await _authService.verifyLoginOtp(localPhone: localPhone, otp: otp);
+    // التحقق من الرمز يثبت ملكية الرقم — البوابة لا تحتاج سؤال الخادم بعدها.
+    _phoneVerified = true;
+  }
+
+  Future<void> resendLoginOtp(String localPhone) async {
+    await _authService.resendLoginOtp(localPhone);
+  }
+
   /// يضبط كلمة المرور الجديدة للمستخدم (جلسة استعادة) ثم يخرج تلقائيًا
   /// حتى يعود المستخدم لشاشة الدخول ويجرب كلمة المرور الجديدة.
   Future<void> setNewPassword(String newPassword) async {

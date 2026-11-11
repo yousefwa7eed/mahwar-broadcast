@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/auth/auth_cubit.dart';
+import '../../core/auth/install_login_store.dart';
+import '../../core/auth/phone_utils.dart';
 import '../../core/auth/role_hint_cache.dart';
 import '../../core/auth/role_gate.dart';
 import '../../core/constants/app_colors.dart';
@@ -109,6 +111,16 @@ class _SplashScreenState extends State<SplashScreen>
       if (!mounted) return;
       await _leave('/select-user-type');
       return;
+    }
+
+    // جلسة نجت من إعادة تشغيل/تحديث التطبيق = نفس النسخة المثبّتة (الحذف
+    // يمحو الجلسة والعلامة معًا). نسجّل العلامة حتى لا يُفرض رمز التحقق على
+    // مستخدم كان داخل التطبيق قبل التحديث — إلا رقمًا فُرض عليه الرمز ولم
+    // يُكمله، فيبقى محتاجًا له (جلسة كلمة المرور وحدها لا تكفي).
+    final localPhone = PhoneUtils.normalize(cubit.currentUserPhone ?? '');
+    if (PhoneUtils.isValidEgyptianMobile(localPhone) &&
+        !await InstallLoginStore.instance.isPending(localPhone)) {
+      await InstallLoginStore.instance.markVerified(localPhone);
     }
 
     // 3) الدور من الخادم فقط (profiles.role) خلال مهلة زمنية.

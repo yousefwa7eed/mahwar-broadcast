@@ -7,7 +7,7 @@ class ChangePasswordNoEmailException implements Exception {
 }
 
 /// يُرمى عند فشل حذف الحساب من دالة `delete-account` الخادمية، حاملًا رمز
-/// الخطأ الذي أعاده الخادم (مثل PASSWORD_REQUIRED / INVALID_PASSWORD).
+/// الخطأ الذي أعاده الخادم (مثل OTP_REQUIRED / INVALID_OTP / PHONE_REQUIRED).
 class DeleteAccountException implements Exception {
   final String code;
 
@@ -73,8 +73,8 @@ ChangePasswordError mapChangePasswordError(Object error) {
 
 /// يستخرج رمز خطأ حذف الحساب من أي استثناء: يعالج [DeleteAccountException]
 /// (خدمة الإنتاج) و[FunctionException] (رمي `functions.invoke` مباشرة) بالشكل
-/// نفسه، حتى تتمكّن الواجهة من تمييز `INVALID_PASSWORD` عن بقية الأخطاء. عند
-/// غياب رمز صريح يعود لـ `INVALID_PASSWORD` لرد 403، وإلّا للرمز العام.
+/// نفسه، حتى تتمكّن الواجهة من تمييز `INVALID_OTP` عن بقية الأخطاء. عند
+/// غياب رمز صريح يعود لـ `INVALID_OTP` لرد 403، وإلّا للرمز العام.
 String deleteAccountErrorCode(Object error) {
   if (error is DeleteAccountException) return error.code;
   if (error is FunctionException) {
@@ -85,7 +85,7 @@ String deleteAccountErrorCode(Object error) {
       final message = details['error'];
       if (message is String && message.isNotEmpty) return message;
     }
-    if (error.status == 403) return 'INVALID_PASSWORD';
+    if (error.status == 403) return 'INVALID_OTP';
   }
   return 'DELETE_ACCOUNT_FAILED';
 }

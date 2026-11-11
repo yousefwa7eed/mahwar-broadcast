@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:mahwar/core/auth/auth_cubit.dart' hide AuthState;
+import 'package:mahwar/core/auth/install_login_store.dart';
 import 'package:mahwar/core/auth/role_hint_cache.dart';
 import 'package:mahwar/features/splash_onboarding/splash_screen.dart';
 import 'package:mahwar/l10n/app_localizations.dart';
@@ -17,12 +18,13 @@ void main() {
 
   const hintKey = 'auth_role_hint';
 
-  User user(String role) => User(
+  User user(String role, {String? phone}) => User(
         id: 'fake-user-id',
         appMetadata: const {},
         userMetadata: {'role': role},
         aud: 'authenticated',
         createdAt: 'now',
+        phone: phone,
       );
 
   (Widget, GoRouter) buildApp(
@@ -106,6 +108,48 @@ void main() {
 
     expect(currentPath(router), '/home/owner');
     expect(find.byKey(const Key('owner')), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('جلسة نجت من تحديث التطبيق → تُسجَّل علامة النسخة بلا رمز', (
+    tester,
+  ) async {
+    final fake = FakeAuthService()
+      ..user = user('car_owner', phone: '201012345678')
+      ..serverUser = user('car_owner', phone: '201012345678')
+      ..serverRole = 'car_owner';
+    final (app, router) = buildApp(fake);
+
+    await tester.pumpWidget(app);
+    await tester.pumpAndSettle();
+
+    expect(currentPath(router), '/home/owner');
+    expect(
+      await InstallLoginStore.instance.isVerified('01012345678'),
+      isTrue,
+    );
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('جلسة كلمة مرور لم تُكمل الرمز (pending) → لا تُسجَّل العلامة', (
+    tester,
+  ) async {
+    await InstallLoginStore.instance.markPending('01012345678');
+    final fake = FakeAuthService()
+      ..user = user('car_owner', phone: '201012345678')
+      ..serverUser = user('car_owner', phone: '201012345678')
+      ..serverRole = 'car_owner';
+    final (app, router) = buildApp(fake);
+
+    await tester.pumpWidget(app);
+    await tester.pumpAndSettle();
+
+    // الإقلاع لا يمنح العلامة: البوابة في appRedirect ستعيده لشاشة الرمز.
+    expect(currentPath(router), '/home/owner');
+    expect(
+      await InstallLoginStore.instance.isVerified('01012345678'),
+      isFalse,
+    );
     await tester.pumpWidget(const SizedBox());
   });
 

@@ -4,6 +4,9 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'last_account_store.dart';
+import 'phone_utils.dart';
+
 class ProfileData extends Equatable {
   final String fullName;
   final String? phoneNumber;
@@ -148,7 +151,7 @@ class ProfileCubit extends Cubit<ProfileState> {
         return;
       }
 
-      emit(ProfileLoaded(ProfileData(
+      final profile = ProfileData(
         fullName: response['full_name'] ?? '',
         phoneNumber: response['phone_number'],
         email: response['email'],
@@ -156,7 +159,9 @@ class ProfileCubit extends Cubit<ProfileState> {
         role: response['role'],
         avatarId: response['avatar_id'],
         avatarUrl: response['avatar_url'],
-      )));
+      );
+      emit(ProfileLoaded(profile));
+      unawaited(_rememberLastAccount(profile));
     } on TimeoutException {
       // مهلة أمان: لا نبقى على شاشة هيكل شيمر بلا نهاية — نتحول لخطأ
       // يُعرض مع زر إعادة المحاولة.
@@ -168,6 +173,24 @@ class ProfileCubit extends Cubit<ProfileState> {
 
   Future<void> refreshProfile() async {
     await loadProfile();
+  }
+
+  /// يحفظ اسم/رقم/دور الحساب محليًا لتلميح «العودة إلى حسابك» بعد إعادة
+  /// التثبيت. الدور يُقبل فقط إن كان معروفًا، والرقم يُؤخذ من `profiles` ثم من
+  /// جلسة GoTrue — ولا يُكتب شيء إن غاب أحدهما.
+  Future<void> _rememberLastAccount(ProfileData profile) async {
+    final role = profile.role;
+    if (role == null) return;
+    if (role != 'car_owner' && role != 'provider') return;
+    final name = profile.fullName.trim();
+    if (name.isEmpty) return;
+    final rawPhone = profile.phoneNumber ?? _client.auth.currentUser?.phone;
+    if (rawPhone == null || rawPhone.isEmpty) return;
+    final phone = PhoneUtils.normalize(rawPhone);
+    if (!PhoneUtils.isValidEgyptianMobile(phone)) return;
+    await LastAccountStore().write(
+      LastAccount(name: name, phone: phone, role: role),
+    );
   }
 
   void updateProfile(ProfileData profile) {

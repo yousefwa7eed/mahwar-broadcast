@@ -5,6 +5,8 @@ import '../config/app_config.dart';
 import '../services/screen_time_service.dart';
 import '../../core/auth/auth_cubit.dart';
 import '../../core/auth/home_route.dart';
+import '../../core/auth/install_login_store.dart';
+import '../../core/auth/phone_utils.dart';
 import '../../core/auth/role_gate.dart';
 import '../../core/models/notification_model.dart';
 import '../../features/auth/forgot_password_screen.dart';
@@ -85,6 +87,49 @@ Future<String?> phoneVerificationRedirect(
   return '/otp-verify?mode=signup';
 }
 
+/// بوابة «النسخة الجديدة»: جلسة صالحة لا تكفي وحدها إن كانت النسخة المثبّتة
+/// لم تتحقّق من رقم صاحبها بعد. العلامة المحلية تُمسح عند حذف التطبيق وإعادة
+/// تنزيله، فتُفرض إعادة تحقق برمز SMS على رقم الحساب قبل أي مسار محمي — ولو
+/// أُنشئت الجلسة بكلمة المرور.
+///
+/// الاستثناء الوحيد المسموح: تسجيل خروج ثم دخول على نفس النسخة، لأن العلامة
+/// باقية في التخزين المحلي. الجلسة الناجية من تحديث التطبيق (لا حذف) تُسجّل
+/// العلامة في شاشة الإقلاع، فلا يُفرض الرمز على من كان داخل التطبيق.
+///
+/// الفشل في قراءة التخزين يفتح البوابة (fail-open) — انظر [InstallLoginStore].
+Future<String?> installVerificationRedirect(
+  AuthCubit cubit,
+  GoRouterState state,
+) async {
+  if (AppConfig.otpBypass) return null;
+  if (isPhoneGatePublicPath(state.matchedLocation)) return null;
+
+  if (!cubit.hasSession) return null;
+
+  // الرقم من الجلسة الموثّقة (auth.users.phone) لا من profiles — مصدر واحد.
+  final localPhone = PhoneUtils.normalize(cubit.currentUserPhone ?? '');
+  if (!PhoneUtils.isValidEgyptianMobile(localPhone)) return null;
+  if (await InstallLoginStore.instance.isVerified(localPhone)) return null;
+
+  final rawTarget = state.uri.hasScheme ? '' : state.uri.toString();
+  final target = rawTarget.startsWith('/') ? rawTarget : null;
+
+  // نعلّم الرقم «قيد التحقق» أولًا: لو أغلق المستخدم التطبيق قبل إدخال الرمز
+  // ثم فتحه، لا تعتبر شاشة الإقلاع الجلسة استمرارية نسخة فتعفيه من الرمز.
+  await InstallLoginStore.instance.markPending(localPhone);
+
+  return Uri(
+    path: '/otp-verify',
+    queryParameters: <String, String>{
+      'mode': 'login',
+      'phone': localPhone,
+      'auto': '1',
+      'role': ?cubit.cachedRole,
+      'next': ?target,
+    },
+  ).toString();
+}
+
 /// البوابة الموحّدة للتوجيه: بوابة توثيق الهاتف أولًا، ثم حارس الدور على
 /// مسارات الرئيسية. حارس الدور يمنع بقاء جلسة دور داخل رئيسية الدور الآخر
 /// (تبديل حسابات على نفس الجهاز / مسار قديم مدفوع) بإعادة التوجيه إلى رئيسية
@@ -94,6 +139,9 @@ Future<String?> appRedirect(BuildContext context, GoRouterState state) async {
   final cubit = context.read<AuthCubit>();
   final phoneRedirect = await phoneVerificationRedirect(context, state);
   if (phoneRedirect != null) return phoneRedirect;
+
+  final installRedirect = await installVerificationRedirect(cubit, state);
+  if (installRedirect != null) return installRedirect;
 
   // روابط QR تصل بصيغة `mahwar://provider?id=…`: go_router يرى المضيف
   // provider والمسار `/`، فلا يطابق أي GoRoute. نحوّلها هنا إلى الملف
@@ -231,6 +279,8 @@ final GoRouter appRouter = GoRouter(
           mode: otpModeFromQuery(modeName),
           phone: phone,
           role: role,
+          autoSend: state.uri.queryParameters['auto'] == '1',
+          next: state.uri.queryParameters['next'],
         );
       },
     ),

@@ -20,6 +20,10 @@ class LoginFormWidget extends StatefulWidget {
   final VoidCallback onSignupTap;
   final VoidCallback onForgotPasswordTap;
 
+  /// يُستدعى برقم الهاتف المكتوب لطلب كود دخول بدل كلمة المرور. يظهر الخيار
+  /// في وضع الهاتف فقط، ولا يظهر إطلاقًا إن لم يُمرَّر.
+  final ValueChanged<String>? onOtpLoginTap;
+
   const LoginFormWidget({
     super.key,
     required this.role,
@@ -29,6 +33,7 @@ class LoginFormWidget extends StatefulWidget {
     required this.onSubmit,
     required this.onSignupTap,
     required this.onForgotPasswordTap,
+    this.onOtpLoginTap,
   });
 
   @override
@@ -310,23 +315,45 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
             ),
             const SizedBox(height: 10),
 
-            Align(
-              alignment: AlignmentDirectional.centerEnd,
-              child: GestureDetector(
-                onTap: widget.onForgotPasswordTap,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Text(
-                    l10n?.forgotPassword ?? 'نسيت كلمة المرور؟',
-                    style: TextStyle(
-                      fontFamily: labelFont,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: accent,
+            Row(
+              children: [
+                if (_isPhoneMode && widget.onOtpLoginTap != null)
+                  GestureDetector(
+                    onTap: isAuthLoading
+                        ? null
+                        : () => widget.onOtpLoginTap!(
+                            _identifierController.text.trim(),
+                          ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Text(
+                        l10n?.loginWithOtp ?? 'الدخول برمز التحقق',
+                        style: TextStyle(
+                          fontFamily: labelFont,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: accent,
+                        ),
+                      ),
+                    ),
+                  ),
+                const Spacer(),
+                GestureDetector(
+                  onTap: widget.onForgotPasswordTap,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Text(
+                      l10n?.forgotPassword ?? 'نسيت كلمة المرور؟',
+                      style: TextStyle(
+                        fontFamily: labelFont,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: accent,
+                      ),
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
             const SizedBox(height: 18),
 

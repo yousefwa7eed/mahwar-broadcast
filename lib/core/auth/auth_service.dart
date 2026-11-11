@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_config.dart';
 import 'change_password_error.dart';
+import 'last_account_store.dart';
 import 'phone_availability_params.dart';
 import 'phone_utils.dart';
 
@@ -109,13 +110,32 @@ abstract class AuthService {
   /// يعيد إرسال كود OTP الخاص باستعادة كلمة المرور.
   Future<void> resendForgotPasswordOtp(String localPhone);
 
+  /// يرسل كود OTP لتسجيل الدخول بالهاتف إلى **حساب موجود** — بلا إنشاء حساب
+  /// جديد (`shouldCreateUser: false`). رقم بلا حساب يرفضه GoTrue، وتُعرض
+  /// رسالة محايدة لا تكشف حالة الرقم.
+  Future<void> requestLoginOtp(String localPhone);
+
+  /// يتحقق من كود الدخول بالهاتف (OtpType.sms) — يُنجز الجلسة عند النجاح.
+  Future<void> verifyLoginOtp({
+    required String localPhone,
+    required String otp,
+  });
+
+  /// يعيد إرسال كود الدخول بالهاتف.
+  Future<void> resendLoginOtp(String localPhone);
+
   Future<String?> getUserName();
 
-  /// يحذف حساب المستخدم الحالي بعد التحقق من كلمة المرور الحالية. ترسل
-  /// [currentPassword] في جسم الطلب إلى دالة `delete-account` الخادمية التي
-  /// تتحقق منها قبل أي تنظيف/حذف. ترمي [DeleteAccountException] برمز الخطأ
-  /// (PASSWORD_REQUIRED / INVALID_PASSWORD) عند رفض التحقق.
-  Future<void> deleteAccount({required String currentPassword});
+  /// يرسل رمز تحقق (OTP) إلى رقم هاتف المستخدم الحالي — نفس مسار الدخول —
+  /// لتأكيد ملكية الرقم قبل حذف الحساب. الحسابات كلها هاتفية، فلا معنى
+  /// لاشتراط كلمة مرور غير موجودة (شرط حذف الحساب في المتجرين).
+  Future<void> requestDeleteAccountOtp();
+
+  /// يحذف حساب المستخدم الحالي بعد التحقق من [otp] **على الخادم** داخل دالة
+  /// `delete-account` — التحقق في العميل وحده لا يكفي. ترمي
+  /// [DeleteAccountException] برمز الخطأ (OTP_REQUIRED / INVALID_OTP /
+  /// RATE_LIMITED) عند رفض التحقق.
+  Future<void> deleteAccount({required String otp});
 
   /// يغيّر كلمة مرور المستخدم الحالي بعد التحقق من كلمة المرور الحالية.
   ///
@@ -391,6 +411,11 @@ class SupabaseAuthService extends AuthService {
   static String _toInternational(String localPhone) =>
       '+20${localPhone.substring(1)}';
 
+  /// يضمن بادئة `+` لرقم آتٍ من `User.phone` (يُخزَّن بلا علامة زائد غالبًا).
+  /// GoTrue يرفض رقمًا بلا صيغة E.164 في `signInWithOtp`.
+  static String _toE164(String phone) =>
+      phone.startsWith('+') ? phone : '+$phone';
+
   @override
   Future<void> attachPhone(String localPhone) async {
     await _client.auth.updateUser(
@@ -493,6 +518,36 @@ class SupabaseAuthService extends AuthService {
   }
 
   @override
+  Future<void> requestLoginOtp(String localPhone) async {
+    // `shouldCreateUser: false`: الدخول بالرمز للحسابات القائمة فقط — لا
+    // يُنشئ GoTrue حسابًا جديدًا لرقم مجهول.
+    await _client.auth.signInWithOtp(
+      phone: _toInternational(localPhone),
+      shouldCreateUser: false,
+    );
+  }
+
+  @override
+  Future<void> verifyLoginOtp({
+    required String localPhone,
+    required String otp,
+  }) async {
+    await _client.auth.verifyOTP(
+      type: OtpType.sms,
+      phone: _toInternational(localPhone),
+      token: otp,
+    );
+  }
+
+  @override
+  Future<void> resendLoginOtp(String localPhone) async {
+    await _client.auth.resend(
+      type: OtpType.sms,
+      phone: _toInternational(localPhone),
+    );
+  }
+
+  @override
   Future<String?> getUserName() async {
     if (currentUser == null) return null;
 
@@ -509,25 +564,40 @@ class SupabaseAuthService extends AuthService {
   }
 
   @override
-  Future<void> deleteAccount({required String currentPassword}) async {
+  Future<void> requestDeleteAccountOtp() async {
+    final phone = _client.auth.currentUser?.phone;
+    if (phone == null || phone.isEmpty) {
+      throw const DeleteAccountException('PHONE_REQUIRED');
+    }
+    // `shouldCreateUser: false`: رقم الحساب الحالي فقط، ولا يُنشأ حساب جديد.
+    await _client.auth.signInWithOtp(
+      phone: _toE164(phone),
+      shouldCreateUser: false,
+    );
+  }
+
+  @override
+  Future<void> deleteAccount({required String otp}) async {
     final session = _client.auth.currentSession;
     if (session == null) throw const DeleteAccountException('NO_SESSION');
 
     // `functions.invoke` يرمي FunctionsHttpException — وهي تمتدّ
     // [FunctionException] — عند أي رد غير 2xx، حاملةً جسم الاستجابة في
-    // `details`. نستخرج منه رمز الخطأ (PASSWORD_REQUIRED / INVALID_PASSWORD)
-    // للتمييز في الواجهة بدل انتظار رد ناجح بجسم خطأ.
+    // `details`. نستخرج منه رمز الخطأ (OTP_REQUIRED / INVALID_OTP) للتمييز في
+    // الواجهة بدل انتظار رد ناجح بجسم خطأ.
     try {
       await _client.functions.invoke(
         'delete-account',
         headers: {'Authorization': 'Bearer ${session.accessToken}'},
-        body: {'password': currentPassword},
+        body: {'otp': otp},
       );
     } on FunctionException catch (e) {
       throw DeleteAccountException(deleteAccountErrorCode(e));
     }
 
     await _client.auth.signOut();
+    // الحساب حُذف نهائيًا — لا معنى لتلميح «العودة إلى حسابك» بعد الآن.
+    await LastAccountStore().clear();
   }
 
   @override
