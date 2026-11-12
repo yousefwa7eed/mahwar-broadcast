@@ -3,13 +3,14 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/avatar_config.dart';
 import '../../core/models/provider_details.dart';
+import '../../core/services/app_messenger.dart';
 import '../../core/services/location_service.dart';
 import '../../core/utils/distance_format.dart';
+import '../../core/utils/map_launcher.dart';
 import '../../l10n/app_localizations.dart';
 import '../provider_selection/nearby_providers_params.dart';
 
@@ -222,22 +223,16 @@ class _ProvidersMapScreenState extends State<ProvidersMapScreen>
 
   Future<void> _openDirections(ProviderDetails p) async {
     final l10n = AppLocalizations.of(context);
-    final uri = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1'
-      '&destination=${p.latitude},${p.longitude}'
-      '&travelmode=driving',
+    final opened = await MapLauncher.openDirections(
+      latitude: p.latitude,
+      longitude: p.longitude,
     );
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            l10n?.noMapAppsAvailable ??
-                'لا توجد تطبيقات خرائط متاحة على جهازك',
-          ),
-          backgroundColor: AppColors.error,
-        ),
+    if (!opened && mounted) {
+      AppMessenger.showToast(
+        context,
+        l10n?.noMapAppsAvailable ??
+            'لا توجد تطبيقات خرائط متاحة على جهازك',
+        background: AppColors.error,
       );
     }
   }

@@ -1014,6 +1014,8 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen>
                               status: order.status,
                               statusLabel: order.statusLabel(l10n),
                               offeredPrice: order.offeredPrice,
+                              latitude: order.latitude,
+                              longitude: order.longitude,
                               createdAt: order.createdAt,
                               onComplete: order.status == OrderStatus.confirmed
                                   ? () => _completeOrder(order.id)

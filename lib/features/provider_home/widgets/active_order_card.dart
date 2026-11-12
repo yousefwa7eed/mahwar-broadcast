@@ -4,6 +4,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/models/order.dart';
 import '../../../core/widgets/attachments_gallery.dart';
 import '../../../core/widgets/brand_mark.dart';
+import '../../../core/widgets/navigate_to_customer_card.dart';
 import '../../../core/widgets/order_meta_row.dart';
 import '../../../l10n/app_localizations.dart';
 import 'order_live_badge.dart';
@@ -28,6 +29,8 @@ class ActiveOrderCard extends StatelessWidget {
   final OrderStatus status;
   final String statusLabel;
   final double? offeredPrice;
+  final double? latitude;
+  final double? longitude;
   final DateTime? createdAt;
   final VoidCallback? onComplete;
   final VoidCallback? onLocationTap;
@@ -49,6 +52,8 @@ class ActiveOrderCard extends StatelessWidget {
     required this.status,
     required this.statusLabel,
     this.offeredPrice,
+    this.latitude,
+    this.longitude,
     this.createdAt,
     this.onComplete,
     this.onLocationTap,
@@ -288,6 +293,18 @@ class ActiveOrderCard extends StatelessWidget {
           // Progress stepper
           OrderProgressStepper(status: status),
           const SizedBox(height: 14),
+
+          // العميل قبل السعر ⇒ على المزوّد أن يتحرك نحوه. نقترح فتح الاتجاهات
+          // مباشرة بدل تنفيذ الرحلة يدويًا من العنوان المكتوب.
+          if (status == OrderStatus.confirmed &&
+              latitude != null &&
+              longitude != null) ...[
+            NavigateToCustomerCard(
+              latitude: latitude!,
+              longitude: longitude!,
+            ),
+            const SizedBox(height: 14),
+          ],
 
           // Footer action
           _buildFooter(context, isDark),

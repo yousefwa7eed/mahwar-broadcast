@@ -552,6 +552,8 @@
     }
   },
   "noMapAppsAvailable": "No map apps available on your device",
+  "navigateToCustomerTitle": "The customer approved the price — head to them now",
+  "navigateToCustomerAction": "Navigate to customer",
   "enableLocationService": "Please enable location services (GPS) in your device settings",
   "locationPermissionDenied": "Location access permission was denied",
   "locationPermissionDeniedForever": "Location permission is permanently denied, please enable it from the app settings",

@@ -1654,6 +1654,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get noMapAppsAvailable => 'لا توجد تطبيقات خرائط متاحة على جهازك';
 
   @override
+  String get navigateToCustomerTitle =>
+      'العميل وافق على السعر — توجّه إليه الآن';
+
+  @override
+  String get navigateToCustomerAction => 'التوجّه إلى العميل';
+
+  @override
   String get enableLocationService =>
       'يرجى تفعيل خدمة الموقع (GPS) من إعدادات جهازك';
 

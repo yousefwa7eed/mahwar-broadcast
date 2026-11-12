@@ -3129,6 +3129,18 @@ abstract class AppLocalizations {
   /// **'لا توجد تطبيقات خرائط متاحة على جهازك'**
   String get noMapAppsAvailable;
 
+  /// No description provided for @navigateToCustomerTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'العميل وافق على السعر — توجّه إليه الآن'**
+  String get navigateToCustomerTitle;
+
+  /// No description provided for @navigateToCustomerAction.
+  ///
+  /// In ar, this message translates to:
+  /// **'التوجّه إلى العميل'**
+  String get navigateToCustomerAction;
+
   /// No description provided for @enableLocationService.
   ///
   /// In ar, this message translates to:

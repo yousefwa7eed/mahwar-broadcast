@@ -15,6 +15,7 @@ import '../../../core/services/connectivity_service.dart';
 import '../../../core/services/server_clock.dart';
 import '../../../core/services/sound_effects_service.dart';
 import '../../../core/utils/distance.dart';
+import '../../../core/widgets/navigate_to_customer_card.dart';
 import '../../../core/widgets/offline_view.dart';
 import '../../../l10n/app_localizations.dart';
 import 'provider_alert_prompt_store.dart';
@@ -781,6 +782,16 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen>
                 avatarId: _providerAvatarId,
                 avatarUrl: _providerAvatarUrl,
               ),
+
+            // المزوّد وحده يحتاج التحرّك نحو العميل بعد تأكيد السعر — نقترح
+            // عليه فتح الاتجاهات مباشرة بدل البحث عن العنوان يدويًا.
+            if (order.status == OrderStatus.confirmed && !_isOwner(order)) ...[
+              const SizedBox(height: 12),
+              NavigateToCustomerCard(
+                latitude: order.latitude,
+                longitude: order.longitude,
+              ),
+            ],
 
             // ملخّص المعاملة للطلبات المنتهية: تاريخ المعاملة، اسم المزوّد،
             // مسار الأحداث (اكتمال أو فشل مع توضيح الجهة الرافضة).

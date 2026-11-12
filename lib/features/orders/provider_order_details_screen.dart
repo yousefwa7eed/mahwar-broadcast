@@ -5,6 +5,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/models/order.dart';
 import '../../core/services/connectivity_service.dart';
 import '../../core/services/service_type_directory.dart';
+import '../../core/widgets/navigate_to_customer_card.dart';
 import '../../core/widgets/offline_view.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -177,6 +178,15 @@ class _ProviderOrderDetailsScreenState
         padding: const EdgeInsets.all(20),
         children: [
           _buildHeader(order, isDark, l10n),
+          // بعد موافقة العميل على السعر: اقتراح التوجّه إليه مباشرة — هذه
+          // الشاشة يصلها المزوّد من إشعار القبول نفسه.
+          if (order.status == OrderStatus.confirmed) ...[
+            const SizedBox(height: 16),
+            NavigateToCustomerCard(
+              latitude: order.latitude,
+              longitude: order.longitude,
+            ),
+          ],
           const SizedBox(height: 16),
           _buildInfoCard(order, isDark, l10n),
           if (order.status == OrderStatus.completed) ...[

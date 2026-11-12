@@ -724,6 +724,8 @@
     }
   },
   "noMapAppsAvailable": "لا توجد تطبيقات خرائط متاحة على جهازك",
+  "navigateToCustomerTitle": "العميل وافق على السعر — توجّه إليه الآن",
+  "navigateToCustomerAction": "التوجّه إلى العميل",
   "enableLocationService": "يرجى تفعيل خدمة الموقع (GPS) من إعدادات جهازك",
   "locationPermissionDenied": "تم رفض إذن الوصول للموقع",
   "locationPermissionDeniedForever": "إذن الموقع مرفوض بشكل دائم، يرجى تفعيله من إعدادات التطبيق",

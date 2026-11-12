@@ -3,12 +3,12 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/models/order.dart';
 import '../../core/utils/distance.dart';
 import '../../core/utils/distance_format.dart';
+import '../../core/utils/map_launcher.dart';
 import '../../l10n/app_localizations.dart';
 
 /// شاشة الخريطة الكاملة التي يفتحها المزوّد من صفحة تقديم عرض السعر.
@@ -124,15 +124,13 @@ class _ProviderLocationMapScreenState extends State<ProviderLocationMapScreen> {
     final customer = _customerLocation;
     if (provider == null || customer == null) return;
 
-    final uri = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1'
-      '&origin=${provider.latitude},${provider.longitude}'
-      '&destination=${customer.latitude},${customer.longitude}'
-      '&travelmode=driving',
+    final opened = await MapLauncher.openDirections(
+      latitude: customer.latitude,
+      longitude: customer.longitude,
+      originLatitude: provider.latitude,
+      originLongitude: provider.longitude,
     );
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
+    if (!opened) {
       _showMessage(l10n?.noMapAppsAvailable ??
           'لا توجد تطبيقات خرائط متاحة على جهازك');
     }

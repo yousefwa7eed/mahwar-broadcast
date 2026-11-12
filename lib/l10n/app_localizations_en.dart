@@ -1689,6 +1689,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noMapAppsAvailable => 'No map apps available on your device';
 
   @override
+  String get navigateToCustomerTitle =>
+      'The customer approved the price — head to them now';
+
+  @override
+  String get navigateToCustomerAction => 'Navigate to customer';
+
+  @override
   String get enableLocationService =>
       'Please enable location services (GPS) in your device settings';
 
