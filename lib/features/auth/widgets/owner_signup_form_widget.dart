@@ -8,6 +8,7 @@ import '../../../core/auth/national_id_utils.dart';
 import '../../../core/auth/phone_utils.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/models/vehicle_selection.dart';
+import '../../../core/services/app_messenger.dart';
 import '../../../core/settings/app_settings_cubit.dart';
 import '../../../core/widgets/loading_form_lock.dart';
 import '../../../l10n/app_localizations.dart';
@@ -18,7 +19,6 @@ class OwnerSignupFormWidget extends StatefulWidget {
   final Function(
     String fullName,
     String phone,
-    String? email,
     String? nationalId,
     VehicleSelection vehicle,
     String password,
@@ -36,7 +36,6 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
 
   final _fullNameController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _emailController = TextEditingController();
   final _nationalIdController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -64,7 +63,6 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
     _privacyRecognizer.dispose();
     _fullNameController.dispose();
     _phoneController.dispose();
-    _emailController.dispose();
     _nationalIdController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -80,12 +78,7 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: const TextStyle(fontFamily: 'Cairo')),
-        backgroundColor: AppColors.error,
-      ),
-    );
+    AppMessenger.showToast(context, message, background: AppColors.error);
   }
 
   void _submit(bool isArabic) {
@@ -110,9 +103,6 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
     widget.onSubmit(
       _fullNameController.text.trim(),
       PhoneUtils.normalize(_phoneController.text.trim()),
-      _emailController.text.trim().isEmpty
-          ? null
-          : _emailController.text.trim(),
       _nationalIdController.text.trim().isEmpty
           ? null
           : NationalIdUtils.normalize(_nationalIdController.text.trim()),
@@ -184,21 +174,6 @@ class _OwnerSignupFormWidgetState extends State<OwnerSignupFormWidget> {
                     }
                     return null;
                   },
-                ),
-                const SizedBox(height: 14),
-
-                // Email (Optional)
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  textDirection: TextDirection.ltr,
-                  decoration: _inputDecoration(
-                    label:
-                        l10n?.signupEmailLabel ?? 'البريد الإلكتروني (اختياري)',
-                    hintText: 'example@domain.com',
-                    icon: Icons.email_outlined,
-                    isDark: isDark,
-                  ),
                 ),
                 const SizedBox(height: 14),
 

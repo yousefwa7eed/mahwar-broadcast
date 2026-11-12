@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/services.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/auth/auth_cubit.dart';
 import '../../../core/auth/national_id_utils.dart';
 import '../../../core/auth/phone_utils.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/services/app_messenger.dart';
+import '../../../core/services/location_service.dart';
 import '../../../core/settings/app_settings_cubit.dart';
 import '../../../core/widgets/loading_form_lock.dart';
 import '../../../l10n/app_localizations.dart';
 import 'specialization_chips_widget.dart';
-
-final Geocoding _geocoding = Geocoding();
 
 class ProviderSignupFormWidget extends StatefulWidget {
   const ProviderSignupFormWidget({super.key});
@@ -27,7 +27,6 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
 
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _emailController = TextEditingController();
   final _nationalIdController = TextEditingController();
   final _workshopController = TextEditingController();
   final _addressController = TextEditingController();
@@ -55,7 +54,6 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
-    _emailController.dispose();
     _nationalIdController.dispose();
     _workshopController.dispose();
     _addressController.dispose();
@@ -80,8 +78,10 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
 
     void showMessage(String message, {Color background = Colors.red}) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: background),
+      AppMessenger.showToast(
+        context,
+        message,
+        background: background == Colors.red ? AppColors.error : background,
       );
     }
 
@@ -128,42 +128,32 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
         _longitude = position.longitude;
       });
 
-      // Reverse geocoding: تحويل الإحداثيات إلى عنوان نصي تلقائيًا
-      String addressText = '';
-      try {
-        final placemarks = await _geocoding.placemarkFromCoordinates(
-          position.latitude,
-          position.longitude,
-        );
-        if (placemarks.isNotEmpty) {
-          final p = placemarks.first;
-          final street = p.street?.trim() ?? '';
-          final district = p.subLocality?.trim() ?? p.locality?.trim() ?? '';
-          final city = p.locality?.trim() ?? '';
-          final parts = <String>[
-            if (street.isNotEmpty) street,
-            if (district.isNotEmpty) district,
-            if (city.isNotEmpty && city != district) city,
-          ];
-          addressText = parts.join('، ');
-        }
-      } catch (_) {
-        // في حال فشل تحويل الإحداثيات، نكتب الإحداثيات نفسها كعنوان مؤقت
-        addressText =
-            '${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}';
-      }
+      // عنوان بأسماء يفهمها المستخدم من الجيوكودينغ — بلا إحداثيات خام في
+      // حقل العنوان (لا تُحفظ أرقام/رموز في بيانات الورشة).
+      if (!mounted) return;
+      final localeId = Localizations.localeOf(context).languageCode;
+      final addressText = await LocationService.instance.getAddressForLocation(
+        position.latitude,
+        position.longitude,
+        localeId: localeId,
+      );
 
       setState(() => _isLocating = false);
 
       if (mounted) {
-        _addressController.text = addressText.isEmpty
-            ? '${_latitude!.toStringAsFixed(6)}, ${_longitude!.toStringAsFixed(6)}'
-            : addressText;
-        showMessage(
-          l10n?.providerLocationFilled ??
-              'تم تحديد موقعك وكتابة العنوان، يمكنك تعديله يدويًا',
-          background: const Color(0xFFFF6B00),
-        );
+        if (addressText.isNotEmpty) {
+          _addressController.text = addressText;
+          showMessage(
+            l10n?.providerLocationFilled ??
+                'تم تحديد موقعك وكتابة العنوان، يمكنك تعديله يدويًا',
+            background: const Color(0xFFFF6B00),
+          );
+        } else {
+          showMessage(
+            l10n?.providerAddressHint ??
+                'حدد موقعك تلقائيًا أو اكتب العنوان يدويًا',
+          );
+        }
       }
     } catch (e) {
       setState(() => _isLocating = false);
@@ -179,26 +169,20 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
     final l10n = AppLocalizations.of(context);
 
     if (_selectedSpecializations.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            l10n?.providerSelectSpecPrompt ?? 'يرجى اختيار تخصص واحد على الأقل',
-          ),
-          backgroundColor: Colors.red,
-        ),
+      AppMessenger.showToast(
+        context,
+        l10n?.providerSelectSpecPrompt ?? 'يرجى اختيار تخصص واحد على الأقل',
+        background: AppColors.error,
       );
       return;
     }
 
     if (!_agreedToTerms) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            l10n?.providerAgreeTermsPrompt ??
-                'يجب الموافقة على الشروط والأحكام وميثاق الخدمة',
-          ),
-          backgroundColor: Colors.red,
-        ),
+      AppMessenger.showToast(
+        context,
+        l10n?.providerAgreeTermsPrompt ??
+            'يجب الموافقة على الشروط والأحكام وميثاق الخدمة',
+        background: AppColors.error,
       );
       return;
     }
@@ -206,12 +190,10 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
     setState(() => _isLoading = true);
 
     final normalizedPhone = PhoneUtils.normalize(_phoneController.text.trim());
-    final email = _emailController.text.trim().isNotEmpty
-        ? _emailController.text.trim()
-        : '$normalizedPhone@mahwar.app';
 
     context.read<AuthCubit>().signUp(
-      email: email,
+      // الهاتف هو هوية الحساب؛ البريد الداخلي مشتق منه فقط.
+      email: '$normalizedPhone@mahwar.app',
       password: _passwordController.text,
       fullName: _nameController.text.trim(),
       phoneNumber: normalizedPhone,
@@ -308,32 +290,6 @@ class _ProviderSignupFormWidgetState extends State<ProviderSignupFormWidget> {
                   if (!RegExp(r'^01[0125][0-9]{8}$').hasMatch(clean)) {
                     return l10n?.providerInvalidPhone ??
                         'رقم هاتف مصري غير صحيح (11 رقم)';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Email Input (Optional)
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  labelText:
-                      l10n?.email ??
-                      (isArabic
-                          ? 'البريد الإلكتروني (اختياري)'
-                          : 'Email (Optional)'),
-                  prefixIcon: const Icon(Icons.email_outlined),
-                ),
-                validator: (value) {
-                  if (value != null && value.trim().isNotEmpty) {
-                    if (!RegExp(
-                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                    ).hasMatch(value.trim())) {
-                      return l10n?.invalidEmailFormat ??
-                          'صيغة البريد الإلكتروني غير صحيحة';
-                    }
                   }
                   return null;
                 },

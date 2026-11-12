@@ -88,11 +88,12 @@ class SignupOwnerScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 28),
                     OwnerSignupFormWidget(
-                      onSubmit: (fullName, phone, email, nationalId, vehicle, password) {
+                      onSubmit: (fullName, phone, nationalId, vehicle, password) {
                         final normalizedPhone = PhoneUtils.normalize(phone);
-                        final emailToUse = email ?? '$normalizedPhone@mahwar.app';
+                        // الهاتف هو هوية الحساب؛ GoTrue يحتاج بريدًا داخليًا
+                        // فقط، فلا نطلب من المستخدم بريدًا لا يمكن التحقق منه.
                         context.read<AuthCubit>().signUp(
-                          email: emailToUse,
+                          email: '$normalizedPhone@mahwar.app',
                           password: password,
                           fullName: fullName,
                           phoneNumber: normalizedPhone,

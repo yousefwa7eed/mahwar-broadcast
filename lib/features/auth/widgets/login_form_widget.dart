@@ -45,7 +45,6 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
   final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
-  bool _isPhoneMode = true; // true = phone, false = email
 
   @override
   void initState() {
@@ -66,16 +65,6 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
       ..removeListener(_onFieldChanged)
       ..dispose();
     super.dispose();
-  }
-
-  TextInputType get _identifierKeyboardType =>
-      _isPhoneMode ? TextInputType.phone : TextInputType.emailAddress;
-
-  List<TextInputFormatter> get _identifierInputFormatters {
-    if (_isPhoneMode) {
-      return [FilteringTextInputFormatter.digitsOnly];
-    }
-    return [];
   }
 
   void _submit() {
@@ -215,65 +204,28 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // طريقة الدخول: أيقونتان بلا خلفية، والمختارة أكبر من الأخرى.
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    l10n?.loginMethod ?? 'طريقة الدخول',
-                    style: TextStyle(
-                      fontFamily: labelFont,
-                      fontSize: 13,
-                      color: palette.textSecondary,
-                    ),
-                  ),
-                ),
-                _MethodToggle(
-                  isPhoneMode: _isPhoneMode,
-                  onChanged: (isPhone) =>
-                      setState(() => _isPhoneMode = isPhone),
-                  palette: palette,
-                  phoneLabel: l10n?.phoneTab ?? 'هاتف',
-                  emailLabel: l10n?.emailTab ?? 'بريد',
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
             TextFormField(
               controller: _identifierController,
-              keyboardType: _identifierKeyboardType,
-              inputFormatters: _identifierInputFormatters,
+              keyboardType: TextInputType.phone,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               textDirection: TextDirection.ltr,
               style: TextStyle(color: palette.textPrimary, fontSize: 15),
               cursorColor: accent,
               decoration: fieldDecoration(
-                hint: _isPhoneMode ? '01xxxxxxxxx' : 'example@domain.com',
+                hint: '01xxxxxxxxx',
                 prefixIcon: fieldIcon(
                   hasText: hasIdentifier,
-                  outlined: _isPhoneMode
-                      ? Icons.phone_outlined
-                      : Icons.mail_outlined,
-                  solid: _isPhoneMode ? Icons.phone : Icons.mail,
+                  outlined: Icons.phone_outlined,
+                  solid: Icons.phone,
                 ),
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return _isPhoneMode
-                      ? (l10n?.enterPhonePrompt ?? 'يرجى إدخال رقم الهاتف')
-                      : (l10n?.enterEmailPrompt ??
-                            'يرجى إدخال البريد الإلكتروني');
+                  return l10n?.enterPhonePrompt ?? 'يرجى إدخال رقم الهاتف';
                 }
-                if (_isPhoneMode &&
-                    !PhoneUtils.isValidEgyptianMobile(value.trim())) {
+                if (!PhoneUtils.isValidEgyptianMobile(value.trim())) {
                   return l10n?.invalidPhoneShort ??
                       'رقم هاتف مصري غير صحيح (مثال: 01012345678)';
-                }
-                if (!_isPhoneMode &&
-                    !RegExp(
-                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                    ).hasMatch(value.trim())) {
-                  return l10n?.invalidEmailFormat ??
-                      'صيغة البريد الإلكتروني غير صحيحة';
                 }
                 return null;
               },
@@ -317,7 +269,7 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
 
             Row(
               children: [
-                if (_isPhoneMode && widget.onOtpLoginTap != null)
+                if (widget.onOtpLoginTap != null)
                   GestureDetector(
                     onTap: isAuthLoading
                         ? null
@@ -398,105 +350,6 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
               ],
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// مبدّل هاتف/بريد بأيقونتين فقط وبلا خلفية — مثل زرّي الثيم واللغة في شاشة
-/// اختيار النوع. المختار أكبر وأوضح، والآخر أصغر وأخفت.
-class _MethodToggle extends StatelessWidget {
-  final bool isPhoneMode;
-  final ValueChanged<bool> onChanged;
-  final SurfacePalette palette;
-  final String phoneLabel;
-  final String emailLabel;
-
-  const _MethodToggle({
-    required this.isPhoneMode,
-    required this.onChanged,
-    required this.palette,
-    required this.phoneLabel,
-    required this.emailLabel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _MethodIcon(
-          selected: isPhoneMode,
-          outlined: Icons.phone_outlined,
-          solid: Icons.phone,
-          tooltip: phoneLabel,
-          palette: palette,
-          onTap: () => onChanged(true),
-        ),
-        const SizedBox(width: 2),
-        _MethodIcon(
-          selected: !isPhoneMode,
-          outlined: Icons.mail_outlined,
-          solid: Icons.mail,
-          tooltip: emailLabel,
-          palette: palette,
-          onTap: () => onChanged(false),
-        ),
-      ],
-    );
-  }
-}
-
-class _MethodIcon extends StatelessWidget {
-  final bool selected;
-  final IconData outlined;
-  final IconData solid;
-  final String tooltip;
-  final SurfacePalette palette;
-  final VoidCallback onTap;
-
-  const _MethodIcon({
-    required this.selected,
-    required this.outlined,
-    required this.solid,
-    required this.tooltip,
-    required this.palette,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: InkResponse(
-        onTap: onTap,
-        radius: 24,
-        containedInkWell: true,
-        highlightShape: BoxShape.circle,
-        splashColor: palette.textPrimary.withValues(alpha: 0.08),
-        highlightColor: palette.textPrimary.withValues(alpha: 0.05),
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: TweenAnimationBuilder<double>(
-            tween: Tween<double>(end: selected ? 1.0 : 0.0),
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            builder: (context, v, _) {
-              return Transform.scale(
-                scale: 1.0 + 0.22 * v,
-                child: Icon(
-                  selected ? solid : outlined,
-                  size: 21,
-                  color: Color.lerp(
-                    palette.textSecondary.withValues(alpha: 0.55),
-                    palette.textPrimary,
-                    v,
-                  ),
-                ),
-              );
-            },
-          ),
         ),
       ),
     );
