@@ -524,6 +524,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get manageCars => 'إدارة السيارات';
 
   @override
+  String get addCar => 'إضافة سيارة';
+
+  @override
+  String get profilePhoto => 'الصورة الرمزية';
+
+  @override
   String get languageLabel => 'اللغة';
 
   @override
@@ -641,6 +647,16 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get searchingProviderTitle => 'جاري البحث عن مزود...';
+
+  @override
+  String get orderSentToProviderTitle => 'تم إرسال طلبك للمزوّد';
+
+  @override
+  String get orderSentToProviderSub =>
+      'يراجع المزوّد طلبك ويرد بعرض سعر — سيصلك إشعار فور الرد.';
+
+  @override
+  String get selectedProviderLabel => 'المزوّد المختار';
 
   @override
   String get priceOfferReceived => 'تم استلام عرض سعر!';
@@ -1088,6 +1104,171 @@ class AppLocalizationsAr extends AppLocalizations {
   String get notificationBodyDefault => 'يوجد تحديث جديد لتطبيق محور';
 
   @override
+  String get notificationTitlePriceChangeRequest => 'طلب تعديل السعر';
+
+  @override
+  String notificationBodyPriceChangeRequest(
+    String oldPrice,
+    String newPrice,
+    String currency,
+  ) {
+    return 'المزوّد طلب تعديل السعر من $oldPrice $currency إلى $newPrice $currency. راجع السبب وقرّر خلال 10 دقائق.';
+  }
+
+  @override
+  String get notificationTitlePriceChangeApproved =>
+      'تمت الموافقة على تعديل السعر';
+
+  @override
+  String notificationBodyPriceChangeApproved(String newPrice, String currency) {
+    return 'وافق العميل على السعر الجديد $newPrice $currency — أكمل التنفيذ';
+  }
+
+  @override
+  String get notificationTitlePriceChangeRejected => 'تم رفض تعديل السعر';
+
+  @override
+  String notificationBodyPriceChangeRejected(String newPrice, String currency) {
+    return 'رفض العميل السعر الجديد $newPrice $currency. اختر: أكمل بالسعر الأصلي أو انسحب.';
+  }
+
+  @override
+  String get notificationTitlePriceChangeContinued => 'المزوّد سيكمل العمل';
+
+  @override
+  String notificationBodyPriceChangeContinued(String price, String currency) {
+    return 'أبلغ المزوّد أنه سيكمل بالسعر الأصلي $price $currency';
+  }
+
+  @override
+  String get notificationTitlePriceChangeExpired => 'انتهت مهلة تعديل السعر';
+
+  @override
+  String get notificationBodyPriceChangeExpired =>
+      'انتهت مهلة الرد على طلب تعديل السعر — يمكن للمزوّد الإكمال بالسعر الأصلي أو الانسحاب.';
+
+  @override
+  String get notificationTitleOrderWithdrawnAfterInspection =>
+      'اعتذر المزوّد عن الطلب';
+
+  @override
+  String get notificationBodyOrderWithdrawnAfterInspection =>
+      'انسحب المزوّد بعد الكشف على المشكلة. يمكنك اختيار مزوّد آخر لإكمال الطلب.';
+
+  @override
+  String get priceChangeRequestTitle => 'طلب تعديل السعر';
+
+  @override
+  String priceChangeCurrentPrice(String price, String currency) {
+    return 'السعر الحالي: $price $currency';
+  }
+
+  @override
+  String get priceChangeNewPriceLabel => 'السعر الجديد';
+
+  @override
+  String get priceChangeReasonLabel => 'سبب التعديل';
+
+  @override
+  String get priceChangeReasonHint =>
+      'مثال: العطل أكبر من الوصف ويحتاج قطع غيار إضافية';
+
+  @override
+  String get priceChangePhotosHint => 'أضف صوراً للعطل (اختياري، حتى 5 صور)';
+
+  @override
+  String get priceChangeSubmit => 'إرسال طلب التعديل';
+
+  @override
+  String get priceChangeSent => 'تم إرسال طلب التعديل — بانتظار رد العميل';
+
+  @override
+  String get priceChangeOnlyOnce =>
+      'لا يمكن إرسال طلب تعديل جديد — يوجد طلب تعديل لهذا الطلب بالفعل.';
+
+  @override
+  String get priceChangeInvalidNewPrice =>
+      'أدخل سعراً صحيحاً ومختلفاً عن السعر الحالي.';
+
+  @override
+  String get priceChangePendingHint => 'طلبت تعديل السعر — بانتظار رد العميل';
+
+  @override
+  String get priceChangeRejectedTitle => 'رفض العميل السعر الجديد';
+
+  @override
+  String get priceChangeContinueOriginal => 'أكمل بالسعر الأصلي';
+
+  @override
+  String get priceChangeWithdraw => 'انسحب من الطلب';
+
+  @override
+  String get priceChangeWithdrawConfirmTitle => 'الانسحاب من الطلب؟';
+
+  @override
+  String get priceChangeWithdrawConfirmBody =>
+      'سيُنهى الطلب ويختار العميل مزوّداً آخر. لا يمكن التراجع.';
+
+  @override
+  String get priceChangeWithdrawConfirmLabel => 'نعم، انسحب';
+
+  @override
+  String get priceChangeContinuedToast => 'تم — سيستمر الطلب بالسعر الأصلي';
+
+  @override
+  String get priceChangeWithdrawnToast => 'تم الانسحاب من الطلب';
+
+  @override
+  String get priceChangeRequest => 'طلب تعديل السعر';
+
+  @override
+  String get priceRevisionPendingTitle => 'المزوّد طلب تعديل السعر';
+
+  @override
+  String priceRevisionFromTo(
+    String oldPrice,
+    String newPrice,
+    String currency,
+  ) {
+    return 'من $oldPrice $currency إلى $newPrice $currency';
+  }
+
+  @override
+  String get priceRevisionReasonLabel => 'السبب';
+
+  @override
+  String get priceRevisionApprove => 'موافقة على السعر الجديد';
+
+  @override
+  String get priceRevisionReject => 'رفض السعر الجديد';
+
+  @override
+  String priceRevisionTimeLeft(String time) {
+    return 'مهلة الرد متبقية $time';
+  }
+
+  @override
+  String get priceRevisionExpiredHint =>
+      'انتهت مهلة الرد — اعتُبر التعديل مرفوضاً وسيقرّر المزوّد.';
+
+  @override
+  String get priceRevisionApprovedHint =>
+      'وافقت على السعر الجديد، والطلب مستمر.';
+
+  @override
+  String get priceRevisionRejectedHint =>
+      'رفضت السعر الجديد — المزوّد يختار بين الإكمال بالسعر الأصلي أو الانسحاب.';
+
+  @override
+  String get priceRevisionAwaitProvider => 'بانتظار قرار المزوّد.';
+
+  @override
+  String get priceRevisionContinued => 'المزوّد سيكمل بالسعر الأصلي.';
+
+  @override
+  String get chooseAnotherProvider => 'اختر مزوّداً آخر';
+
+  @override
   String get notificationTimeNow => 'الآن';
 
   @override
@@ -1187,7 +1368,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String autoCancelCountdown(String time) {
-    return 'سيُلغى الطلب تلقائياً خلال 5 دقائق — متبقي $time';
+    return 'مهلة رد المزوّد — سيُلغى الطلب تلقائياً بعد $time';
   }
 
   @override
@@ -1319,6 +1500,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get currentOrdersTitle => 'طلباتك الحالية';
 
   @override
+  String get providerNewOrderBadge => 'طلب جديد';
+
+  @override
+  String get providerViewOrder => 'عرض الطلب';
+
+  @override
   String get providePriceOffer => 'تقديم عرض سعر';
 
   @override
@@ -1361,6 +1548,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get sendRequestToProvider => 'إرسال الطلب لهذا المزوّد';
 
   @override
+  String get sendRequestNote =>
+      'سيُرسل الطلب لهذا المزوّد فقط، وله مهلة قصيرة للرد قبل الإلغاء التلقائي.';
+
+  @override
   String providersLoadFailed(String error) {
     return 'تعذّر تحميل المزودين: $error';
   }
@@ -1377,6 +1568,48 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get nearbyMapEntrySubtitle =>
       'شوف الورش والمزوّدين المتاحين حوالين موقعك';
+
+  @override
+  String get ownerMapPreviewHint => 'انقر لرؤية الخدمات حواليك';
+
+  @override
+  String get comingSoonMoreServices => 'قريباً المزيد من الخدمات';
+
+  @override
+  String get homeHowItWorksTitle => 'كيف يعمل محور؟';
+
+  @override
+  String get homeHowItWorksStep1Title => 'اطلب خدمتك';
+
+  @override
+  String get homeHowItWorksStep1Body =>
+      'حدد نوع المساعدة وموقعك، واختر المزوّد اللي يناسبك';
+
+  @override
+  String get homeHowItWorksStep2Title => 'استلم السعر ووافق';
+
+  @override
+  String get homeHowItWorksStep2Body =>
+      'المزوّد يبعت سعره، وتوافق أو ترفض براحتك';
+
+  @override
+  String get homeHowItWorksStep3Title => 'تابع وقيّم';
+
+  @override
+  String get homeHowItWorksStep3Body =>
+      'تابع وصول المزوّد، وبعد الخدمة قيّم التجربة';
+
+  @override
+  String get homeSupportTitle => 'محتاج مساعدة؟';
+
+  @override
+  String get homeSupportSubtitle => 'فريق الدعم جاهز يساعدك في أي وقت';
+
+  @override
+  String get currentLocationLabel => 'موقعك الحالي';
+
+  @override
+  String get faultLocationOnMap => 'موقع العطل موضّح على الخريطة';
 
   @override
   String get providersMapTitle => 'المزوّدون حولك';
@@ -1518,6 +1751,43 @@ class AppLocalizationsAr extends AppLocalizations {
   String get transactionEventOfferConfirmed => 'تم تأكيد العرض';
 
   @override
+  String transactionEventPriceChangeRequested(
+    String oldPrice,
+    String newPrice,
+    String currency,
+  ) {
+    return 'طلب المزوّد تعديل السعر بعد الكشف ($oldPrice ← $newPrice $currency)';
+  }
+
+  @override
+  String get transactionEventPriceChangeAwaitingOwner =>
+      'بانتظار الرد على السعر الجديد';
+
+  @override
+  String get transactionEventPriceChangeApproved =>
+      'تمت الموافقة على السعر الجديد';
+
+  @override
+  String get transactionEventPriceChangeRejected => 'رُفض السعر الجديد';
+
+  @override
+  String get transactionEventPriceChangeExpired =>
+      'انتهت مهلة الرد — اعتُبر السعر الجديد مرفوضاً';
+
+  @override
+  String get transactionEventPriceChangeAwaitingProvider =>
+      'بانتظار قرار المزوّد: الإكمال بالسعر الأصلي أو الانسحاب';
+
+  @override
+  String transactionEventPriceChangeContinued(String price, String currency) {
+    return 'قرّر المزوّد الإكمال بالسعر الأصلي ($price $currency)';
+  }
+
+  @override
+  String get transactionEventPriceChangeWithdrawn =>
+      'انسحب المزوّد بعد رفض السعر الجديد';
+
+  @override
   String get transactionEventCompleted => 'تم إتمام المعاملة';
 
   @override
@@ -1534,11 +1804,18 @@ class AppLocalizationsAr extends AppLocalizations {
   String get transactionFailureProvider => 'رفض من جهة المزوّد';
 
   @override
+  String get transactionFailureProviderWithdrawn =>
+      'انسحاب المزوّد بعد رفض السعر الجديد';
+
+  @override
   String get transactionFailureOwner => 'رفض من جهة العميل';
 
   @override
   String get transactionFailureAutoCancel =>
       'إلغاء تلقائي (انتهت مهلة الاستجابة)';
+
+  @override
+  String get orderTimelineTitle => 'تتبّع الطلب';
 
   @override
   String get apply => 'تطبيق';
@@ -1866,6 +2143,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String errorSaving(String error) {
     return 'حدث خطأ أثناء الحفظ: $error';
   }
+
+  @override
+  String get saveFailedRetry => 'تعذر حفظ البيانات، حاول مرة أخرى';
 
   @override
   String get chooseAvatarTitle => 'اختر صورتك الرمزية';
@@ -2646,6 +2926,33 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get rpcErrorSupportRateLimited =>
       'وصلت للحد الأقصى من الرسائل اليوم. حاول مرة أخرى لاحقًا.';
+
+  @override
+  String get rpcErrorPriceRevisionExists =>
+      'تم إرسال طلب تعديل سعر لهذا الطلب بالفعل، ولا يمكن إرسال طلب آخر.';
+
+  @override
+  String get rpcErrorPriceRevisionNotAllowed =>
+      'لا يمكن تعديل السعر في حالة الطلب الحالية.';
+
+  @override
+  String get rpcErrorPriceRevisionPending =>
+      'لا يمكن إكمال الطلب قبل حسم طلب تعديل السعر المعلّق.';
+
+  @override
+  String get rpcErrorInvalidRevisionReason =>
+      'اكتب سببًا واضحًا للتعديل (3 أحرف على الأقل).';
+
+  @override
+  String get rpcErrorRevisionNotFoundOrForbidden =>
+      'طلب تعديل السعر غير موجود أو ليس لك صلاحية الوصول إليه.';
+
+  @override
+  String get rpcErrorRevisionAlreadyDecided => 'تم حسم طلب تعديل السعر بالفعل.';
+
+  @override
+  String get rpcErrorInvalidRevisionChoice =>
+      'الخيار غير صحيح. اختر الإكمال بالسعر الأصلي أو الانسحاب.';
 
   @override
   String get rpcErrorUnauthenticated => 'يلزم تسجيل الدخول لعرض رسائلك.';

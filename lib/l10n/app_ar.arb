@@ -178,6 +178,8 @@
   "profile": "الملف الشخصي",
   "editPersonalInfo": "تعديل البيانات الشخصية",
   "manageCars": "إدارة السيارات",
+  "addCar": "إضافة سيارة",
+  "profilePhoto": "الصورة الرمزية",
   "languageLabel": "اللغة",
   "currentLanguage": "العربية",
   "lightMode": "الوضع الفاتح",
@@ -217,6 +219,9 @@
   "searchingProvider": "جاري البحث عن أقرب مزود متاح...",
   "backToHome": "العودة للرئيسية",
   "searchingProviderTitle": "جاري البحث عن مزود...",
+  "orderSentToProviderTitle": "تم إرسال طلبك للمزوّد",
+  "orderSentToProviderSub": "يراجع المزوّد طلبك ويرد بعرض سعر — سيصلك إشعار فور الرد.",
+  "selectedProviderLabel": "المزوّد المختار",
   "priceOfferReceived": "تم استلام عرض سعر!",
   "orderConfirmed": "تم تأكيد الطلب",
   "rejectedByProvider": "تم رفض الطلب من المزود",
@@ -415,6 +420,123 @@
   "notificationBodyRating": "حصلت على تقييم جديد",
   "notificationBodyNewMessage": "وصلتك رسالة جديدة",
   "notificationBodyDefault": "يوجد تحديث جديد لتطبيق محور",
+  "notificationTitlePriceChangeRequest": "طلب تعديل السعر",
+  "notificationBodyPriceChangeRequest": "المزوّد طلب تعديل السعر من {oldPrice} {currency} إلى {newPrice} {currency}. راجع السبب وقرّر خلال 10 دقائق.",
+  "@notificationBodyPriceChangeRequest": {
+    "placeholders": {
+      "oldPrice": {
+        "type": "String"
+      },
+      "newPrice": {
+        "type": "String"
+      },
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationTitlePriceChangeApproved": "تمت الموافقة على تعديل السعر",
+  "notificationBodyPriceChangeApproved": "وافق العميل على السعر الجديد {newPrice} {currency} — أكمل التنفيذ",
+  "@notificationBodyPriceChangeApproved": {
+    "placeholders": {
+      "newPrice": {
+        "type": "String"
+      },
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationTitlePriceChangeRejected": "تم رفض تعديل السعر",
+  "notificationBodyPriceChangeRejected": "رفض العميل السعر الجديد {newPrice} {currency}. اختر: أكمل بالسعر الأصلي أو انسحب.",
+  "@notificationBodyPriceChangeRejected": {
+    "placeholders": {
+      "newPrice": {
+        "type": "String"
+      },
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationTitlePriceChangeContinued": "المزوّد سيكمل العمل",
+  "notificationBodyPriceChangeContinued": "أبلغ المزوّد أنه سيكمل بالسعر الأصلي {price} {currency}",
+  "@notificationBodyPriceChangeContinued": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationTitlePriceChangeExpired": "انتهت مهلة تعديل السعر",
+  "notificationBodyPriceChangeExpired": "انتهت مهلة الرد على طلب تعديل السعر — يمكن للمزوّد الإكمال بالسعر الأصلي أو الانسحاب.",
+  "notificationTitleOrderWithdrawnAfterInspection": "اعتذر المزوّد عن الطلب",
+  "notificationBodyOrderWithdrawnAfterInspection": "انسحب المزوّد بعد الكشف على المشكلة. يمكنك اختيار مزوّد آخر لإكمال الطلب.",
+  "priceChangeRequestTitle": "طلب تعديل السعر",
+  "priceChangeCurrentPrice": "السعر الحالي: {price} {currency}",
+  "@priceChangeCurrentPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "priceChangeNewPriceLabel": "السعر الجديد",
+  "priceChangeReasonLabel": "سبب التعديل",
+  "priceChangeReasonHint": "مثال: العطل أكبر من الوصف ويحتاج قطع غيار إضافية",
+  "priceChangePhotosHint": "أضف صوراً للعطل (اختياري، حتى 5 صور)",
+  "priceChangeSubmit": "إرسال طلب التعديل",
+  "priceChangeSent": "تم إرسال طلب التعديل — بانتظار رد العميل",
+  "priceChangeOnlyOnce": "لا يمكن إرسال طلب تعديل جديد — يوجد طلب تعديل لهذا الطلب بالفعل.",
+  "priceChangeInvalidNewPrice": "أدخل سعراً صحيحاً ومختلفاً عن السعر الحالي.",
+  "priceChangePendingHint": "طلبت تعديل السعر — بانتظار رد العميل",
+  "priceChangeRejectedTitle": "رفض العميل السعر الجديد",
+  "priceChangeContinueOriginal": "أكمل بالسعر الأصلي",
+  "priceChangeWithdraw": "انسحب من الطلب",
+  "priceChangeWithdrawConfirmTitle": "الانسحاب من الطلب؟",
+  "priceChangeWithdrawConfirmBody": "سيُنهى الطلب ويختار العميل مزوّداً آخر. لا يمكن التراجع.",
+  "priceChangeWithdrawConfirmLabel": "نعم، انسحب",
+  "priceChangeContinuedToast": "تم — سيستمر الطلب بالسعر الأصلي",
+  "priceChangeWithdrawnToast": "تم الانسحاب من الطلب",
+  "priceChangeRequest": "طلب تعديل السعر",
+  "priceRevisionPendingTitle": "المزوّد طلب تعديل السعر",
+  "priceRevisionFromTo": "من {oldPrice} {currency} إلى {newPrice} {currency}",
+  "@priceRevisionFromTo": {
+    "placeholders": {
+      "oldPrice": {
+        "type": "String"
+      },
+      "newPrice": {
+        "type": "String"
+      },
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "priceRevisionReasonLabel": "السبب",
+  "priceRevisionApprove": "موافقة على السعر الجديد",
+  "priceRevisionReject": "رفض السعر الجديد",
+  "priceRevisionTimeLeft": "مهلة الرد متبقية {time}",
+  "@priceRevisionTimeLeft": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "priceRevisionExpiredHint": "انتهت مهلة الرد — اعتُبر التعديل مرفوضاً وسيقرّر المزوّد.",
+  "priceRevisionApprovedHint": "وافقت على السعر الجديد، والطلب مستمر.",
+  "priceRevisionRejectedHint": "رفضت السعر الجديد — المزوّد يختار بين الإكمال بالسعر الأصلي أو الانسحاب.",
+  "priceRevisionAwaitProvider": "بانتظار قرار المزوّد.",
+  "priceRevisionContinued": "المزوّد سيكمل بالسعر الأصلي.",
+  "chooseAnotherProvider": "اختر مزوّداً آخر",
   "notificationTimeNow": "الآن",
   "notificationTimeMinutes": "منذ {count} دقيقة",
   "@notificationTimeMinutes": {
@@ -473,7 +595,7 @@
   "waitingYourResponse": "بانتظار ردّك على الطلب",
   "waitingCustomerConfirmation": "بانتظار تأكيد العميل للعرض",
   "locationUnavailable": "الموقع غير متاح",
-  "autoCancelCountdown": "سيُلغى الطلب تلقائياً خلال 5 دقائق — متبقي {time}",
+  "autoCancelCountdown": "مهلة رد المزوّد — سيُلغى الطلب تلقائياً بعد {time}",
   "@autoCancelCountdown": {
     "placeholders": {
       "time": {
@@ -528,6 +650,8 @@
   "completeOrderConfirmBody": "ستُعتبر الخدمة مكتملة وسيتمكّن العميل من تقييمك بعدها.",
   "orderCompletedToast": "تم إتمام الطلب بنجاح",
   "currentOrdersTitle": "طلباتك الحالية",
+  "providerNewOrderBadge": "طلب جديد",
+  "providerViewOrder": "عرض الطلب",
   "providePriceOffer": "تقديم عرض سعر",
   "locatingLocation": "جاري تحديد الموقع...",
   "providerDataUnavailable": "بيانات المزوّد غير متاحة",
@@ -548,6 +672,7 @@
   "noServiceVehicle": "بدون سيارة خدمة",
   "availableNow": "متاح الآن",
   "sendRequestToProvider": "إرسال الطلب لهذا المزوّد",
+  "sendRequestNote": "سيُرسل الطلب لهذا المزوّد فقط، وله مهلة قصيرة للرد قبل الإلغاء التلقائي.",
   "providersLoadFailed": "تعذّر تحميل المزودين: {error}",
   "@providersLoadFailed": {
     "placeholders": {
@@ -560,6 +685,19 @@
   "noNearbyProviders": "لا يوجد مزودون متاحون قريباً",
   "nearbyMapEntryTitle": "المزوّدون حولك على الخريطة",
   "nearbyMapEntrySubtitle": "شوف الورش والمزوّدين المتاحين حوالين موقعك",
+  "ownerMapPreviewHint": "انقر لرؤية الخدمات حواليك",
+  "comingSoonMoreServices": "قريباً المزيد من الخدمات",
+  "homeHowItWorksTitle": "كيف يعمل محور؟",
+  "homeHowItWorksStep1Title": "اطلب خدمتك",
+  "homeHowItWorksStep1Body": "حدد نوع المساعدة وموقعك، واختر المزوّد اللي يناسبك",
+  "homeHowItWorksStep2Title": "استلم السعر ووافق",
+  "homeHowItWorksStep2Body": "المزوّد يبعت سعره، وتوافق أو ترفض براحتك",
+  "homeHowItWorksStep3Title": "تابع وقيّم",
+  "homeHowItWorksStep3Body": "تابع وصول المزوّد، وبعد الخدمة قيّم التجربة",
+  "homeSupportTitle": "محتاج مساعدة؟",
+  "homeSupportSubtitle": "فريق الدعم جاهز يساعدك في أي وقت",
+  "currentLocationLabel": "موقعك الحالي",
+  "faultLocationOnMap": "موقع العطل موضّح على الخريطة",
   "providersMapTitle": "المزوّدون حولك",
   "providersMapCount": "متاح الآن: {count} مزوّد",
   "@providersMapCount": {
@@ -649,13 +787,46 @@
     }
   },
   "transactionEventOfferConfirmed": "تم تأكيد العرض",
+  "transactionEventPriceChangeRequested": "طلب المزوّد تعديل السعر بعد الكشف ({oldPrice} ← {newPrice} {currency})",
+  "@transactionEventPriceChangeRequested": {
+    "placeholders": {
+      "oldPrice": {
+        "type": "String"
+      },
+      "newPrice": {
+        "type": "String"
+      },
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "transactionEventPriceChangeAwaitingOwner": "بانتظار الرد على السعر الجديد",
+  "transactionEventPriceChangeApproved": "تمت الموافقة على السعر الجديد",
+  "transactionEventPriceChangeRejected": "رُفض السعر الجديد",
+  "transactionEventPriceChangeExpired": "انتهت مهلة الرد — اعتُبر السعر الجديد مرفوضاً",
+  "transactionEventPriceChangeAwaitingProvider": "بانتظار قرار المزوّد: الإكمال بالسعر الأصلي أو الانسحاب",
+  "transactionEventPriceChangeContinued": "قرّر المزوّد الإكمال بالسعر الأصلي ({price} {currency})",
+  "@transactionEventPriceChangeContinued": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "transactionEventPriceChangeWithdrawn": "انسحب المزوّد بعد رفض السعر الجديد",
   "transactionEventCompleted": "تم إتمام المعاملة",
   "transactionEventRejectedByProvider": "رفض المزوّد المعاملة",
   "transactionEventRejectedByOwner": "رفض العميل عرض السعر",
   "transactionEventCancelledTimeout": "أُلغي الطلب (انتهت مهلة الاستجابة)",
   "transactionFailureProvider": "رفض من جهة المزوّد",
+  "transactionFailureProviderWithdrawn": "انسحاب المزوّد بعد رفض السعر الجديد",
   "transactionFailureOwner": "رفض من جهة العميل",
   "transactionFailureAutoCancel": "إلغاء تلقائي (انتهت مهلة الاستجابة)",
+  "orderTimelineTitle": "تتبّع الطلب",
   "apply": "تطبيق",
   "orderHistoryLoadFailed": "تعذّر تحميل السجل: {error}",
   "@orderHistoryLoadFailed": {
@@ -768,6 +939,7 @@
     }
   },
   "errorSaving": "حدث خطأ أثناء الحفظ: {error}",
+  "saveFailedRetry": "تعذر حفظ البيانات، حاول مرة أخرى",
   "@errorSaving": {
     "placeholders": {
       "error": {
@@ -1052,5 +1224,12 @@
   "rpcErrorSupportInvalidContact": "تحقق من الاسم ورقم الهاتف (11 رقمًا يبدأ بـ 01).",
   "rpcErrorSupportInvalidAttachment": "تعذّر التحقق من الصورة المرفقة. أعد رفعها وحاول مجددًا.",
   "rpcErrorSupportRateLimited": "وصلت للحد الأقصى من الرسائل اليوم. حاول مرة أخرى لاحقًا.",
+  "rpcErrorPriceRevisionExists": "تم إرسال طلب تعديل سعر لهذا الطلب بالفعل، ولا يمكن إرسال طلب آخر.",
+  "rpcErrorPriceRevisionNotAllowed": "لا يمكن تعديل السعر في حالة الطلب الحالية.",
+  "rpcErrorPriceRevisionPending": "لا يمكن إكمال الطلب قبل حسم طلب تعديل السعر المعلّق.",
+  "rpcErrorInvalidRevisionReason": "اكتب سببًا واضحًا للتعديل (3 أحرف على الأقل).",
+  "rpcErrorRevisionNotFoundOrForbidden": "طلب تعديل السعر غير موجود أو ليس لك صلاحية الوصول إليه.",
+  "rpcErrorRevisionAlreadyDecided": "تم حسم طلب تعديل السعر بالفعل.",
+  "rpcErrorInvalidRevisionChoice": "الخيار غير صحيح. اختر الإكمال بالسعر الأصلي أو الانسحاب.",
   "rpcErrorUnauthenticated": "يلزم تسجيل الدخول لعرض رسائلك."
 }

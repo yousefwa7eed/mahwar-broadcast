@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../config/app_config.dart';
+import '../services/app_messenger.dart';
 import '../services/screen_time_service.dart';
 import '../../core/auth/auth_cubit.dart';
 import '../../core/auth/home_route.dart';
@@ -178,6 +179,8 @@ Future<String?> appRedirect(BuildContext context, GoRouterState state) async {
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/splash',
+  // يتيح لـ AppMessenger عرض التوست من أماكن بلا سياق شاشة.
+  navigatorKey: AppMessenger.navigatorKey,
   redirect: appRedirect,
   // تسجيل مسار المستخدم (شاشة/مدة/من→إلى) للوحلة الإدارية.
   observers: <NavigatorObserver>[ScreenTimeService.instance],

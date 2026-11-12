@@ -3,10 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/auth/auth_service.dart';
 import '../../core/auth/logout_coordinator.dart';
 import '../../core/auth/profile_cubit.dart';
+import '../../core/auth/role_gate.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/avatar_config.dart';
 import '../../core/errors/rpc_error_translator.dart';
 import '../../core/models/order.dart';
 import '../../core/notifications/notification_cubit.dart';
@@ -17,6 +21,7 @@ import '../../core/services/server_clock.dart';
 import '../../core/services/sound_effects_service.dart';
 import '../../core/settings/app_settings_cubit.dart';
 import '../../core/widgets/confirm_dialog.dart';
+import '../../core/widgets/delete_account_dialog.dart';
 import '../../core/widgets/offline_view.dart';
 import '../../core/widgets/profile_name_text.dart';
 import '../../core/widgets/skeletons.dart';
@@ -26,9 +31,12 @@ import 'widgets/home_header.dart';
 import 'widgets/sos_emergency_banner.dart';
 import 'widgets/services_grid.dart';
 import 'widgets/active_order_widget.dart';
+import 'widgets/how_it_works_card.dart';
 import 'widgets/nearby_map_card.dart';
 import 'widgets/provider_rating_dialog.dart';
+import 'widgets/support_help_card.dart';
 import '../notifications/notification_actions.dart';
+import '../../core/services/app_messenger.dart';
 
 class OwnerHomeScreen extends StatefulWidget {
   const OwnerHomeScreen({super.key});
@@ -52,7 +60,13 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
   LoadFailure? _ordersFailure;
   String _addressText = '';
   bool _isLocatingAddress = false;
+
+  /// موقع الجهاز لبطاقة الخريطة — يُجلب مرة واحدة مع العنوان.
+  LatLng? _ownerLocation;
   RealtimeChannel? _ordersChannel;
+
+  /// يزيد عند كل عودة لتبويب الرئيسية فتعيد بطاقة الخريطة كشف الموقع ثانيتين.
+  int _mapRevealTick = 0;
 
   /// الحالة الأخيرة التي رُأيت عليها كل طلب هذا الجلسة — تُستخدم لاكتشاف
   /// انتقال الطلب إلى «مكتمل» فقط عند حدوثه فعلياً (مع بدء أول تحميل
@@ -76,9 +90,11 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
       _ordersLoaded = true;
     }
     unawaited(runWithSkeleton(_loadRecentOrders));
-    _loadCurrentAddress();
     _subscribeToOrderChanges();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // بعد الإطار الأول: Localizations متاحة الآن، فلا ينفجر البحث عنها.
+      unawaited(_loadCurrentAddress());
       final cubit = context.read<NotificationCubit>();
       cubit.loadNotifications();
       cubit.subscribeToNotifications();
@@ -113,7 +129,10 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
   }
 
   /// يجيب العنوان الحالي الحقيقي للجهاز ويعرضه في أعلى الصفحة.
-  Future<void> _loadCurrentAddress() async {
+  ///
+  /// [forceRefresh] يُمرَّر true فقط عند طلب المستخدم صراحةً (الضغط على
+  /// العنوان)، أما أول تحميل فيكتفي بآخر موقع معروف كي لا ينتظر GPS طويلاً.
+  Future<void> _loadCurrentAddress({bool forceRefresh = false}) async {
     if (_isLocatingAddress) return;
 
     setState(() {
@@ -121,15 +140,36 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
       _addressText = '';
     });
 
-    final address = await LocationService.instance.getCurrentAddress(
-      forceRefresh: true,
-    );
+    try {
+      // تحديد واحد يخدم العنوان وبطاقة الخريطة معاً — لا نطلب GPS مرتين.
+      final localeId = Localizations.localeOf(context).languageCode;
+      final position = await LocationService.instance.getCurrentPosition(
+        forceRefresh: forceRefresh,
+      );
+      final address = await LocationService.instance.getCurrentAddress(
+        forceRefresh: forceRefresh,
+        position: position,
+        localeId: localeId,
+      );
 
-    if (mounted) {
-      setState(() {
-        _addressText = address ?? '';
-        _isLocatingAddress = false;
-      });
+      if (mounted) {
+        final l10n = AppLocalizations.of(context);
+        setState(() {
+          _ownerLocation = position == null
+              ? null
+              : LatLng(position.latitude, position.longitude);
+          // تعذّر جلب أسماء العناوين: نعرض اسماً مفهوماً بدل إحداثيات خام
+          // ما دام الموقع نفسه معروفاً.
+          _addressText =
+              address ??
+              (position != null
+                  ? (l10n?.currentLocationLabel ?? 'موقعك الحالي')
+                  : '');
+        });
+      }
+    } finally {
+      // أي خطأ غير متوقع لا يترك الهيدر معلقاً على «جاري تحديد الموقع».
+      if (mounted) setState(() => _isLocatingAddress = false);
     }
   }
 
@@ -245,20 +285,18 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n?.orderConfirmed ?? 'تم تأكيد الطلب بنجاح!'),
-            backgroundColor: AppColors.success,
-          ),
+        AppMessenger.showToast(
+          context,
+          l10n?.orderConfirmed ?? 'تم تأكيد الطلب بنجاح!',
+          background: AppColors.success,
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(RpcErrorTranslator.translate(e, l10n)),
-            backgroundColor: AppColors.error,
-          ),
+        AppMessenger.showToast(
+          context,
+          RpcErrorTranslator.translate(e, l10n),
+          background: AppColors.error,
         );
       }
     }
@@ -291,20 +329,18 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n?.priceRejected ?? 'تم رفض عرض السعر'),
-            backgroundColor: AppColors.error,
-          ),
+        AppMessenger.showToast(
+          context,
+          l10n?.priceRejected ?? 'تم رفض عرض السعر',
+          background: AppColors.error,
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(RpcErrorTranslator.translate(e, l10n)),
-            backgroundColor: AppColors.error,
-          ),
+        AppMessenger.showToast(
+          context,
+          RpcErrorTranslator.translate(e, l10n),
+          background: AppColors.error,
         );
       }
     }
@@ -382,7 +418,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
             HomeHeader(
               locationText: _addressText.isEmpty ? null : _addressText,
               isLocatingLocation: _isLocatingAddress,
-              onLocationTap: _loadCurrentAddress,
+              onLocationTap: () => _loadCurrentAddress(forceRefresh: true),
               unreadNotifications: context
                   .watch<NotificationCubit>()
                   .state
@@ -409,16 +445,26 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
                 onReject: () => _rejectOffer(activeOrder.id),
               ),
             ],
-            const SizedBox(height: 16),
-            NearbyMapCard(
-              onTap: () => context.push('/request/providers-map'),
-            ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             ServicesGrid(
               onServiceTap: (service) {
                 context.push('/request/create?serviceId=${service.id}');
               },
             ),
+            const SizedBox(height: 12),
+            // الخريطة تحت خدمات الطوارئ: كشف الموقع ثانيتين ثم خفوت ودعوة
+            // للنقر — المدخل نفسه لخريطة المزوّدين الكاملة.
+            NearbyMapCard(
+              location: _ownerLocation,
+              isLocating: _isLocatingAddress,
+              revealTick: _mapRevealTick,
+              onTap: () => context.push('/request/providers-map'),
+            ),
+            const SizedBox(height: 12),
+            // ذيل الصفحة: شرح الخطوات ثم مدخل الدعم — محتوى هادي يمنع
+            // إحساس الفراغ أسفل الخريطة بلا زحمة على الخدمات.
+            const HowItWorksCard(),
+            SupportHelpCard(onTap: () => showSupportDialog(context)),
             const SizedBox(height: 24),
           ],
         ),
@@ -644,8 +690,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
     final state = context.watch<NotificationCubit>().state;
     final cubit = context.read<NotificationCubit>();
 
-    if (skeletonVisible ||
-        (state.notifications.isEmpty && state.isLoading)) {
+    if (skeletonVisible || (state.notifications.isEmpty && state.isLoading)) {
       return const NotificationListSkeleton();
     }
 
@@ -824,14 +869,32 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
       child: Column(
         children: [
           const SizedBox(height: 20),
-          CircleAvatar(
-            radius: 50,
-            backgroundColor: AppColors.orangePrimary.withValues(alpha: 0.15),
-            child: const Icon(
-              Icons.person_rounded,
-              size: 50,
-              color: AppColors.orangePrimary,
-            ),
+          // الأفاتار الحقيقي للحساب (ويُفتح منه اختيار الصورة) بدل دائرة عامة.
+          BlocBuilder<ProfileCubit, ProfileState>(
+            builder: (context, state) {
+              // الدور من profile فقط — بدون دور صالح لا نفتح شاشة الصورة.
+              final AppRole? role = state is ProfileLoaded
+                  ? AppRole.tryParse(state.profile.role)
+                  : null;
+              final String? avatarId = state is ProfileLoaded
+                  ? state.profile.avatarId
+                  : null;
+              final String? photoUrl = state is ProfileLoaded
+                  ? state.profile.avatarUrl
+                  : null;
+              return GestureDetector(
+                onTap: role == null
+                    ? null
+                    : () =>
+                        context.push('/profile/avatar?role=${role.dbValue}'),
+                child: AvatarWidget(
+                  avatarId: avatarId,
+                  role: role?.dbValue ?? '',
+                  size: 92,
+                  photoUrl: photoUrl,
+                ),
+              );
+            },
           ),
           const SizedBox(height: 16),
           // أثناء تحميل الملف الشخصي نعرض شيمر مكان الاسم مع إعادة محاولة
@@ -856,6 +919,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
               _buildProfileOptionItem(
                 context,
                 icon: Icons.person_outline_rounded,
+                gradient: AppColors.iconBlueTile,
                 title: l10n?.profile ?? 'الملف الشخصي',
                 isDark: isDark,
                 onTap: () => context.push('/profile'),
@@ -863,6 +927,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
               _buildProfileOptionItem(
                 context,
                 icon: Icons.language_rounded,
+                gradient: AppColors.iconAmberTile,
                 title:
                     '${l10n?.languageLabel ?? 'اللغة'}: ${l10n?.currentLanguage ?? (isArabic ? 'العربية' : 'English')}',
                 isDark: isDark,
@@ -870,7 +935,10 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
               ),
               _buildProfileOptionItem(
                 context,
-                icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                icon: isDark
+                    ? Icons.light_mode_rounded
+                    : Icons.dark_mode_rounded,
+                gradient: AppColors.iconPurpleTile,
                 title: isArabic
                     ? (l10n?.lightMode ?? 'الوضع الفاتح')
                     : (l10n?.darkMode ?? 'الوضع الداكن'),
@@ -880,13 +948,17 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
               _buildProfileOptionItem(
                 context,
                 icon: Icons.headset_mic_outlined,
-                title: isArabic ? 'الدعم والشكاوى والاقتراحات' : 'Support & Complaints',
+                gradient: AppColors.iconRoseTile,
+                title: isArabic
+                    ? 'الدعم والشكاوى والاقتراحات'
+                    : 'Support & Complaints',
                 isDark: isDark,
                 onTap: () => showSupportDialog(context),
               ),
               _buildProfileOptionItem(
                 context,
                 icon: Icons.description_outlined,
+                gradient: AppColors.iconGrayTile,
                 title: l10n?.termsOfUse ?? 'شروط الاستخدام',
                 isDark: isDark,
                 onTap: () => context.push('/terms'),
@@ -894,6 +966,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
               _buildProfileOptionItem(
                 context,
                 icon: Icons.privacy_tip_outlined,
+                gradient: AppColors.iconSlateTile,
                 title: l10n?.privacyPolicy ?? 'سياسة الخصوصية',
                 isDark: isDark,
                 onTap: () => context.push('/privacy'),
@@ -941,9 +1014,41 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
               ),
             ),
           ),
+          const SizedBox(height: 10),
+          // خيار الحذف أسفل تسجيل الخروج مباشرة، بلا زر ممتلئ حتى يبقى
+          // ثانوياً وبعيداً عن المسار اليومي.
+          TextButton.icon(
+            onPressed: LogoutCoordinator.isRunning.value
+                ? null
+                : () => _showDeleteAccountDialog(context),
+            icon: const Icon(
+              Icons.delete_outline_rounded,
+              size: 18,
+              color: AppColors.error,
+            ),
+            label: Text(
+              l10n?.deleteAccount ?? 'حذف الحساب',
+              style: const TextStyle(
+                fontFamily: 'Cairo',
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.error,
+              ),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _showDeleteAccountDialog(BuildContext context) async {
+    final deleted = await showDeleteAccountDialog(
+      context,
+      authService: SupabaseAuthService(),
+    );
+    if (deleted == true && context.mounted) {
+      context.go('/select-user-type');
+    }
   }
 
   Widget _buildProfileCardGroup({
@@ -951,12 +1056,12 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
     required List<Widget> children,
   }) {
     final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
-    return Container(
+    return Material(
+      color: isDark ? AppColors.darkCard : AppColors.lightSurface,
       clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : AppColors.lightSurface,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor, width: 1),
+        side: BorderSide(color: borderColor, width: 1),
       ),
       child: Column(
         children: [
@@ -966,7 +1071,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
               Divider(
                 height: 1,
                 thickness: 1,
-                indent: 56,
+                indent: 62,
                 endIndent: 16,
                 color: borderColor,
               ),
@@ -979,6 +1084,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
   Widget _buildProfileOptionItem(
     BuildContext context, {
     required IconData icon,
+    required List<Color> gradient,
     required String title,
     required bool isDark,
     required VoidCallback onTap,
@@ -986,12 +1092,18 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       leading: Container(
-        padding: const EdgeInsets.all(8),
+        width: 30,
+        height: 30,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: AppColors.orangePrimary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(9),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: gradient,
+          ),
         ),
-        child: Icon(icon, color: AppColors.orangePrimary, size: 20),
+        child: Icon(icon, color: Colors.white, size: 17),
       ),
       title: Text(
         title,
@@ -1031,7 +1143,10 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen>
       child: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
-          setState(() => _currentIndex = index);
+          setState(() {
+            _currentIndex = index;
+            if (index == 0) _mapRevealTick++;
+          });
           if (index == 1) {
             _loadRecentOrders();
           }

@@ -534,6 +534,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get manageCars => 'Manage Cars';
 
   @override
+  String get addCar => 'Add a car';
+
+  @override
+  String get profilePhoto => 'Profile photo';
+
+  @override
   String get languageLabel => 'Language';
 
   @override
@@ -651,6 +657,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get searchingProviderTitle => 'Searching for provider...';
+
+  @override
+  String get orderSentToProviderTitle =>
+      'Your request was sent to the provider';
+
+  @override
+  String get orderSentToProviderSub =>
+      'The provider is reviewing your request and will reply with a price offer — you\'ll be notified as soon as they respond.';
+
+  @override
+  String get selectedProviderLabel => 'Selected provider';
 
   @override
   String get priceOfferReceived => 'Price offer received!';
@@ -1108,6 +1125,177 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notificationBodyDefault => 'There is a new update for Mahwar';
 
   @override
+  String get notificationTitlePriceChangeRequest => 'Price change request';
+
+  @override
+  String notificationBodyPriceChangeRequest(
+    String oldPrice,
+    String newPrice,
+    String currency,
+  ) {
+    return 'The provider asked to change the price from $oldPrice $currency to $newPrice $currency. Review the reason and decide within 10 minutes.';
+  }
+
+  @override
+  String get notificationTitlePriceChangeApproved => 'Price change approved';
+
+  @override
+  String notificationBodyPriceChangeApproved(String newPrice, String currency) {
+    return 'The customer approved the new price of $newPrice $currency — continue the job';
+  }
+
+  @override
+  String get notificationTitlePriceChangeRejected => 'Price change rejected';
+
+  @override
+  String notificationBodyPriceChangeRejected(String newPrice, String currency) {
+    return 'The customer rejected the new price of $newPrice $currency. Choose: continue at the original price or withdraw.';
+  }
+
+  @override
+  String get notificationTitlePriceChangeContinued => 'Provider will continue';
+
+  @override
+  String notificationBodyPriceChangeContinued(String price, String currency) {
+    return 'The provider confirmed they will continue at the original price of $price $currency';
+  }
+
+  @override
+  String get notificationTitlePriceChangeExpired => 'Price change expired';
+
+  @override
+  String get notificationBodyPriceChangeExpired =>
+      'The response window for the price change expired — the provider can continue at the original price or withdraw.';
+
+  @override
+  String get notificationTitleOrderWithdrawnAfterInspection =>
+      'Provider withdrew';
+
+  @override
+  String get notificationBodyOrderWithdrawnAfterInspection =>
+      'The provider withdrew after inspecting the problem. You can choose another provider to complete the order.';
+
+  @override
+  String get priceChangeRequestTitle => 'Price change request';
+
+  @override
+  String priceChangeCurrentPrice(String price, String currency) {
+    return 'Current price: $price $currency';
+  }
+
+  @override
+  String get priceChangeNewPriceLabel => 'New price';
+
+  @override
+  String get priceChangeReasonLabel => 'Reason for the change';
+
+  @override
+  String get priceChangeReasonHint =>
+      'Example: the problem is bigger than described and needs extra parts';
+
+  @override
+  String get priceChangePhotosHint =>
+      'Add photos of the problem (optional, up to 5)';
+
+  @override
+  String get priceChangeSubmit => 'Send change request';
+
+  @override
+  String get priceChangeSent =>
+      'Change request sent — waiting for the customer';
+
+  @override
+  String get priceChangeOnlyOnce =>
+      'A change request already exists for this order; a second one is not allowed.';
+
+  @override
+  String get priceChangeInvalidNewPrice =>
+      'Enter a valid price that differs from the current one.';
+
+  @override
+  String get priceChangePendingHint =>
+      'You requested a price change — waiting for the customer';
+
+  @override
+  String get priceChangeRejectedTitle => 'The customer rejected the new price';
+
+  @override
+  String get priceChangeContinueOriginal => 'Continue at the original price';
+
+  @override
+  String get priceChangeWithdraw => 'Withdraw from the order';
+
+  @override
+  String get priceChangeWithdrawConfirmTitle => 'Withdraw from the order?';
+
+  @override
+  String get priceChangeWithdrawConfirmBody =>
+      'The order will be closed and the customer will choose another provider. This cannot be undone.';
+
+  @override
+  String get priceChangeWithdrawConfirmLabel => 'Yes, withdraw';
+
+  @override
+  String get priceChangeContinuedToast =>
+      'Done — the order continues at the original price';
+
+  @override
+  String get priceChangeWithdrawnToast => 'You withdrew from the order';
+
+  @override
+  String get priceChangeRequest => 'Request a price change';
+
+  @override
+  String get priceRevisionPendingTitle =>
+      'The provider requested a price change';
+
+  @override
+  String priceRevisionFromTo(
+    String oldPrice,
+    String newPrice,
+    String currency,
+  ) {
+    return 'From $oldPrice $currency to $newPrice $currency';
+  }
+
+  @override
+  String get priceRevisionReasonLabel => 'Reason';
+
+  @override
+  String get priceRevisionApprove => 'Approve the new price';
+
+  @override
+  String get priceRevisionReject => 'Reject the new price';
+
+  @override
+  String priceRevisionTimeLeft(String time) {
+    return 'Response window left: $time';
+  }
+
+  @override
+  String get priceRevisionExpiredHint =>
+      'The response window expired — the change is treated as rejected and the provider decides.';
+
+  @override
+  String get priceRevisionApprovedHint =>
+      'You approved the new price. The order continues.';
+
+  @override
+  String get priceRevisionRejectedHint =>
+      'You rejected the new price — the provider chooses between continuing at the original price or withdrawing.';
+
+  @override
+  String get priceRevisionAwaitProvider =>
+      'Waiting for the provider\'s decision.';
+
+  @override
+  String get priceRevisionContinued =>
+      'The provider will continue at the original price.';
+
+  @override
+  String get chooseAnotherProvider => 'Choose another provider';
+
+  @override
   String get notificationTimeNow => 'Just now';
 
   @override
@@ -1211,7 +1399,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String autoCancelCountdown(String time) {
-    return 'The request will be auto-cancelled within 5 minutes — $time left';
+    return 'Provider response window — the order auto-cancels in $time';
   }
 
   @override
@@ -1346,6 +1534,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get currentOrdersTitle => 'Your current requests';
 
   @override
+  String get providerNewOrderBadge => 'New order';
+
+  @override
+  String get providerViewOrder => 'View order';
+
+  @override
   String get providePriceOffer => 'Make a price offer';
 
   @override
@@ -1388,6 +1582,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sendRequestToProvider => 'Send request to this provider';
 
   @override
+  String get sendRequestNote =>
+      'The request goes only to this provider, who has a short window to respond before it auto-cancels.';
+
+  @override
   String providersLoadFailed(String error) {
     return 'Couldn\'t load providers: $error';
   }
@@ -1404,6 +1602,49 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get nearbyMapEntrySubtitle =>
       'See the workshops and providers available around your location';
+
+  @override
+  String get ownerMapPreviewHint => 'Tap to see the services around you';
+
+  @override
+  String get comingSoonMoreServices => 'More services coming soon';
+
+  @override
+  String get homeHowItWorksTitle => 'How Mahwar works';
+
+  @override
+  String get homeHowItWorksStep1Title => 'Request your service';
+
+  @override
+  String get homeHowItWorksStep1Body =>
+      'Tell us what you need, where you are, and pick your provider';
+
+  @override
+  String get homeHowItWorksStep2Title => 'Get the price and approve';
+
+  @override
+  String get homeHowItWorksStep2Body =>
+      'The provider sends a price — you accept or reject freely';
+
+  @override
+  String get homeHowItWorksStep3Title => 'Track and rate';
+
+  @override
+  String get homeHowItWorksStep3Body =>
+      'Follow the provider\'s arrival, then rate the service';
+
+  @override
+  String get homeSupportTitle => 'Need help?';
+
+  @override
+  String get homeSupportSubtitle =>
+      'Our support team is ready whenever you need';
+
+  @override
+  String get currentLocationLabel => 'Your current location';
+
+  @override
+  String get faultLocationOnMap => 'The fault location is shown on the map';
 
   @override
   String get providersMapTitle => 'Providers around you';
@@ -1546,6 +1787,42 @@ class AppLocalizationsEn extends AppLocalizations {
   String get transactionEventOfferConfirmed => 'Offer confirmed';
 
   @override
+  String transactionEventPriceChangeRequested(
+    String oldPrice,
+    String newPrice,
+    String currency,
+  ) {
+    return 'Provider requested a price change after inspection ($oldPrice → $newPrice $currency)';
+  }
+
+  @override
+  String get transactionEventPriceChangeAwaitingOwner =>
+      'Waiting for the response to the new price';
+
+  @override
+  String get transactionEventPriceChangeApproved => 'New price approved';
+
+  @override
+  String get transactionEventPriceChangeRejected => 'New price rejected';
+
+  @override
+  String get transactionEventPriceChangeExpired =>
+      'Response window expired — the new price is treated as rejected';
+
+  @override
+  String get transactionEventPriceChangeAwaitingProvider =>
+      'Waiting for the provider to continue at the original price or withdraw';
+
+  @override
+  String transactionEventPriceChangeContinued(String price, String currency) {
+    return 'Provider chose to continue at the original price ($price $currency)';
+  }
+
+  @override
+  String get transactionEventPriceChangeWithdrawn =>
+      'Provider withdrew after the new price was rejected';
+
+  @override
   String get transactionEventCompleted => 'Transaction completed';
 
   @override
@@ -1564,11 +1841,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get transactionFailureProvider => 'Rejected by the provider';
 
   @override
+  String get transactionFailureProviderWithdrawn =>
+      'Provider withdrew after the new price was rejected';
+
+  @override
   String get transactionFailureOwner => 'Rejected by the customer';
 
   @override
   String get transactionFailureAutoCancel =>
       'Auto-cancelled (response timeout)';
+
+  @override
+  String get orderTimelineTitle => 'Order timeline';
 
   @override
   String get apply => 'Apply';
@@ -1907,6 +2191,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String errorSaving(String error) {
     return 'Error saving: $error';
   }
+
+  @override
+  String get saveFailedRetry =>
+      'Couldn\'t save your changes. Please try again.';
 
   @override
   String get chooseAvatarTitle => 'Choose your avatar';
@@ -2698,6 +2986,34 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rpcErrorSupportRateLimited =>
       'You reached today\'s message limit. Try again later.';
+
+  @override
+  String get rpcErrorPriceRevisionExists =>
+      'A price change request was already sent for this order and a second one is not allowed.';
+
+  @override
+  String get rpcErrorPriceRevisionNotAllowed =>
+      'The price cannot be changed in the order\'s current state.';
+
+  @override
+  String get rpcErrorPriceRevisionPending =>
+      'The order cannot be completed while a price change request is pending.';
+
+  @override
+  String get rpcErrorInvalidRevisionReason =>
+      'Write a clear reason for the change (at least 3 characters).';
+
+  @override
+  String get rpcErrorRevisionNotFoundOrForbidden =>
+      'The price change request was not found, or you cannot access it.';
+
+  @override
+  String get rpcErrorRevisionAlreadyDecided =>
+      'This price change request was already decided.';
+
+  @override
+  String get rpcErrorInvalidRevisionChoice =>
+      'Invalid choice. Select continue at the original price or withdraw.';
 
   @override
   String get rpcErrorUnauthenticated => 'Sign in to view your messages.';

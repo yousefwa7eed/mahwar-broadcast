@@ -1,28 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/auth/auth_service.dart';
-import '../../../core/auth/logout_coordinator.dart';
+
 import '../../../core/auth/profile_cubit.dart';
-import '../../../core/auth/provider_logout_dialog.dart';
 import '../../../core/auth/role_gate.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/avatar_config.dart';
-import '../../../core/settings/app_settings_cubit.dart';
-import '../../../core/widgets/delete_account_dialog.dart';
 import '../../../core/widgets/profile_name_text.dart';
 import '../../../core/widgets/support_dialog.dart';
 import '../../../l10n/app_localizations.dart';
+import 'widgets/avatar_picker_grid.dart';
+import 'widgets/cars_section.dart';
+import 'widgets/change_password_form.dart';
+import 'widgets/personal_info_form.dart';
 
+/// صفحة واحدة لتعديل كل ما يخص الحساب: الصورة الرمزية، البيانات الشخصية،
+/// السيارات، وكلمة المرور — بلا تنقل لشاشات فرعية.
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final settingsCubit = context.watch<AppSettingsCubit>();
-    final isArabic = settingsCubit.state.locale.languageCode == 'ar';
     final l10n = AppLocalizations.of(context);
+
+    final profileState = context.watch<ProfileCubit>().state;
+    final AppRole? role = profileState is ProfileLoaded
+        ? AppRole.tryParse(profileState.profile.role)
+        : null;
+    final String? avatarId =
+        profileState is ProfileLoaded ? profileState.profile.avatarId : null;
+    final String? photoUrl =
+        profileState is ProfileLoaded ? profileState.profile.avatarUrl : null;
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
@@ -48,265 +57,155 @@ class ProfileScreen extends StatelessWidget {
         centerTitle: true,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 20),
-            BlocBuilder<ProfileCubit, ProfileState>(
-              builder: (context, state) {
-                // الدور يأتي من profile فقط — لا افتراضي car_owner. بدون دور
-                // صالح نعطّل فتح شاشة اختيار الصورة بدل توجيه خاطئ.
-                final AppRole? role = state is ProfileLoaded
-                    ? AppRole.tryParse(state.profile.role)
-                    : null;
-                final String? avatarId =
-                    state is ProfileLoaded ? state.profile.avatarId : null;
-                final String? photoUrl =
-                    state is ProfileLoaded ? state.profile.avatarUrl : null;
-                return GestureDetector(
-                  onTap: role == null
-                      ? null
-                      : () =>
-                          context.push('/profile/avatar?role=${role.dbValue}'),
-                  child: AvatarWidget(
+            const SizedBox(height: 8),
+            Center(
+              child: Column(
+                children: [
+                  AvatarWidget(
                     avatarId: avatarId,
                     role: role?.dbValue ?? '',
-                    size: 100,
+                    size: 96,
                     photoUrl: photoUrl,
                   ),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-            // أثناء تحميل الملف الشخصي نعرض شيمر مكان الاسم مع إعادة
-            // محاولة عند الخطأ — لا نص مؤقت من user_metadata.
-            ProfileNameText(
-              emptyFallback: l10n?.myAccount ?? 'حسابي',
-              skeletonWidth: 180,
-              skeletonHeight: 36,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Zain',
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              l10n?.editPersonalInfo ?? 'اضغط على الصورة لتغييرها',
-              style: TextStyle(
-                fontFamily: 'Cairo',
-                fontSize: 13,
-                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-              ),
-            ),
-            const SizedBox(height: 32),
-            _buildProfileCardGroup(
-              isDark: isDark,
-              children: [
-                _buildProfileOptionItem(
-                  context,
-                  icon: Icons.person_outline_rounded,
-                  title: l10n?.editPersonalInfo ?? 'تعديل البيانات الشخصية',
-                  isDark: isDark,
-                  onTap: () => context.push('/profile/edit'),
-                ),
-                _buildProfileOptionItem(
-                  context,
-                  icon: Icons.directions_car_outlined,
-                  title: l10n?.manageCars ?? 'إدارة السيارات',
-                  isDark: isDark,
-                  onTap: () => context.push('/profile/cars'),
-                ),
-                _buildProfileOptionItem(
-                  context,
-                  icon: Icons.lock_outline_rounded,
-                  title: l10n?.changePassword ?? 'تغيير كلمة المرور',
-                  isDark: isDark,
-                  onTap: () => context.push('/profile/change-password'),
-                ),
-                _buildProfileOptionItem(
-                  context,
-                  icon: Icons.language_rounded,
-                  title: '${l10n?.languageLabel ?? 'اللغة'}: ${l10n?.currentLanguage ?? (isArabic ? 'العربية' : 'English')}',
-                  isDark: isDark,
-                  onTap: () => settingsCubit.toggleLocale(),
-                ),
-                _buildProfileOptionItem(
-                  context,
-                  icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                  title: isArabic ? (l10n?.lightMode ?? 'الوضع الفاتح') : (l10n?.darkMode ?? 'الوضع الداكن'),
-                  isDark: isDark,
-                  onTap: () => settingsCubit.toggleTheme(),
-                ),
-                _buildProfileOptionItem(
-                  context,
-                  icon: Icons.headset_mic_outlined,
-                  title: isArabic ? 'الدعم والشكاوى والاقتراحات' : 'Support & Complaints',
-                  isDark: isDark,
-                  onTap: () => showSupportDialog(context),
-                ),
-                _buildProfileOptionItem(
-                  context,
-                  icon: Icons.description_outlined,
-                  title: l10n?.termsOfUse ?? 'شروط الاستخدام',
-                  isDark: isDark,
-                  onTap: () => context.push('/terms'),
-                ),
-                _buildProfileOptionItem(
-                  context,
-                  icon: Icons.privacy_tip_outlined,
-                  title: l10n?.privacyPolicy ?? 'سياسة الخصوصية',
-                  isDark: isDark,
-                  onTap: () => context.push('/privacy'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ListenableBuilder(
-                listenable: LogoutCoordinator.isRunning,
-                builder: (context, _) => OutlinedButton(
-                  onPressed: LogoutCoordinator.isRunning.value
-                      ? null
-                      : () async {
-                          // شاشة مشتركة بين الدورين: تحذير توقّف النشاط للمزوّد
-                          // فقط، وعند آخر جلسة فقط.
-                          final state = context.read<ProfileCubit>().state;
-                          final role = state is ProfileLoaded
-                              ? AppRole.tryParse(state.profile.role)
-                              : null;
-                          if (role == AppRole.provider) {
-                            final proceed =
-                                await confirmProviderLastSessionLogout(context);
-                            if (!proceed || !context.mounted) return;
-                          }
-                          LogoutCoordinator().logout(
-                            context: context,
-                            resetProfile:
-                                () => context.read<ProfileCubit>().reset(),
-                          );
-                        },
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.error),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                  const SizedBox(height: 14),
+                  ProfileNameText(
+                    emptyFallback: l10n?.myAccount ?? 'حسابي',
+                    skeletonWidth: 180,
+                    skeletonHeight: 32,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'Zain',
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.lightTextPrimary,
                     ),
                   ),
-                  child: LogoutCoordinator.isRunning.value
-                      ? const SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.error,
-                          ),
-                        )
-                      : Text(
-                          l10n?.logout ?? 'تسجيل الخروج',
-                          style: const TextStyle(
-                            fontFamily: 'Cairo',
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.error,
-                          ),
-                        ),
-                ),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: () => _showDeleteAccountDialog(context),
-              child: Text(
-                l10n?.deleteAccount ?? 'حذف الحساب',
-                style: const TextStyle(
-                  fontFamily: 'Cairo',
-                  fontSize: 14,
-                  color: AppColors.error,
+            const SizedBox(height: 30),
+
+            if (role != null)
+              _buildSection(
+                isDark: isDark,
+                title: l10n?.profilePhoto ?? 'الصورة الرمزية',
+                child: AvatarPickerGrid(
+                  role: role.dbValue,
+                  initialAvatarId: avatarId,
                 ),
               ),
+
+            _buildSection(
+              isDark: isDark,
+              title: l10n?.editPersonalInfo ?? 'تعديل البيانات الشخصية',
+              child: const PersonalInfoForm(),
             ),
+
+            if (role == AppRole.carOwner)
+              _buildSection(
+                isDark: isDark,
+                title: l10n?.manageCars ?? 'إدارة السيارات',
+                child: const CarsSection(),
+              ),
+
+            _buildSection(
+              isDark: isDark,
+              title: l10n?.changePassword ?? 'تغيير كلمة المرور',
+              child: const ChangePasswordForm(),
+            ),
+
+            _buildFooter(context, isDark, l10n),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildProfileCardGroup({
+  Widget _buildSection({
     required bool isDark,
-    required List<Widget> children,
+    required String title,
+    required Widget child,
   }) {
-    final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : AppColors.lightSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor, width: 1),
-      ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 28),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (int i = 0; i < children.length; i++) ...[
-            children[i],
-            if (i < children.length - 1)
-              Divider(
-                height: 1,
-                thickness: 1,
-                indent: 56,
-                endIndent: 16,
-                color: borderColor,
+          Padding(
+            padding: const EdgeInsetsDirectional.only(start: 4, bottom: 10),
+            child: Text(
+              title,
+              style: TextStyle(
+                fontFamily: 'Zain',
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: isDark
+                    ? AppColors.darkTextPrimary
+                    : AppColors.lightTextPrimary,
               ),
-          ],
+            ),
+          ),
+          child,
         ],
       ),
     );
   }
 
-  Widget _buildProfileOptionItem(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required bool isDark,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: AppColors.orangePrimary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, color: AppColors.orangePrimary, size: 20),
-      ),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontFamily: 'Cairo',
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-          color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-        ),
-      ),
-      trailing: Icon(
-        Icons.arrow_forward_ios_rounded,
-        size: 14,
-        color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-      ),
-      onTap: onTap,
-    );
-  }
+  Widget _buildFooter(
+    BuildContext context,
+    bool isDark,
+    AppLocalizations? l10n,
+  ) {
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+    final linkColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
-  Future<void> _showDeleteAccountDialog(BuildContext context) async {
-    final deleted = await showDeleteAccountDialog(
-      context,
-      authService: SupabaseAuthService(),
-    );
-    if (deleted == true && context.mounted) {
-      context.go('/select-user-type');
+    Widget link(String label, VoidCallback onTap) {
+      return GestureDetector(
+        onTap: onTap,
+        child: Text(
+          label,
+          style: TextStyle(
+            fontFamily: isArabic ? 'Cairo' : 'Poppins',
+            fontSize: 12.5,
+            color: linkColor,
+            decoration: TextDecoration.underline,
+          ),
+        ),
+      );
     }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 2, bottom: 10),
+      child: Center(
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            link(
+              l10n?.supportLink ?? 'الدعم',
+              () => showSupportDialog(context),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                '•',
+                style: TextStyle(color: linkColor.withValues(alpha: 0.5)),
+              ),
+            ),
+            link(
+              l10n?.privacyPolicy ?? 'سياسة الخصوصية',
+              () => context.push('/privacy'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

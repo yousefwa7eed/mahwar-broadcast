@@ -202,39 +202,47 @@ class AvatarWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (photoUrl != null && photoUrl!.isNotEmpty) {
-      return CircleAvatar(
-        radius: size / 2,
-        backgroundImage: NetworkImage(photoUrl!),
-        backgroundColor: Colors.grey.shade300,
-      );
-    }
-
     final avatar = avatarId != null
         ? AvatarConfig.getAvatarById(role, avatarId!)
         : null;
-    final defaultAvatar = AvatarConfig.getDefaultAvatar(role);
-    final displayAvatar = avatar ?? defaultAvatar;
+    final displayAvatar = avatar ?? AvatarConfig.getDefaultAvatar(role);
+    // مربّع ناعم الحواف بدل الدائرة — يوحّد شكل صورة العميل والمزوّد.
+    final radius = BorderRadius.circular(size * 0.28);
 
+    if (photoUrl != null && photoUrl!.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: radius,
+        child: Image.network(
+          photoUrl!,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) =>
+              _buildGradientAvatar(displayAvatar, radius),
+        ),
+      );
+    }
+
+    return _buildGradientAvatar(displayAvatar, radius);
+  }
+
+  Widget _buildGradientAvatar(AvatarOption avatar, BorderRadius radius) {
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        gradient: displayAvatar.gradient,
-        shape: BoxShape.circle,
+        gradient: avatar.gradient,
+        borderRadius: radius,
         boxShadow: [
           BoxShadow(
-            color: displayAvatar.gradient.colors.first.withValues(alpha: 0.4),
+            color: avatar.gradient.colors.first.withValues(alpha: 0.4),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Center(
-        child: Text(
-          displayAvatar.emoji,
-          style: TextStyle(fontSize: size * 0.5),
-        ),
+        child: Text(avatar.emoji, style: TextStyle(fontSize: size * 0.5)),
       ),
     );
   }

@@ -1082,6 +1082,18 @@ abstract class AppLocalizations {
   /// **'إدارة السيارات'**
   String get manageCars;
 
+  /// No description provided for @addCar.
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة سيارة'**
+  String get addCar;
+
+  /// No description provided for @profilePhoto.
+  ///
+  /// In ar, this message translates to:
+  /// **'الصورة الرمزية'**
+  String get profilePhoto;
+
   /// No description provided for @languageLabel.
   ///
   /// In ar, this message translates to:
@@ -1315,6 +1327,24 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'جاري البحث عن مزود...'**
   String get searchingProviderTitle;
+
+  /// No description provided for @orderSentToProviderTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إرسال طلبك للمزوّد'**
+  String get orderSentToProviderTitle;
+
+  /// No description provided for @orderSentToProviderSub.
+  ///
+  /// In ar, this message translates to:
+  /// **'يراجع المزوّد طلبك ويرد بعرض سعر — سيصلك إشعار فور الرد.'**
+  String get orderSentToProviderSub;
+
+  /// No description provided for @selectedProviderLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'المزوّد المختار'**
+  String get selectedProviderLabel;
 
   /// No description provided for @priceOfferReceived.
   ///
@@ -2129,6 +2159,274 @@ abstract class AppLocalizations {
   /// **'يوجد تحديث جديد لتطبيق محور'**
   String get notificationBodyDefault;
 
+  /// No description provided for @notificationTitlePriceChangeRequest.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب تعديل السعر'**
+  String get notificationTitlePriceChangeRequest;
+
+  /// No description provided for @notificationBodyPriceChangeRequest.
+  ///
+  /// In ar, this message translates to:
+  /// **'المزوّد طلب تعديل السعر من {oldPrice} {currency} إلى {newPrice} {currency}. راجع السبب وقرّر خلال 10 دقائق.'**
+  String notificationBodyPriceChangeRequest(
+    String oldPrice,
+    String newPrice,
+    String currency,
+  );
+
+  /// No description provided for @notificationTitlePriceChangeApproved.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت الموافقة على تعديل السعر'**
+  String get notificationTitlePriceChangeApproved;
+
+  /// No description provided for @notificationBodyPriceChangeApproved.
+  ///
+  /// In ar, this message translates to:
+  /// **'وافق العميل على السعر الجديد {newPrice} {currency} — أكمل التنفيذ'**
+  String notificationBodyPriceChangeApproved(String newPrice, String currency);
+
+  /// No description provided for @notificationTitlePriceChangeRejected.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم رفض تعديل السعر'**
+  String get notificationTitlePriceChangeRejected;
+
+  /// No description provided for @notificationBodyPriceChangeRejected.
+  ///
+  /// In ar, this message translates to:
+  /// **'رفض العميل السعر الجديد {newPrice} {currency}. اختر: أكمل بالسعر الأصلي أو انسحب.'**
+  String notificationBodyPriceChangeRejected(String newPrice, String currency);
+
+  /// No description provided for @notificationTitlePriceChangeContinued.
+  ///
+  /// In ar, this message translates to:
+  /// **'المزوّد سيكمل العمل'**
+  String get notificationTitlePriceChangeContinued;
+
+  /// No description provided for @notificationBodyPriceChangeContinued.
+  ///
+  /// In ar, this message translates to:
+  /// **'أبلغ المزوّد أنه سيكمل بالسعر الأصلي {price} {currency}'**
+  String notificationBodyPriceChangeContinued(String price, String currency);
+
+  /// No description provided for @notificationTitlePriceChangeExpired.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت مهلة تعديل السعر'**
+  String get notificationTitlePriceChangeExpired;
+
+  /// No description provided for @notificationBodyPriceChangeExpired.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت مهلة الرد على طلب تعديل السعر — يمكن للمزوّد الإكمال بالسعر الأصلي أو الانسحاب.'**
+  String get notificationBodyPriceChangeExpired;
+
+  /// No description provided for @notificationTitleOrderWithdrawnAfterInspection.
+  ///
+  /// In ar, this message translates to:
+  /// **'اعتذر المزوّد عن الطلب'**
+  String get notificationTitleOrderWithdrawnAfterInspection;
+
+  /// No description provided for @notificationBodyOrderWithdrawnAfterInspection.
+  ///
+  /// In ar, this message translates to:
+  /// **'انسحب المزوّد بعد الكشف على المشكلة. يمكنك اختيار مزوّد آخر لإكمال الطلب.'**
+  String get notificationBodyOrderWithdrawnAfterInspection;
+
+  /// No description provided for @priceChangeRequestTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب تعديل السعر'**
+  String get priceChangeRequestTitle;
+
+  /// No description provided for @priceChangeCurrentPrice.
+  ///
+  /// In ar, this message translates to:
+  /// **'السعر الحالي: {price} {currency}'**
+  String priceChangeCurrentPrice(String price, String currency);
+
+  /// No description provided for @priceChangeNewPriceLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'السعر الجديد'**
+  String get priceChangeNewPriceLabel;
+
+  /// No description provided for @priceChangeReasonLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'سبب التعديل'**
+  String get priceChangeReasonLabel;
+
+  /// No description provided for @priceChangeReasonHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'مثال: العطل أكبر من الوصف ويحتاج قطع غيار إضافية'**
+  String get priceChangeReasonHint;
+
+  /// No description provided for @priceChangePhotosHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف صوراً للعطل (اختياري، حتى 5 صور)'**
+  String get priceChangePhotosHint;
+
+  /// No description provided for @priceChangeSubmit.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال طلب التعديل'**
+  String get priceChangeSubmit;
+
+  /// No description provided for @priceChangeSent.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إرسال طلب التعديل — بانتظار رد العميل'**
+  String get priceChangeSent;
+
+  /// No description provided for @priceChangeOnlyOnce.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن إرسال طلب تعديل جديد — يوجد طلب تعديل لهذا الطلب بالفعل.'**
+  String get priceChangeOnlyOnce;
+
+  /// No description provided for @priceChangeInvalidNewPrice.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل سعراً صحيحاً ومختلفاً عن السعر الحالي.'**
+  String get priceChangeInvalidNewPrice;
+
+  /// No description provided for @priceChangePendingHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبت تعديل السعر — بانتظار رد العميل'**
+  String get priceChangePendingHint;
+
+  /// No description provided for @priceChangeRejectedTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'رفض العميل السعر الجديد'**
+  String get priceChangeRejectedTitle;
+
+  /// No description provided for @priceChangeContinueOriginal.
+  ///
+  /// In ar, this message translates to:
+  /// **'أكمل بالسعر الأصلي'**
+  String get priceChangeContinueOriginal;
+
+  /// No description provided for @priceChangeWithdraw.
+  ///
+  /// In ar, this message translates to:
+  /// **'انسحب من الطلب'**
+  String get priceChangeWithdraw;
+
+  /// No description provided for @priceChangeWithdrawConfirmTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'الانسحاب من الطلب؟'**
+  String get priceChangeWithdrawConfirmTitle;
+
+  /// No description provided for @priceChangeWithdrawConfirmBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'سيُنهى الطلب ويختار العميل مزوّداً آخر. لا يمكن التراجع.'**
+  String get priceChangeWithdrawConfirmBody;
+
+  /// No description provided for @priceChangeWithdrawConfirmLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'نعم، انسحب'**
+  String get priceChangeWithdrawConfirmLabel;
+
+  /// No description provided for @priceChangeContinuedToast.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم — سيستمر الطلب بالسعر الأصلي'**
+  String get priceChangeContinuedToast;
+
+  /// No description provided for @priceChangeWithdrawnToast.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الانسحاب من الطلب'**
+  String get priceChangeWithdrawnToast;
+
+  /// No description provided for @priceChangeRequest.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب تعديل السعر'**
+  String get priceChangeRequest;
+
+  /// No description provided for @priceRevisionPendingTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'المزوّد طلب تعديل السعر'**
+  String get priceRevisionPendingTitle;
+
+  /// No description provided for @priceRevisionFromTo.
+  ///
+  /// In ar, this message translates to:
+  /// **'من {oldPrice} {currency} إلى {newPrice} {currency}'**
+  String priceRevisionFromTo(String oldPrice, String newPrice, String currency);
+
+  /// No description provided for @priceRevisionReasonLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'السبب'**
+  String get priceRevisionReasonLabel;
+
+  /// No description provided for @priceRevisionApprove.
+  ///
+  /// In ar, this message translates to:
+  /// **'موافقة على السعر الجديد'**
+  String get priceRevisionApprove;
+
+  /// No description provided for @priceRevisionReject.
+  ///
+  /// In ar, this message translates to:
+  /// **'رفض السعر الجديد'**
+  String get priceRevisionReject;
+
+  /// No description provided for @priceRevisionTimeLeft.
+  ///
+  /// In ar, this message translates to:
+  /// **'مهلة الرد متبقية {time}'**
+  String priceRevisionTimeLeft(String time);
+
+  /// No description provided for @priceRevisionExpiredHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت مهلة الرد — اعتُبر التعديل مرفوضاً وسيقرّر المزوّد.'**
+  String get priceRevisionExpiredHint;
+
+  /// No description provided for @priceRevisionApprovedHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'وافقت على السعر الجديد، والطلب مستمر.'**
+  String get priceRevisionApprovedHint;
+
+  /// No description provided for @priceRevisionRejectedHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'رفضت السعر الجديد — المزوّد يختار بين الإكمال بالسعر الأصلي أو الانسحاب.'**
+  String get priceRevisionRejectedHint;
+
+  /// No description provided for @priceRevisionAwaitProvider.
+  ///
+  /// In ar, this message translates to:
+  /// **'بانتظار قرار المزوّد.'**
+  String get priceRevisionAwaitProvider;
+
+  /// No description provided for @priceRevisionContinued.
+  ///
+  /// In ar, this message translates to:
+  /// **'المزوّد سيكمل بالسعر الأصلي.'**
+  String get priceRevisionContinued;
+
+  /// No description provided for @chooseAnotherProvider.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر مزوّداً آخر'**
+  String get chooseAnotherProvider;
+
   /// No description provided for @notificationTimeNow.
   ///
   /// In ar, this message translates to:
@@ -2312,7 +2610,7 @@ abstract class AppLocalizations {
   /// No description provided for @autoCancelCountdown.
   ///
   /// In ar, this message translates to:
-  /// **'سيُلغى الطلب تلقائياً خلال 5 دقائق — متبقي {time}'**
+  /// **'مهلة رد المزوّد — سيُلغى الطلب تلقائياً بعد {time}'**
   String autoCancelCountdown(String time);
 
   /// No description provided for @tapToViewFullMap.
@@ -2555,6 +2853,18 @@ abstract class AppLocalizations {
   /// **'طلباتك الحالية'**
   String get currentOrdersTitle;
 
+  /// No description provided for @providerNewOrderBadge.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب جديد'**
+  String get providerNewOrderBadge;
+
+  /// No description provided for @providerViewOrder.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض الطلب'**
+  String get providerViewOrder;
+
   /// No description provided for @providePriceOffer.
   ///
   /// In ar, this message translates to:
@@ -2633,6 +2943,12 @@ abstract class AppLocalizations {
   /// **'إرسال الطلب لهذا المزوّد'**
   String get sendRequestToProvider;
 
+  /// No description provided for @sendRequestNote.
+  ///
+  /// In ar, this message translates to:
+  /// **'سيُرسل الطلب لهذا المزوّد فقط، وله مهلة قصيرة للرد قبل الإلغاء التلقائي.'**
+  String get sendRequestNote;
+
   /// No description provided for @providersLoadFailed.
   ///
   /// In ar, this message translates to:
@@ -2662,6 +2978,84 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'شوف الورش والمزوّدين المتاحين حوالين موقعك'**
   String get nearbyMapEntrySubtitle;
+
+  /// No description provided for @ownerMapPreviewHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'انقر لرؤية الخدمات حواليك'**
+  String get ownerMapPreviewHint;
+
+  /// No description provided for @comingSoonMoreServices.
+  ///
+  /// In ar, this message translates to:
+  /// **'قريباً المزيد من الخدمات'**
+  String get comingSoonMoreServices;
+
+  /// No description provided for @homeHowItWorksTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'كيف يعمل محور؟'**
+  String get homeHowItWorksTitle;
+
+  /// No description provided for @homeHowItWorksStep1Title.
+  ///
+  /// In ar, this message translates to:
+  /// **'اطلب خدمتك'**
+  String get homeHowItWorksStep1Title;
+
+  /// No description provided for @homeHowItWorksStep1Body.
+  ///
+  /// In ar, this message translates to:
+  /// **'حدد نوع المساعدة وموقعك، واختر المزوّد اللي يناسبك'**
+  String get homeHowItWorksStep1Body;
+
+  /// No description provided for @homeHowItWorksStep2Title.
+  ///
+  /// In ar, this message translates to:
+  /// **'استلم السعر ووافق'**
+  String get homeHowItWorksStep2Title;
+
+  /// No description provided for @homeHowItWorksStep2Body.
+  ///
+  /// In ar, this message translates to:
+  /// **'المزوّد يبعت سعره، وتوافق أو ترفض براحتك'**
+  String get homeHowItWorksStep2Body;
+
+  /// No description provided for @homeHowItWorksStep3Title.
+  ///
+  /// In ar, this message translates to:
+  /// **'تابع وقيّم'**
+  String get homeHowItWorksStep3Title;
+
+  /// No description provided for @homeHowItWorksStep3Body.
+  ///
+  /// In ar, this message translates to:
+  /// **'تابع وصول المزوّد، وبعد الخدمة قيّم التجربة'**
+  String get homeHowItWorksStep3Body;
+
+  /// No description provided for @homeSupportTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'محتاج مساعدة؟'**
+  String get homeSupportTitle;
+
+  /// No description provided for @homeSupportSubtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'فريق الدعم جاهز يساعدك في أي وقت'**
+  String get homeSupportSubtitle;
+
+  /// No description provided for @currentLocationLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'موقعك الحالي'**
+  String get currentLocationLabel;
+
+  /// No description provided for @faultLocationOnMap.
+  ///
+  /// In ar, this message translates to:
+  /// **'موقع العطل موضّح على الخريطة'**
+  String get faultLocationOnMap;
 
   /// No description provided for @providersMapTitle.
   ///
@@ -2909,6 +3303,58 @@ abstract class AppLocalizations {
   /// **'تم تأكيد العرض'**
   String get transactionEventOfferConfirmed;
 
+  /// No description provided for @transactionEventPriceChangeRequested.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب المزوّد تعديل السعر بعد الكشف ({oldPrice} ← {newPrice} {currency})'**
+  String transactionEventPriceChangeRequested(
+    String oldPrice,
+    String newPrice,
+    String currency,
+  );
+
+  /// No description provided for @transactionEventPriceChangeAwaitingOwner.
+  ///
+  /// In ar, this message translates to:
+  /// **'بانتظار الرد على السعر الجديد'**
+  String get transactionEventPriceChangeAwaitingOwner;
+
+  /// No description provided for @transactionEventPriceChangeApproved.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت الموافقة على السعر الجديد'**
+  String get transactionEventPriceChangeApproved;
+
+  /// No description provided for @transactionEventPriceChangeRejected.
+  ///
+  /// In ar, this message translates to:
+  /// **'رُفض السعر الجديد'**
+  String get transactionEventPriceChangeRejected;
+
+  /// No description provided for @transactionEventPriceChangeExpired.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت مهلة الرد — اعتُبر السعر الجديد مرفوضاً'**
+  String get transactionEventPriceChangeExpired;
+
+  /// No description provided for @transactionEventPriceChangeAwaitingProvider.
+  ///
+  /// In ar, this message translates to:
+  /// **'بانتظار قرار المزوّد: الإكمال بالسعر الأصلي أو الانسحاب'**
+  String get transactionEventPriceChangeAwaitingProvider;
+
+  /// No description provided for @transactionEventPriceChangeContinued.
+  ///
+  /// In ar, this message translates to:
+  /// **'قرّر المزوّد الإكمال بالسعر الأصلي ({price} {currency})'**
+  String transactionEventPriceChangeContinued(String price, String currency);
+
+  /// No description provided for @transactionEventPriceChangeWithdrawn.
+  ///
+  /// In ar, this message translates to:
+  /// **'انسحب المزوّد بعد رفض السعر الجديد'**
+  String get transactionEventPriceChangeWithdrawn;
+
   /// No description provided for @transactionEventCompleted.
   ///
   /// In ar, this message translates to:
@@ -2939,6 +3385,12 @@ abstract class AppLocalizations {
   /// **'رفض من جهة المزوّد'**
   String get transactionFailureProvider;
 
+  /// No description provided for @transactionFailureProviderWithdrawn.
+  ///
+  /// In ar, this message translates to:
+  /// **'انسحاب المزوّد بعد رفض السعر الجديد'**
+  String get transactionFailureProviderWithdrawn;
+
   /// No description provided for @transactionFailureOwner.
   ///
   /// In ar, this message translates to:
@@ -2950,6 +3402,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إلغاء تلقائي (انتهت مهلة الاستجابة)'**
   String get transactionFailureAutoCancel;
+
+  /// No description provided for @orderTimelineTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تتبّع الطلب'**
+  String get orderTimelineTitle;
 
   /// No description provided for @apply.
   ///
@@ -3496,6 +3954,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'حدث خطأ أثناء الحفظ: {error}'**
   String errorSaving(String error);
+
+  /// No description provided for @saveFailedRetry.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذر حفظ البيانات، حاول مرة أخرى'**
+  String get saveFailedRetry;
 
   /// No description provided for @chooseAvatarTitle.
   ///
@@ -4906,6 +5370,48 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'وصلت للحد الأقصى من الرسائل اليوم. حاول مرة أخرى لاحقًا.'**
   String get rpcErrorSupportRateLimited;
+
+  /// No description provided for @rpcErrorPriceRevisionExists.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إرسال طلب تعديل سعر لهذا الطلب بالفعل، ولا يمكن إرسال طلب آخر.'**
+  String get rpcErrorPriceRevisionExists;
+
+  /// No description provided for @rpcErrorPriceRevisionNotAllowed.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن تعديل السعر في حالة الطلب الحالية.'**
+  String get rpcErrorPriceRevisionNotAllowed;
+
+  /// No description provided for @rpcErrorPriceRevisionPending.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن إكمال الطلب قبل حسم طلب تعديل السعر المعلّق.'**
+  String get rpcErrorPriceRevisionPending;
+
+  /// No description provided for @rpcErrorInvalidRevisionReason.
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب سببًا واضحًا للتعديل (3 أحرف على الأقل).'**
+  String get rpcErrorInvalidRevisionReason;
+
+  /// No description provided for @rpcErrorRevisionNotFoundOrForbidden.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب تعديل السعر غير موجود أو ليس لك صلاحية الوصول إليه.'**
+  String get rpcErrorRevisionNotFoundOrForbidden;
+
+  /// No description provided for @rpcErrorRevisionAlreadyDecided.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم حسم طلب تعديل السعر بالفعل.'**
+  String get rpcErrorRevisionAlreadyDecided;
+
+  /// No description provided for @rpcErrorInvalidRevisionChoice.
+  ///
+  /// In ar, this message translates to:
+  /// **'الخيار غير صحيح. اختر الإكمال بالسعر الأصلي أو الانسحاب.'**
+  String get rpcErrorInvalidRevisionChoice;
 
   /// No description provided for @rpcErrorUnauthenticated.
   ///
